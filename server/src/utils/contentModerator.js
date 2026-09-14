@@ -1,3 +1,4 @@
+import { createSystemNotification } from './notificationService.js';
 import crypto from 'crypto';
 import { User } from '../models/User.js';
 import { ModerationLog } from '../models/ModerationLog.js';
@@ -141,8 +142,10 @@ export async function applyStrikePipeline({
   const currentStrikes = user.moderationStrikes;
   let actionTaken = 'warning';
 
+  let strikeNotice = "";
   if (currentStrikes === 1) {
     actionTaken = 'warning';
+    strikeNotice = `⚠️ Warning: You received a moderation strike (1/3) for: "${reason || 'guideline violation'}". Accounts are permanently banned at 3 strikes.`;
   } else if (currentStrikes === 2) {
     actionTaken = 'temp_ban';
     user.isBanned = true;
@@ -150,6 +153,7 @@ export async function applyStrikePipeline({
     user.bannedAt = new Date();
     // 24-hour temporary ban
     user.banExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    strikeNotice = `🚨 Account Suspended: You received strike (2/3) for: "${reason || 'guideline violation'}". Your account is suspended for 24 hours. A 3rd strike will result in a permanent ban.`;
   } else {
     // 3 or more strikes -> Permanent ban
     actionTaken = 'permanent_ban';
@@ -157,9 +161,22 @@ export async function applyStrikePipeline({
     user.banReason = reason || `Accumulated ${currentStrikes} moderation strikes`;
     user.bannedAt = new Date();
     user.banExpiresAt = null; // null represents permanent ban
+    strikeNotice = `🛑 Account Banned: You received strike (${currentStrikes}/3) for: "${reason || 'repeated violations'}". Your account has been permanently suspended.`;
   }
 
   await user.save();
+
+  try {
+    await createSystemNotification({
+      recipientId: user._id,
+      type: "moderation_strike",
+      message: strikeNotice,
+      postId: targetPost?._id || targetPost || null,
+      commentId: targetComment?._id || targetComment || null,
+    });
+  } catch (notifErr) {
+    console.error("[Strike Notification Error]", notifErr.message);
+  }
 
   // Record in audit log
   try {

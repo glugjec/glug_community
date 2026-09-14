@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { avatarInitials, avatarColor } from '../common/avatar.js'
-import { Search, Bell, ChevronDown, LogOut, User, Settings as SettingsIcon, MessageSquare, ArrowLeft, X, CheckCheck } from 'lucide-react'
+import { Search, Bell, ChevronDown, LogOut, User, Settings as SettingsIcon, MessageSquare, ArrowLeft, X, CheckCheck, ShieldAlert, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { notificationsApi, chatApi } from '../../api.js'
 
 function formatRelativeTime(date) {
@@ -293,9 +293,13 @@ export default function TopBar() {
       notificationsCache.data = updated
     }
     setNotifOpen(false)
+    if (notif.type === 'moderation_strike') {
+      navigate('/profile')
+      return
+    }
     const targetPostId = notif.post?.id || notif.post?._id || notif.post
     if (targetPostId) {
-      navigate(`/posts/${targetPostId}`)
+      navigate(`/forum/posts/${targetPostId}`)
     }
   }
 
@@ -536,11 +540,29 @@ export default function TopBar() {
                       onClick={() => handleNotificationClick(notif)}
                     >
                       <div className="notif-avatar-wrap">
-                        <TopBarAvatar
-                          src={notif.sender?.avatar}
-                          username={notif.sender?.username}
-                          size={28}
-                        />
+                        {notif.type === 'moderation_strike' ? (
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <ShieldAlert size={16} />
+                          </div>
+                        ) : notif.type === 'moderation_review' ? (
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#eab308', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <AlertTriangle size={15} />
+                          </div>
+                        ) : notif.type === 'report_accepted' ? (
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <CheckCircle2 size={16} />
+                          </div>
+                        ) : notif.sender ? (
+                          <TopBarAvatar
+                            src={notif.sender?.avatar}
+                            username={notif.sender?.username}
+                            size={28}
+                          />
+                        ) : (
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Bell size={15} />
+                          </div>
+                        )}
                       </div>
                       <div className="notif-content">
                         <p className="notif-text">{notif.message}</p>

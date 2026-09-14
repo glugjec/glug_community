@@ -8,7 +8,7 @@ import { User } from '../models/User.js';
 import { Resource } from '../models/Resource.js';
 import { requireAuth, optionalAuth, requireAdmin } from '../middleware/auth.js';
 import { calculateNextVoteScore } from '../utils/voteCalculator.js';
-import { createNotification } from '../utils/notificationService.js';
+import { createNotification, createSystemNotification } from '../utils/notificationService.js';
 import { Report } from '../models/Report.js';
 import { ModerationLog } from '../models/ModerationLog.js';
 import { moderateContent, applyStrikePipeline } from '../utils/contentModerator.js';
@@ -445,13 +445,23 @@ router.get('/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    if (post.isHidden && req.user?.role !== 'admin') {
+    const isAuthor = req.user && String(post.author?._id || post.author) === String(req.user.id);
+    const isAdmin = req.user?.role === 'admin';
+
+    if (post.isHidden && !isAdmin && !isAuthor) {
       return res.status(404).json({ error: 'Post not found or is under moderation review' });
     }
 
     const commentFilter = { post: post._id };
-    if (req.user?.role !== 'admin') {
-      commentFilter.isHidden = { $ne: true };
+    if (!isAdmin) {
+      if (req.user) {
+        commentFilter.$or = [
+          { isHidden: { $ne: true } },
+          { author: req.user.id },
+        ];
+      } else {
+        commentFilter.isHidden = { $ne: true };
+      }
     }
 
     const comments = await Comment.find(commentFilter)
@@ -626,11 +636,17 @@ router.post('/', requireAuth, async (req, res) => {
         actionSource: 'auto_flag',
         targetPost: post,
       });
+
+      await createSystemNotification({
+        recipientId: req.user.id,
+        type: "moderation_review",
+        postId: post._id,
+        message: `Your post "${post.title}" was flagged by automated moderation and is under review. It is temporarily hidden.`,
+      });
     }
 
     const populated = await Post.findById(post._id).populate('author', 'username role avatar communityRole');
     clearServerPostsCache();
-    return res.status(201).json(populated.toJSON());
 
     const resJson = populated.toJSON();
     if (isHidden && pipelineResult) {
@@ -927,6 +943,14 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
         actionSource: 'auto_flag',
         targetComment: comment._id,
         targetPost: post._id,
+      });
+
+      await createSystemNotification({
+        recipientId: req.user.id,
+        type: "moderation_review",
+        postId: post._id,
+        commentId: comment._id,
+        message: `Your comment on "${post.title}" was flagged by automated moderation and is under review. It is temporarily hidden.`,
       });
     } else {
       post.commentCount = (post.commentCount || 0) + 1;
@@ -1250,6 +1274,20 @@ router.post('/:id/report', requireAuth, async (req, res) => {
         targetPost: post,
         performedBy: req.user.id,
       });
+
+      await createSystemNotification({
+        recipientId: req.user.id,
+        type: "report_accepted",
+        postId: post._id,
+        message: `Thank you for helping keep our community safe. Your report regarding a post was reviewed and accepted.`,
+      });
+
+      await createSystemNotification({
+        recipientId: post.author,
+        type: "report_accepted",
+        postId: post._id,
+        message: `A report on your post "${post.title}" was confirmed for violating community guidelines. The post has been hidden.`,
+      });
     }
 
     return res.status(201).json({
@@ -1339,6 +1377,22 @@ router.post('/:id/comments/:commentId/report', requireAuth, async (req, res) => 
         targetComment: comment,
         targetPost: post,
         performedBy: req.user.id,
+      });
+
+      await createSystemNotification({
+        recipientId: req.user.id,
+        type: "report_accepted",
+        postId: post._id,
+        commentId: comment._id,
+        message: `Thank you for helping keep our community safe. Your report regarding a comment was reviewed and accepted.`,
+      });
+
+      await createSystemNotification({
+        recipientId: comment.author,
+        type: "report_accepted",
+        postId: post._id,
+        commentId: comment._id,
+        message: `A report on your comment was confirmed for violating community guidelines. The comment has been hidden.`,
       });
     }
 

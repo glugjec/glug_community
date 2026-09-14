@@ -33,6 +33,7 @@ import {
   Award,
   UserPlus,
   ShieldAlert,
+  FileText,
   AlertTriangle,
   Flag,
   UserX,
@@ -146,6 +147,17 @@ export default function AdminDashboard() {
   // Moderation state
   const [modSubTab, setModSubTab] = useState("flagged"); // 'flagged' | 'reports' | 'banned' | 'logs' | 'discussions'
   const [flaggedItems, setFlaggedItems] = useState([]);
+  const [appeals, setAppeals] = useState([]);
+  const [loadingAppeals, setLoadingAppeals] = useState(false);
+  const [appealStatusFilter, setAppealStatusFilter] = useState("pending");
+  const [appealToResolve, setAppealToResolve] = useState(null);
+  const [appealResolveForm, setAppealResolveForm] = useState({
+    status: "approved",
+    adminNotes: "",
+    restoreContent: true,
+    decrementStrike: true,
+  });
+  const [isResolvingAppeal, setIsResolvingAppeal] = useState(false);
   const [loadingFlagged, setLoadingFlagged] = useState(false);
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
@@ -329,6 +341,36 @@ export default function AdminDashboard() {
       showToast(err.message || "Failed to load flagged content", "error");
     } finally {
       setLoadingFlagged(false);
+    }
+  };
+
+  const loadAppeals = async () => {
+    setLoadingAppeals(true);
+    try {
+      const res = await adminApi.getAppeals({ status: appealStatusFilter });
+      setAppeals(res.appeals || []);
+    } catch (err) {
+      showToast(err.message || "Failed to load appeals", "error");
+    } finally {
+      setLoadingAppeals(false);
+    }
+  };
+
+  const handleResolveAppealSubmit = async (e) => {
+    e.preventDefault();
+    if (!appealToResolve) return;
+
+    setIsResolvingAppeal(true);
+    try {
+      const res = await adminApi.resolveAppeal(appealToResolve.id || appealToResolve._id, appealResolveForm);
+      showToast(res.message || "Appeal resolved successfully", "success");
+      setAppealToResolve(null);
+      loadAppeals();
+      loadStats();
+    } catch (err) {
+      showToast(err.message || "Failed to resolve appeal", "error");
+    } finally {
+      setIsResolvingAppeal(false);
     }
   };
 
@@ -1300,6 +1342,19 @@ export default function AdminDashboard() {
             </button>
             <button
               type="button"
+              className={`admin-subtab-btn ${modSubTab === "appeals" ? "active" : ""}`}
+              onClick={() => setModSubTab("appeals")}
+            >
+              <FileText size={15} />
+              <span>Appeals</span>
+              {(stats.pendingAppealsCount || appeals.filter((a) => a.status === "pending").length) > 0 && (
+                <span className="subtab-count-pill warning">
+                  {stats.pendingAppealsCount || appeals.filter((a) => a.status === "pending").length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
               className={`admin-subtab-btn ${modSubTab === "banned" ? "active" : ""}`}
               onClick={() => setModSubTab("banned")}
             >
@@ -1375,97 +1430,134 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
                     ) : (
-                      flaggedItems.map((item) => (
-                        <tr key={`${item.itemType}-${item.id}`}>
-                          <td className="admin-post-cell">
-                            <div className="admin-post-title-wrap">
-                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                <span className={`admin-badge ${item.itemType === "post" ? "pinned" : "neutral"}`}>
-                                  {item.itemType === "post" ? "Post" : "Comment"}
+                      flaggedItems.map((item) => {
+                        const postTargetId = item.itemType === "post" ? (item.id || item._id) : (item.postId || item.post);
+                        return (
+                          <tr key={`${item.itemType}-${item.id || item._id}`}>
+                            <td className="admin-post-cell">
+                              <div className="admin-post-title-wrap">
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                  <span className={`admin-badge ${item.itemType === "post" ? "pinned" : "neutral"}`}>
+                                    {item.itemType === "post" ? "Post" : "Comment"}
+                                  </span>
+                                  <span className="admin-badge locked" style={{ fontSize: "0.72rem", padding: "1px 6px" }}>
+                                    Restricted
+                                  </span>
+                                  {postTargetId ? (
+                                    <Link
+                                      to={`/forum/posts/${postTargetId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="admin-post-title"
+                                      style={{ fontSize: "0.95rem", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                      title="View post on forum"
+                                    >
+                                      {item.title || (item.body ? (item.body.length > 50 ? item.body.substring(0, 50) + "..." : item.body) : "[No content]")}
+                                      <ExternalLink size={12} />
+                                    </Link>
+                                  ) : (
+                                    <span className="admin-post-title" style={{ fontSize: "0.95rem" }}>
+                                      {item.title || (item.body ? (item.body.length > 50 ? item.body.substring(0, 50) + "..." : item.body) : "[No content]")}
+                                    </span>
+                                  )}
+                                </div>
+                                {item.postTitle && (
+                                  <span className="admin-date-subtext">
+                                    On discussion: {postTargetId ? (
+                                      <Link to={`/forum/posts/${postTargetId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa" }}>
+                                        <em>{item.postTitle}</em>
+                                      </Link>
+                                    ) : (
+                                      <em>{item.postTitle}</em>
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="admin-user-cell">
+                                <AdminUserAvatar src={item.author?.avatar} username={item.author?.username} />
+                                <div className="admin-user-info">
+                                  <span className="admin-username">@{item.author?.username || "unknown"}</span>
+                                  <span className="admin-date-subtext">
+                                    Strikes: <strong>{item.author?.strikes || 0}</strong>
+                                    {item.author?.isBanned ? " (Banned)" : ""}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                <span className="admin-badge locked" style={{ alignSelf: "flex-start", textTransform: "uppercase" }}>
+                                  {item.moderationCategory || "abuse"}
                                 </span>
-                                <span className="admin-post-title" style={{ fontSize: "0.95rem" }}>
-                                  {item.title || (item.body ? (item.body.length > 50 ? item.body.substring(0, 50) + "..." : item.body) : "[No content]")}
+                                <span style={{ fontSize: "0.8rem", color: "#f87171", maxWidth: "260px", lineHeight: "1.3" }}>
+                                  {item.moderationReason}
                                 </span>
                               </div>
-                              {item.postTitle && (
-                                <span className="admin-date-subtext">
-                                  On discussion: <em>{item.postTitle}</em>
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="admin-user-cell">
-                              <AdminUserAvatar src={item.author?.avatar} username={item.author?.username} />
-                              <div className="admin-user-info">
-                                <span className="admin-username">@{item.author?.username || "unknown"}</span>
-                                <span className="admin-date-subtext">
-                                  Strikes: <strong>{item.author?.strikes || 0}</strong>
-                                  {item.author?.isBanned ? " (Banned)" : ""}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                              <span className="admin-badge locked" style={{ alignSelf: "flex-start", textTransform: "uppercase" }}>
-                                {item.moderationCategory || "abuse"}
+                            </td>
+                            <td>
+                              <span className="admin-date-subtext">
+                                {new Date(item.hiddenAt || item.createdAt).toLocaleString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </span>
-                              <span style={{ fontSize: "0.8rem", color: "#f87171", maxWidth: "260px", lineHeight: "1.3" }}>
-                                {item.moderationReason}
-                              </span>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="admin-date-subtext">
-                              {new Date(item.hiddenAt || item.createdAt).toLocaleString(undefined, {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </td>
-                          <td className="admin-td-actions">
-                            <div className="admin-actions-row">
-                              <button
-                                type="button"
-                                className="admin-icon-btn secondary"
-                                onClick={() => setViewItemModal(item)}
-                                title="Inspect flagged content details"
-                              >
-                                <Eye size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className="admin-icon-btn active"
-                                onClick={() => handleRestoreItem(item)}
-                                title="Restore item to public view (unhide)"
-                              >
-                                <RotateCcw size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className="admin-icon-btn danger"
-                                onClick={() => handleDeleteFlaggedItem(item)}
-                                title="Delete item permanently"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                              {item.author && !item.author.isBanned && item.author.role !== "admin" && (
+                            </td>
+                            <td className="admin-td-actions">
+                              <div className="admin-actions-row">
+                                {postTargetId && (
+                                  <Link
+                                    to={`/forum/posts/${postTargetId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="admin-icon-btn secondary"
+                                    title="View post on forum"
+                                  >
+                                    <ExternalLink size={14} />
+                                  </Link>
+                                )}
+                                <button
+                                  type="button"
+                                  className="admin-icon-btn secondary"
+                                  onClick={() => setViewItemModal(item)}
+                                  title="Inspect flagged content details"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-icon-btn active"
+                                  onClick={() => handleRestoreItem(item)}
+                                  title="Restore item to public view (unhide)"
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
                                 <button
                                   type="button"
                                   className="admin-icon-btn danger"
-                                  onClick={() => setBanUserModalTarget(item.author)}
-                                  title="Ban offending user"
+                                  onClick={() => handleDeleteFlaggedItem(item)}
+                                  title="Delete item permanently"
                                 >
-                                  <UserX size={14} />
+                                  <Trash2 size={14} />
                                 </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                                {item.author && !item.author.isBanned && item.author.role !== "admin" && (
+                                  <button
+                                    type="button"
+                                    className="admin-icon-btn danger"
+                                    onClick={() => setBanUserModalTarget(item.author)}
+                                    title="Ban offending user"
+                                  >
+                                    <UserX size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -1532,112 +1624,349 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
                     ) : (
-                      reports.map((r) => (
-                        <tr key={r.id}>
-                          <td className="admin-post-cell">
-                            <div className="admin-post-title-wrap">
-                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
-                                  {r.contentType}
-                                </span>
-                                <span className="admin-post-title" style={{ fontSize: "0.88rem" }}>
-                                  {r.contentPreview?.title || r.contentPreview?.body || r.contentPreview?.text || "[Removed]"}
+                      reports.map((r) => {
+                        const reportPostId = r.contentPreview?.postId || (r.contentType === "post" ? r.contentPreview?.id : null);
+                        return (
+                          <tr key={r.id}>
+                            <td className="admin-post-cell">
+                              <div className="admin-post-title-wrap">
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                                  <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
+                                    {r.contentType}
+                                  </span>
+                                  {reportPostId ? (
+                                    <Link
+                                      to={`/forum/posts/${reportPostId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="admin-post-title"
+                                      style={{ fontSize: "0.88rem", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                      title="View reported content on forum"
+                                    >
+                                      {r.contentPreview?.title || r.contentPreview?.body || r.contentPreview?.text || "[Removed]"}
+                                      <ExternalLink size={11} />
+                                    </Link>
+                                  ) : (
+                                    <span className="admin-post-title" style={{ fontSize: "0.88rem" }}>
+                                      {r.contentPreview?.title || r.contentPreview?.body || r.contentPreview?.text || "[Removed]"}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="admin-date-subtext">
+                                  Reason: <em>"{r.userReason}"</em>
                                 </span>
                               </div>
-                              <span className="admin-date-subtext">
-                                Reason: <em>"{r.userReason}"</em>
+                            </td>
+                            <td>
+                              <span className="admin-author-text">@{r.reporter?.username || "unknown"}</span>
+                            </td>
+                            <td>
+                              <div className="admin-user-cell">
+                                <div className="admin-user-info">
+                                  <span className="admin-username">@{r.targetAuthor?.username || "unknown"}</span>
+                                  <span className="admin-date-subtext">
+                                    Strikes: {r.targetAuthor?.strikes || 0}
+                                    {r.targetAuthor?.isBanned ? " (Banned)" : ""}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                <span
+                                  className="admin-badge"
+                                  style={{
+                                    background: r.aiVerdict === "VIOLATION" ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                                    color: r.aiVerdict === "VIOLATION" ? "#ef4444" : "#10b981",
+                                    border: r.aiVerdict === "VIOLATION" ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(16, 185, 129, 0.3)",
+                                    alignSelf: "flex-start",
+                                  }}
+                                >
+                                  {r.aiVerdict || "PENDING"} {r.aiCategory ? `(${r.aiCategory})` : ""}
+                                </span>
+                                <span style={{ fontSize: "0.78rem", color: "#94a3b8", maxWidth: "240px", lineHeight: "1.25" }}>
+                                  {r.aiReason || "No AI feedback"}
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                className="admin-badge"
+                                style={{
+                                  background:
+                                    r.status === "pending"
+                                      ? "rgba(245, 158, 11, 0.15)"
+                                      : r.status === "confirmed"
+                                      ? "rgba(239, 68, 68, 0.15)"
+                                      : "rgba(100, 116, 139, 0.15)",
+                                  color:
+                                    r.status === "pending"
+                                      ? "#fbbf24"
+                                      : r.status === "confirmed"
+                                      ? "#f87171"
+                                      : "#94a3b8",
+                                  textTransform: "capitalize",
+                                }}
+                              >
+                                {r.status}
                               </span>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="admin-author-text">@{r.reporter?.username || "unknown"}</span>
-                          </td>
+                            </td>
+                            <td className="admin-td-actions">
+                              <div className="admin-actions-row">
+                                {reportPostId && (
+                                  <Link
+                                    to={`/forum/posts/${reportPostId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="admin-icon-btn secondary"
+                                    title="View reported post in new tab"
+                                  >
+                                    <ExternalLink size={14} />
+                                  </Link>
+                                )}
+                                <button
+                                  type="button"
+                                  className="admin-icon-btn secondary"
+                                  onClick={() =>
+                                    setViewItemModal({
+                                      contentType: r.contentType,
+                                      body: r.contentPreview?.body || r.contentPreview?.text,
+                                      title: r.contentPreview?.title,
+                                      author: r.targetAuthor,
+                                      postId: reportPostId,
+                                      moderationCategory: r.aiCategory,
+                                      moderationReason: `[Reported by @${r.reporter?.username}]: ${r.userReason} | [AI]: ${r.aiReason}`,
+                                    })
+                                  }
+                                  title="Inspect content and details"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-icon-btn active"
+                                  onClick={() => {
+                                    setOverrideForm({
+                                      newStatus: r.status === "pending" ? (r.aiVerdict === "VIOLATION" ? "confirmed" : "dismissed") : r.status,
+                                      action: "none",
+                                      applyStrike: false,
+                                      reason: "",
+                                    });
+                                    setOverrideReportTarget(r);
+                                  }}
+                                  title="Review and resolve report"
+                                >
+                                  <Edit3 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* SUBTAB: APPEALS */}
+          {modSubTab === "appeals" && (
+            <>
+              <div className="admin-toolbar">
+                <p className="admin-toolbar-desc">
+                  Member appeals against automated moderation flags and account strikes. Review appellant defenses and revoke strikes or restore content if justified.
+                </p>
+                <div className="admin-filter-group">
+                  <select
+                    className="admin-form-select"
+                    value={appealStatusFilter}
+                    onChange={(e) => setAppealStatusFilter(e.target.value)}
+                  >
+                    <option value="pending">Pending Appeals</option>
+                    <option value="approved">Approved Appeals</option>
+                    <option value="rejected">Rejected Appeals</option>
+                    <option value="all">All Appeals</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="admin-secondary-btn"
+                    onClick={loadAppeals}
+                    disabled={loadingAppeals}
+                  >
+                    <RefreshCw size={14} className={loadingAppeals ? "admin-spin" : ""} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="admin-table-container">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Appellant</th>
+                      <th>Item / Strike</th>
+                      <th>Original Reason</th>
+                      <th>User Statement</th>
+                      <th>Status</th>
+                      <th className="admin-th-actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingAppeals && appeals.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="admin-table-empty">
+                          <RefreshCw className="admin-spin" size={20} />
+                          <span>Loading appeals...</span>
+                        </td>
+                      </tr>
+                    ) : appeals.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="admin-table-empty">
+                          <CheckCircle2 size={26} className="text-emerald" />
+                          <span>No moderation appeals matching this filter.</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      appeals.map((a) => (
+                        <tr key={a.id || a._id}>
                           <td>
                             <div className="admin-user-cell">
+                              <AdminUserAvatar
+                                src={a.appellant?.avatar}
+                                name={a.appellant?.username || "User"}
+                              />
                               <div className="admin-user-info">
-                                <span className="admin-username">@{r.targetAuthor?.username || "unknown"}</span>
+                                <span className="admin-username">@{a.appellant?.username || "unknown"}</span>
                                 <span className="admin-date-subtext">
-                                  Strikes: {r.targetAuthor?.strikes || 0}
-                                  {r.targetAuthor?.isBanned ? " (Banned)" : ""}
+                                  Strikes: {a.appellant?.moderationStrikes || 0}
+                                  {a.appellant?.isBanned ? " (Banned)" : ""}
                                 </span>
                               </div>
                             </div>
                           </td>
                           <td>
                             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                              <span
-                                className="admin-badge"
-                                style={{
-                                  background: r.aiVerdict === "VIOLATION" ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)",
-                                  color: r.aiVerdict === "VIOLATION" ? "#ef4444" : "#10b981",
-                                  border: r.aiVerdict === "VIOLATION" ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(16, 185, 129, 0.3)",
-                                  alignSelf: "flex-start",
-                                }}
-                              >
-                                {r.aiVerdict || "PENDING"} {r.aiCategory ? `(${r.aiCategory})` : ""}
-                              </span>
-                              <span style={{ fontSize: "0.78rem", color: "#94a3b8", maxWidth: "240px", lineHeight: "1.25" }}>
-                                {r.aiReason || "No AI feedback"}
-                              </span>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
+                                  {a.itemType}
+                                </span>
+                                {a.strikeIndex && (
+                                  <span className="admin-badge warning">
+                                    Strike #{a.strikeIndex}
+                                  </span>
+                                )}
+                              </div>
+                              {a.targetPost?.title && (
+                                <Link
+                                  to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="admin-date-subtext"
+                                  style={{ maxWidth: "200px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "3px" }}
+                                  title="Open post in new tab"
+                                >
+                                  Post: "{a.targetPost.title}" <ExternalLink size={10} />
+                                </Link>
+                              )}
+                              {a.targetComment && (
+                                <Link
+                                  to={(a.targetComment.postId || a.targetPostId) ? `/forum/posts/${a.targetComment.postId || a.targetPostId}` : "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="admin-date-subtext"
+                                  style={{ maxWidth: "200px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit", display: "inline-flex", alignItems: "center", gap: "3px" }}
+                                  title="Open post discussion in new tab"
+                                >
+                                  Comment: "{a.targetComment.bodySnippet || a.targetComment.postTitle || "Comment"}" {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} />}
+                                </Link>
+                              )}
                             </div>
+                          </td>
+                          <td>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                              <span style={{ fontSize: "0.82rem", color: "#fca5a5" }}>
+                                {a.originalReason || "Policy violation"}
+                              </span>
+                              {a.originalCategory && (
+                                <span className="admin-date-subtext" style={{ textTransform: "capitalize" }}>
+                                  Category: {a.originalCategory}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ maxWidth: "260px" }}>
+                            <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.35", whiteSpace: "pre-wrap" }}>
+                              "{a.statement}"
+                            </p>
+                            <span className="admin-date-subtext" style={{ display: "block", marginTop: "4px" }}>
+                              Submitted {new Date(a.createdAt).toLocaleDateString()}
+                            </span>
                           </td>
                           <td>
                             <span
                               className="admin-badge"
                               style={{
                                 background:
-                                  r.status === "pending"
+                                  a.status === "pending"
                                     ? "rgba(245, 158, 11, 0.15)"
-                                    : r.status === "confirmed"
-                                    ? "rgba(239, 68, 68, 0.15)"
-                                    : "rgba(100, 116, 139, 0.15)",
+                                    : a.status === "approved"
+                                    ? "rgba(16, 185, 129, 0.15)"
+                                    : "rgba(239, 68, 68, 0.15)",
                                 color:
-                                  r.status === "pending"
+                                  a.status === "pending"
                                     ? "#fbbf24"
-                                    : r.status === "confirmed"
-                                    ? "#f87171"
-                                    : "#94a3b8",
+                                    : a.status === "approved"
+                                    ? "#34d399"
+                                    : "#f87171",
                                 textTransform: "capitalize",
                               }}
                             >
-                              {r.status}
+                              {a.status === "pending" ? "Pending Review" : a.status}
                             </span>
+                            {a.adminNotes && (
+                              <span className="admin-date-subtext" style={{ display: "block", marginTop: "3px" }}>
+                                Note: {a.adminNotes}
+                              </span>
+                            )}
                           </td>
                           <td className="admin-td-actions">
-                            <div className="admin-actions-row">
-                              <button
-                                type="button"
-                                className="admin-icon-btn secondary"
-                                onClick={() =>
-                                  setViewItemModal({
-                                    contentType: r.contentType,
-                                    body: r.contentPreview?.body || r.contentPreview?.text,
-                                    title: r.contentPreview?.title,
-                                    author: r.targetAuthor,
-                                    moderationCategory: r.aiCategory,
-                                    moderationReason: `[Reported by @${r.reporter?.username}]: ${r.userReason} | [AI]: ${r.aiReason}`,
-                                  })
-                                }
-                                title="Inspect content and details"
-                              >
-                                <Eye size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className="admin-icon-btn active"
-                                onClick={() => {
-                                  setOverrideForm({
-                                    newStatus: r.status === "pending" ? (r.aiVerdict === "VIOLATION" ? "confirmed" : "dismissed") : r.status,
-                                    action: "none",
-                                    applyStrike: false,
-                                    reason: "",
-                                  });
-                                  setOverrideReportTarget(r);
-                                }}
-                                title="Review and resolve report"
-                              >
-                                <Edit3 size={14} />
-                              </button>
+                            <div className="admin-actions-cell" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              {(a.targetPostId || a.targetPost?.id || a.targetComment?.postId) && (
+                                <Link
+                                  to={`/forum/posts/${a.targetPostId || a.targetPost?.id || a.targetComment?.postId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="admin-icon-btn secondary"
+                                  title="View post on forum"
+                                >
+                                  <ExternalLink size={13} />
+                                </Link>
+                              )}
+                              {a.status === "pending" ? (
+                                <button
+                                  type="button"
+                                  className="admin-action-btn primary"
+                                  onClick={() => {
+                                    setAppealToResolve(a);
+                                    setAppealResolveForm({
+                                      status: "approved",
+                                      adminNotes: "",
+                                      restoreContent: true,
+                                      decrementStrike: true,
+                                    });
+                                  }}
+                                  title="Review & resolve appeal"
+                                  style={{ gap: "4px", padding: "5px 10px", fontSize: "0.78rem" }}
+                                >
+                                  <Edit3 size={13} />
+                                  <span>Resolve</span>
+                                </button>
+                              ) : (
+                                <span className="admin-date-subtext">
+                                  Resolved by @{a.resolvedBy || "admin"}
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2777,6 +3106,128 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* MODERATION MODAL: RESOLVE APPEAL */}
+      {appealToResolve && (
+        <div className="admin-modal-overlay" onClick={() => setAppealToResolve(null)}>
+          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
+            <div className="admin-modal-header">
+              <h2 className="admin-modal-title">
+                <FileText size={20} className="text-yellow" />
+                <span>Resolve Strike Appeal</span>
+              </h2>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setAppealToResolve(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleResolveAppealSubmit}>
+              <div className="admin-user-summary-box" style={{ marginBottom: "14px" }}>
+                <span className="admin-username">@{appealToResolve.appellant?.username}</span>
+                <span className="admin-date-subtext">
+                  Current Strikes: {appealToResolve.appellant?.moderationStrikes || 0}
+                  {appealToResolve.appellant?.isBanned ? " (Account Suspended)" : ""}
+                </span>
+                <p style={{ margin: "8px 0 0 0", fontSize: "0.85rem", fontStyle: "italic", color: "#f8fafc" }}>
+                  "{appealToResolve.statement}"
+                </p>
+              </div>
+
+              <div className="admin-form-group">
+                <label className="admin-form-label">Decision *</label>
+                <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+                  <button
+                    type="button"
+                    className={`admin-filter-pill ${appealResolveForm.status === "approved" ? "active" : ""}`}
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      background: appealResolveForm.status === "approved" ? "#10b981" : "rgba(255,255,255,0.06)",
+                      borderColor: appealResolveForm.status === "approved" ? "#10b981" : "transparent",
+                      color: "#fff",
+                    }}
+                    onClick={() => setAppealResolveForm({ ...appealResolveForm, status: "approved" })}
+                  >
+                    ✓ Approve Appeal
+                  </button>
+                  <button
+                    type="button"
+                    className={`admin-filter-pill ${appealResolveForm.status === "rejected" ? "active" : ""}`}
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      background: appealResolveForm.status === "rejected" ? "#ef4444" : "rgba(255,255,255,0.06)",
+                      borderColor: appealResolveForm.status === "rejected" ? "#ef4444" : "transparent",
+                      color: "#fff",
+                    }}
+                    onClick={() => setAppealResolveForm({ ...appealResolveForm, status: "rejected" })}
+                  >
+                    ✗ Deny Appeal
+                  </button>
+                </div>
+              </div>
+
+              {appealResolveForm.status === "approved" && (
+                <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "8px", padding: "10px 14px", margin: "14px 0", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "0.85rem", color: "#f8fafc" }}>
+                    <input
+                      type="checkbox"
+                      checked={appealResolveForm.decrementStrike}
+                      onChange={(e) => setAppealResolveForm({ ...appealResolveForm, decrementStrike: e.target.checked })}
+                    />
+                    <span>Revoke / decrement 1 moderation strike</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "0.85rem", color: "#f8fafc" }}>
+                    <input
+                      type="checkbox"
+                      checked={appealResolveForm.restoreContent}
+                      onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
+                    />
+                    <span>Restore flagged content to public view (unhide)</span>
+                  </label>
+                </div>
+              )}
+
+              <div className="admin-form-group">
+                <label className="admin-form-label">Administrator Response Note</label>
+                <textarea
+                  className="admin-form-textarea"
+                  rows={3}
+                  placeholder={appealResolveForm.status === "approved" ? "Optional message to user..." : "Reason for denying appeal (sent to user)..."}
+                  value={appealResolveForm.adminNotes}
+                  onChange={(e) => setAppealResolveForm({ ...appealResolveForm, adminNotes: e.target.value })}
+                />
+              </div>
+
+              <div className="admin-modal-actions">
+                <button
+                  type="button"
+                  className="admin-cancel-btn"
+                  disabled={isResolvingAppeal}
+                  onClick={() => setAppealToResolve(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="admin-primary-btn"
+                  disabled={isResolvingAppeal}
+                  style={{
+                    background: appealResolveForm.status === "approved" ? "#10b981" : "#ef4444",
+                    borderColor: appealResolveForm.status === "approved" ? "#10b981" : "#ef4444",
+                  }}
+                >
+                  {isResolvingAppeal ? "Saving..." : appealResolveForm.status === "approved" ? "Approve & Revoke Strike" : "Deny Appeal"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODERATION MODAL 4: VIEW FLAGGED CONTENT */}
       {viewItemModal && (
         <div className="admin-modal-overlay" onClick={() => setViewItemModal(null)}>
@@ -2821,7 +3272,20 @@ export default function AdminDashboard() {
                 <p className="text-muted">No text content.</p>
               )}
             </div>
-            <div className="admin-modal-actions" style={{ marginTop: "16px" }}>
+            <div className="admin-modal-actions" style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                {(viewItemModal.postId || (viewItemModal.itemType === "post" ? (viewItemModal.id || viewItemModal._id) : null)) && (
+                  <Link
+                    to={`/forum/posts/${viewItemModal.postId || (viewItemModal.itemType === "post" ? (viewItemModal.id || viewItemModal._id) : null)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="admin-secondary-btn"
+                    style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <ExternalLink size={14} /> Open Post Discussion
+                  </Link>
+                )}
+              </div>
               <button
                 type="button"
                 className="admin-cancel-btn"

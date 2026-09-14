@@ -16,6 +16,8 @@ const moderationLogSchema = new mongoose.Schema(
         'reset_strikes',
         'report_dismissed',
         'report_override',
+        'appeal_approved',
+        'appeal_rejected',
       ],
       required: true,
       index: true,

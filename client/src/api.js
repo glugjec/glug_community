@@ -137,6 +137,8 @@ export const usersApi = {
   getTerminalState: () => client.get('/users/me/terminal'),
   saveTerminalState: (state) => client.put('/users/me/terminal', state),
   search: (query) => client.get('/users/search', { params: { q: query } }),
+  getModerationHistory: () => client.get('/users/me/moderation-history'),
+  submitAppeal: (data) => client.post('/users/me/appeals', data),
 };
 
 export const resourcesApi = {
@@ -185,6 +187,8 @@ export const adminApi = {
   overrideReport: (id, data) => client.put(`/admin/moderation/reports/${id}/override`, data),
   getBannedUsers: () => client.get('/admin/moderation/banned-users'),
   getModerationLogs: (params = {}) => client.get('/admin/moderation/logs', { params }),
+  getAppeals: (params = {}) => client.get('/admin/moderation/appeals', { params }),
+  resolveAppeal: (id, data) => client.put(`/admin/moderation/appeals/${id}/resolve`, data),
 };
 
 export const uploadApi = {

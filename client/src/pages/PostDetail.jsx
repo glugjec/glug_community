@@ -37,6 +37,7 @@ import {
   Lock,
   Unlock,
   Flag,
+  ShieldAlert,
 } from 'lucide-react'
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx'
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal.jsx'
@@ -283,6 +284,23 @@ function CommentThreadItem({
             <span>Accepted Answer</span>
           </div>
         )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {comment.isHidden && (
+            <div
+              className="restricted-comment-pill"
+              title={comment.moderationReason ? `Reason: ${comment.moderationReason}` : 'Restricted by moderation'}
+            >
+              <ShieldAlert size={13} />
+              <span>Restricted</span>
+            </div>
+          )}
+          {comment.isAccepted && (
+            <div className="accepted-answer-pill">
+              <CheckCircle2 size={14} />
+              <span>Accepted Answer</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="reply-body-content">
@@ -406,6 +424,15 @@ function CommentThreadItem({
                           <span className="reply-time">{repTime}</span>
                         </div>
                       </div>
+                      {reply.isHidden && (
+                        <div
+                          className="restricted-comment-pill"
+                          title={reply.moderationReason ? `Reason: ${reply.moderationReason}` : 'Restricted by moderation'}
+                        >
+                          <ShieldAlert size={12} />
+                          <span>Restricted</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="reply-body-content yt-reply-body">
@@ -1313,6 +1340,28 @@ export default function PostDetail() {
             </header>
 
             <h1 className="discussion-title">{activePost.title}</h1>
+            {activePost.isHidden && (
+              <div className="discussion-restricted-alert">
+                <div className="restricted-badge">
+                  <ShieldAlert size={15} /> RESTRICTED CONTENT
+                </div>
+                <p className="restricted-text">
+                  This post has been flagged by moderation and is hidden from public view.
+                  {activePost.moderationReason && (
+                    <span className="restricted-reason">Reason: {activePost.moderationReason}</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            <h1 className="discussion-title">
+              {activePost.isHidden && (
+                <span className="restricted-title-tag">
+                  <ShieldAlert size={14} /> Restricted
+                </span>
+              )}
+              {activePost.title}
+            </h1>
 
             <div className="discussion-tags-list">
               {displayTags.map((tag, idx) => (

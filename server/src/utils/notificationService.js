@@ -1,7 +1,7 @@
-import { Notification } from '../models/Notification.js';
-import { User } from '../models/User.js';
-import { Post } from '../models/Post.js';
-import { mailQueue, sendNotificationMail } from '../config/mail.js';
+import { Notification } from "../models/Notification.js";
+import { User } from "../models/User.js";
+import { Post } from "../models/Post.js";
+import { mailQueue, sendNotificationMail } from "../config/mail.js";
 
 export async function createNotification({
   senderId,
@@ -9,7 +9,7 @@ export async function createNotification({
   type,
   postId,
   commentId = null,
-  commentBody = '',
+  commentBody = "",
 }) {
   try {
     if (!senderId || !recipientId || senderId.toString() === recipientId.toString()) {
@@ -17,16 +17,16 @@ export async function createNotification({
     }
 
     const [sender, recipient, post] = await Promise.all([
-      User.findById(senderId).select('username avatar role').lean(),
-      User.findById(recipientId).select('username email preferences').lean(),
-      Post.findById(postId).select('title').lean(),
+      User.findById(senderId).select("username avatar role").lean(),
+      User.findById(recipientId).select("username email preferences").lean(),
+      Post.findById(postId).select("title").lean(),
     ]);
 
     if (!sender || !recipient || !post) {
       return null;
     }
 
-    const isReply = type === 'reply';
+    const isReply = type === "reply";
     const message = isReply
       ? `${sender.username} replied to your comment on "${post.title}"`
       : `${sender.username} commented on your post "${post.title}"`;
@@ -58,13 +58,45 @@ export async function createNotification({
           })
         )
         .catch((mailErr) => {
-          console.error('[Notification Mail Error]', mailErr.message);
+          console.error("[Notification Mail Error]", mailErr.message);
         });
     }
 
     return notification;
   } catch (err) {
-    console.error('[Create Notification Error]', err.message);
+    console.error("[Create Notification Error]", err.message);
+    return null;
+  }
+}
+
+/**
+ * Creates system-level notifications (e.g. moderation reviews, strikes, report outcomes)
+ */
+export async function createSystemNotification({
+  recipientId,
+  type,
+  message,
+  postId = null,
+  commentId = null,
+}) {
+  try {
+    if (!recipientId) return null;
+
+    const recipient = await User.findById(recipientId).select("username email preferences").lean();
+    if (!recipient) return null;
+
+    const notification = await Notification.create({
+      recipient: recipientId,
+      sender: null,
+      type,
+      post: postId || null,
+      comment: commentId || null,
+      message: String(message).trim(),
+    });
+
+    return notification;
+  } catch (err) {
+    console.error("[Create System Notification Error]", err.message);
     return null;
   }
 }

@@ -1,3 +1,4 @@
+import { createSystemNotification } from '../utils/notificationService.js';
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Conversation } from '../models/Conversation.js';
@@ -325,6 +326,18 @@ router.post('/messages/:messageId/report', async (req, res) => {
         actionSource: 'report_flag',
         targetMessage: message,
         performedBy: req.user.id,
+      });
+
+      await createSystemNotification({
+        recipientId: req.user.id,
+        type: "report_accepted",
+        message: "Thank you for helping keep our community safe. Your report on a direct message was reviewed and accepted.",
+      });
+
+      await createSystemNotification({
+        recipientId: message.sender,
+        type: "report_accepted",
+        message: "A report on one of your direct messages was confirmed for violating community guidelines.",
       });
     }
 

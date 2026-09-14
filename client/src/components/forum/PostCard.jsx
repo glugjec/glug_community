@@ -3,6 +3,7 @@ import Card from '../common/Card.jsx'
 import Chip from '../common/Chip.jsx'
 import VoteButtons from './VoteButtons.jsx'
 import { Pin, MessageSquare } from 'lucide-react'
+import { Pin, MessageSquare, ShieldAlert } from 'lucide-react'
 import { avatarInitials, avatarColor } from '../common/avatar.js'
 import { getAuthorBadge } from '../../utils/badgeHelper.js'
 
@@ -43,6 +44,11 @@ export default function PostCard({ post, onTagClick }) {
             </div>
 
             <div className="post-header-badges">
+              {post.isHidden && (
+                <span className="post-restricted-badge" title="Restricted by moderation">
+                  <ShieldAlert size={12} /> Restricted
+                </span>
+              )}
               {post.isPinned && (
                 <span className="pinned-badge" title="Pinned by moderators">
                   <Pin size={13} /> Pinned

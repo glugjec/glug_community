@@ -1,31 +1,33 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const notificationSchema = new mongoose.Schema(
   {
     recipient: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
+      ref: "User",
+      required: false,
+      default: null,
     },
     type: {
       type: String,
-      enum: ['comment', 'reply'],
+      enum: ["comment", "reply", "moderation_review", "moderation_strike", "report_accepted", "system"],
       required: true,
     },
     post: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Post',
-      required: true,
+      ref: "Post",
+      required: false,
+      default: null,
     },
     comment: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Comment',
+      ref: "Comment",
       default: null,
     },
     message: {
@@ -60,4 +62,4 @@ const notificationSchema = new mongoose.Schema(
 notificationSchema.index({ recipient: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, isRead: 1 });
 
-export const Notification = mongoose.model('Notification', notificationSchema);
+export const Notification = mongoose.model("Notification", notificationSchema);

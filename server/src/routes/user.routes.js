@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { User } from '../models/User.js';
 import { Post } from '../models/Post.js';
 import { Comment } from '../models/Comment.js';
+import { Appeal } from '../models/Appeal.js';
+import { ModerationLog } from '../models/ModerationLog.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -166,6 +168,10 @@ router.get('/:id', async (req, res) => {
         comments: commentCount,
         upvotes: upvotesReceived,
       },
+      moderationStrikes: user.moderationStrikes || 0,
+      isBanned: !!user.isBanned,
+      banExpiresAt: user.banExpiresAt || null,
+      banReason: user.banReason || "",
     });
   } catch (err) {
     console.error('[Get User Profile Error]', err);
@@ -207,6 +213,201 @@ router.get('/:id/posts', async (req, res) => {
   } catch (err) {
     console.error('[Get User Posts Error]', err);
     return res.status(500).json({ error: 'Failed to fetch user posts' });
+  }
+});
+
+
+// @route   GET /api/users/me/moderation-history
+// @desc    Get user flagged content, strikes, and appeals
+router.get("/me/moderation-history", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [userDoc, flaggedPosts, flaggedComments, strikeLogs, appeals] = await Promise.all([
+      User.findById(userId).select("moderationStrikes isBanned banExpiresAt banReason").lean(),
+      Post.find({ author: userId, isHidden: true })
+        .select("title body category isHidden moderationReason moderationCategory hiddenAt createdAt")
+        .sort({ hiddenAt: -1, createdAt: -1 })
+        .lean(),
+      Comment.find({ author: userId, isHidden: true })
+        .populate("post", "title")
+        .select("body isHidden moderationReason moderationCategory hiddenAt createdAt post")
+        .sort({ hiddenAt: -1, createdAt: -1 })
+        .lean(),
+      ModerationLog.find({
+        targetUser: userId,
+        action: { $in: ["auto_flag", "report_flag", "manual_ban"] },
+      })
+        .populate("targetPost", "title")
+        .populate("targetComment", "body")
+        .populate({
+          path: "targetComment",
+          select: "body post",
+          populate: { path: "post", select: "title" },
+        })
+        .sort({ createdAt: -1 })
+        .lean(),
+      Appeal.find({ appellant: userId })
+        .populate("targetPost", "title")
+        .populate("targetComment", "body")
+        .populate({
+          path: "targetComment",
+          select: "body post",
+          populate: { path: "post", select: "title" },
+        })
+        .sort({ createdAt: -1 })
+        .lean(),
+    ]);
+
+    return res.json({
+      strikes: userDoc?.moderationStrikes || 0,
+      isBanned: !!userDoc?.isBanned,
+      banExpiresAt: userDoc?.banExpiresAt || null,
+      banReason: userDoc?.banReason || "",
+      flaggedPosts: flaggedPosts.map((p) => ({
+        id: p._id.toString(),
+        _id: p._id.toString(),
+        postId: p._id.toString(),
+        targetPostId: p._id.toString(),
+        title: p.title,
+        bodySnippet: (p.body || "").slice(0, 150),
+        category: p.category,
+        moderationReason: p.moderationReason,
+        moderationCategory: p.moderationCategory,
+        hiddenAt: p.hiddenAt || p.createdAt,
+      })),
+      flaggedComments: flaggedComments.map((c) => {
+        const postId = c.post?._id ? c.post._id.toString() : (c.post ? c.post.toString() : null);
+        return {
+          id: c._id.toString(),
+          _id: c._id.toString(),
+          postTitle: c.post?.title || "Discussion Post",
+          postId,
+          targetPostId: postId,
+          bodySnippet: (c.body || "").slice(0, 150),
+          moderationReason: c.moderationReason,
+          moderationCategory: c.moderationCategory,
+          hiddenAt: c.hiddenAt || c.createdAt,
+        };
+      }),
+      strikeLogs: strikeLogs.map((s) => {
+        const targetPostId = s.targetPost?._id
+          ? s.targetPost._id.toString()
+          : (s.targetComment?.post?._id
+              ? s.targetComment.post._id.toString()
+              : (s.targetComment?.post ? s.targetComment.post.toString() : null));
+        return {
+          id: s._id.toString(),
+          _id: s._id.toString(),
+          action: s.action,
+          reason: s.reason,
+          category: s.category,
+          details: s.details,
+          targetPostId,
+          postId: targetPostId,
+          targetPostTitle: s.targetPost?.title || s.targetComment?.post?.title || null,
+          targetCommentSnippet: s.targetComment?.body ? s.targetComment.body.slice(0, 100) : null,
+          createdAt: s.createdAt,
+        };
+      }),
+      appeals: appeals.map((a) => {
+        const targetPostId = a.targetPost?._id
+          ? a.targetPost._id.toString()
+          : (a.targetComment?.post?._id
+              ? a.targetComment.post._id.toString()
+              : (a.targetComment?.post ? a.targetComment.post.toString() : (a.targetPost ? a.targetPost.toString() : null)));
+        return {
+          id: a._id.toString(),
+          _id: a._id.toString(),
+          itemType: a.itemType,
+          targetPostId,
+          postId: targetPostId,
+          targetCommentId: a.targetComment?._id ? a.targetComment._id.toString() : (a.targetComment || null),
+          targetPostTitle: a.targetPost?.title || a.targetComment?.post?.title || null,
+          targetCommentSnippet: a.targetComment?.body ? a.targetComment.body.slice(0, 100) : null,
+          moderationLogId: a.moderationLog ? a.moderationLog.toString() : null,
+          strikeIndex: a.strikeIndex,
+          originalReason: a.originalReason,
+          originalCategory: a.originalCategory,
+          statement: a.statement,
+          status: a.status,
+          adminNotes: a.adminNotes || "",
+          resolvedAt: a.resolvedAt,
+          createdAt: a.createdAt,
+        };
+      }),
+    });
+  } catch (err) {
+    console.error("[Get Moderation History Error]", err);
+    return res.status(500).json({ error: "Failed to load moderation history" });
+  }
+});
+
+// @route   POST /api/users/me/appeals
+// @desc    Submit an appeal for a strike or flagged item
+router.post("/me/appeals", requireAuth, async (req, res) => {
+  const {
+    itemType = "strike",
+    targetPostId = null,
+    targetCommentId = null,
+    targetMessageId = null,
+    moderationLogId = null,
+    strikeIndex = 1,
+    originalReason = "",
+    originalCategory = "",
+    statement = "",
+  } = req.body;
+
+  if (!statement || typeof statement !== "string" || !statement.trim()) {
+    return res.status(400).json({ error: "Please provide an explanation statement for your appeal" });
+  }
+
+  try {
+    const userId = req.user.id;
+
+    // Check duplicate pending appeal for this specific item/strike
+    const query = {
+      appellant: userId,
+      status: "pending",
+    };
+
+    if (targetPostId) {
+      query.targetPost = targetPostId;
+    } else if (targetCommentId) {
+      query.targetComment = targetCommentId;
+    } else if (moderationLogId) {
+      query.moderationLog = moderationLogId;
+    } else {
+      query.strikeIndex = strikeIndex;
+    }
+
+    const existingPending = await Appeal.findOne(query);
+    if (existingPending) {
+      return res.status(400).json({ error: "You already have a pending appeal under review for this item" });
+    }
+
+    const appeal = await Appeal.create({
+      appellant: userId,
+      itemType,
+      targetPost: targetPostId || null,
+      targetComment: targetCommentId || null,
+      targetMessage: targetMessageId || null,
+      moderationLog: moderationLogId || null,
+      strikeIndex: Number(strikeIndex) || 1,
+      originalReason: String(originalReason).trim().slice(0, 300),
+      originalCategory: String(originalCategory).trim().slice(0, 100),
+      statement: statement.trim().slice(0, 1500),
+      status: "pending",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Your appeal has been submitted and queued for administrator review.",
+      appeal: appeal.toJSON(),
+    });
+  } catch (err) {
+    console.error("[Submit Appeal Error]", err);
+    return res.status(500).json({ error: "Failed to submit appeal" });
   }
 });
 

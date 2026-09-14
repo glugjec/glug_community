@@ -1,3 +1,4 @@
+import { createSystemNotification } from '../utils/notificationService.js';
 import { Router } from "express";
 import { User } from "../models/User.js";
 import { Post } from "../models/Post.js";
@@ -6,6 +7,7 @@ import { Vote } from "../models/Vote.js";
 import { Bookmark } from "../models/Bookmark.js";
 import { Resource } from "../models/Resource.js";
 import { Report } from "../models/Report.js";
+import { Appeal } from "../models/Appeal.js";
 import { ModerationLog } from "../models/ModerationLog.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { applyStrikePipeline } from "../utils/contentModerator.js";
@@ -36,6 +38,7 @@ router.get("/stats", async (req, res) => {
       flaggedPostsCount,
       flaggedCommentsCount,
       pendingReportsCount,
+      pendingAppealsCount,
     ] = await Promise.all([
       User.countDocuments(),
       Post.countDocuments(),
@@ -48,6 +51,7 @@ router.get("/stats", async (req, res) => {
       Post.countDocuments({ isHidden: true }),
       Comment.countDocuments({ isHidden: true }),
       Report.countDocuments({ status: "pending" }),
+      Appeal.countDocuments({ status: "pending" }),
     ]);
 
     return res.json({
@@ -842,6 +846,11 @@ router.get("/moderation/reports", async (req, res) => {
         .populate("targetAuthor", "username email avatar role moderationStrikes isBanned")
         .populate("targetPost", "title body isHidden")
         .populate("targetComment", "body isHidden")
+        .populate({
+          path: "targetComment",
+          select: "body isHidden post",
+          populate: { path: "post", select: "title" },
+        })
         .populate("targetMessage", "text")
         .populate("resolvedBy", "username")
         .sort({ createdAt: -1 })
@@ -884,6 +893,7 @@ router.get("/moderation/reports", async (req, res) => {
         r.contentType === "post"
           ? {
               id: r.targetPost?._id?.toString() || "",
+              postId: r.targetPost?._id?.toString() || "",
               title: r.targetPost?.title || "[Post Removed]",
               body: r.targetPost?.body || "",
               isHidden: Boolean(r.targetPost?.isHidden),
@@ -891,11 +901,14 @@ router.get("/moderation/reports", async (req, res) => {
           : r.contentType === "comment"
           ? {
               id: r.targetComment?._id?.toString() || "",
+              postId: r.targetComment?.post?._id?.toString() || r.targetComment?.post?.toString() || "",
+              postTitle: r.targetComment?.post?.title || "Discussion Post",
               body: r.targetComment?.body || "[Comment Removed]",
               isHidden: Boolean(r.targetComment?.isHidden),
             }
           : {
               id: r.targetMessage?._id?.toString() || "",
+              postId: null,
               text: r.targetMessage?.text || "[Message Removed]",
             },
     }));
@@ -974,6 +987,23 @@ router.put("/moderation/reports/:id/override", async (req, res) => {
         actionSource: "report_override",
         performedBy: req.user.id,
       });
+    }
+
+    if (newStatus === "confirmed") {
+      if (report.reporter) {
+        await createSystemNotification({
+          recipientId: report.reporter,
+          type: "report_accepted",
+          message: "Thank you for helping keep GLUG safe. An administrator reviewed and accepted your report.",
+        });
+      }
+      if (report.targetAuthor && (action === "hide" || applyStrike)) {
+        await createSystemNotification({
+          recipientId: report.targetAuthor,
+          type: "report_accepted",
+          message: "A report against your content was confirmed by an administrator. The content has been hidden.",
+        });
+      }
     }
 
     await ModerationLog.create({
@@ -1086,6 +1116,228 @@ router.get("/moderation/logs", async (req, res) => {
   } catch (err) {
     console.error("[Admin Get Moderation Logs Error]", err);
     return res.status(500).json({ error: "Failed to fetch moderation logs" });
+  }
+});
+
+
+// @route   GET /api/admin/moderation/appeals
+// @desc    List all moderation appeals
+router.get("/moderation/appeals", async (req, res) => {
+  const { status = "all" } = req.query;
+
+  try {
+    const filter = {};
+    if (status !== "all" && ["pending", "approved", "rejected"].includes(status)) {
+      filter.status = status;
+    }
+
+    const appeals = await Appeal.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("appellant", "username email role avatar moderationStrikes isBanned banExpiresAt")
+      .populate("resolvedBy", "username")
+      .populate("targetPost", "title body")
+      .populate("targetComment", "body")
+      .populate({
+        path: "targetComment",
+        select: "body post",
+        populate: { path: "post", select: "title" },
+      })
+      .lean();
+
+    return res.json({
+      appeals: appeals.map((a) => ({
+        id: a._id.toString(),
+        _id: a._id.toString(),
+        appellant: a.appellant
+          ? {
+              id: a.appellant._id.toString(),
+              username: a.appellant.username,
+              email: a.appellant.email,
+              role: a.appellant.role,
+              avatar: a.appellant.avatar,
+              moderationStrikes: a.appellant.moderationStrikes || 0,
+              isBanned: !!a.appellant.isBanned,
+              banExpiresAt: a.appellant.banExpiresAt,
+            }
+          : null,
+        itemType: a.itemType,
+        strikeIndex: a.strikeIndex,
+        originalReason: a.originalReason,
+        originalCategory: a.originalCategory,
+        statement: a.statement,
+        status: a.status,
+        adminNotes: a.adminNotes || "",
+        targetPost: a.targetPost
+          ? {
+              id: a.targetPost._id.toString(),
+              title: a.targetPost.title,
+              bodySnippet: (a.targetPost.body || "").slice(0, 150),
+            }
+          : null,
+        targetComment: a.targetComment
+          ? {
+              id: a.targetComment._id.toString(),
+              bodySnippet: (a.targetComment.body || "").slice(0, 150),
+            }
+          : null,
+        resolvedBy: a.resolvedBy?.username || null,
+        resolvedAt: a.resolvedAt,
+        createdAt: a.createdAt,
+      })),
+      appeals: appeals.map((a) => {
+        const targetPostId = a.targetPost?._id
+          ? a.targetPost._id.toString()
+          : (a.targetComment?.post?._id
+              ? a.targetComment.post._id.toString()
+              : (a.targetComment?.post ? a.targetComment.post.toString() : null));
+        return {
+          id: a._id.toString(),
+          _id: a._id.toString(),
+          appellant: a.appellant
+            ? {
+                id: a.appellant._id.toString(),
+                username: a.appellant.username,
+                email: a.appellant.email,
+                role: a.appellant.role,
+                avatar: a.appellant.avatar,
+                moderationStrikes: a.appellant.moderationStrikes || 0,
+                isBanned: !!a.appellant.isBanned,
+                banExpiresAt: a.appellant.banExpiresAt,
+              }
+            : null,
+          itemType: a.itemType,
+          strikeIndex: a.strikeIndex,
+          originalReason: a.originalReason,
+          originalCategory: a.originalCategory,
+          statement: a.statement,
+          status: a.status,
+          adminNotes: a.adminNotes || "",
+          targetPostId,
+          targetPost: a.targetPost
+            ? {
+                id: a.targetPost._id.toString(),
+                title: a.targetPost.title,
+                bodySnippet: (a.targetPost.body || "").slice(0, 150),
+              }
+            : null,
+          targetComment: a.targetComment
+            ? {
+                id: a.targetComment._id.toString(),
+                postId: a.targetComment.post?._id?.toString() || a.targetComment.post?.toString() || null,
+                postTitle: a.targetComment.post?.title || "Discussion Post",
+                bodySnippet: (a.targetComment.body || "").slice(0, 150),
+              }
+            : null,
+          resolvedBy: a.resolvedBy?.username || null,
+          resolvedAt: a.resolvedAt,
+          createdAt: a.createdAt,
+        };
+      }),
+    });
+  } catch (err) {
+    console.error("[Get Appeals Error]", err);
+    return res.status(500).json({ error: "Failed to fetch appeals" });
+  }
+});
+
+// @route   PUT /api/admin/moderation/appeals/:id/resolve
+// @desc    Approve or reject a moderation appeal
+router.put("/moderation/appeals/:id/resolve", async (req, res) => {
+  const { status, adminNotes = "", restoreContent = true, decrementStrike = true } = req.body;
+
+  if (!["approved", "rejected"].includes(status)) {
+    return res.status(400).json({ error: "Status must be 'approved' or 'rejected'" });
+  }
+
+  try {
+    const appeal = await Appeal.findById(req.params.id);
+    if (!appeal) {
+      return res.status(404).json({ error: "Appeal not found" });
+    }
+
+    appeal.status = status;
+    appeal.adminNotes = String(adminNotes).trim();
+    appeal.resolvedBy = req.user.id;
+    appeal.resolvedAt = new Date();
+    await appeal.save();
+
+    const appellant = await User.findById(appeal.appellant);
+
+    if (status === "approved") {
+      // 1. Decrement strike if requested
+      if (decrementStrike && appellant) {
+        appellant.moderationStrikes = Math.max(0, (appellant.moderationStrikes || 1) - 1);
+        if (appellant.isBanned && appellant.moderationStrikes < 3) {
+          appellant.isBanned = false;
+          appellant.banExpiresAt = null;
+          appellant.banReason = "";
+        }
+        await appellant.save();
+      }
+
+      // 2. Restore content if requested
+      if (restoreContent) {
+        if (appeal.targetPost) {
+          await Post.findByIdAndUpdate(appeal.targetPost, {
+            isHidden: false,
+            moderationReason: "",
+            hiddenAt: null,
+          });
+        } else if (appeal.targetComment) {
+          await Comment.findByIdAndUpdate(appeal.targetComment, {
+            isHidden: false,
+            moderationReason: "",
+            hiddenAt: null,
+          });
+        }
+      }
+
+      // 3. Log audit
+      await ModerationLog.create({
+        action: "appeal_approved",
+        performedBy: req.user.id,
+        targetUser: appeal.appellant,
+        targetPost: appeal.targetPost || null,
+        targetComment: appeal.targetComment || null,
+        reason: adminNotes || "Appeal reviewed and approved by administrator",
+        details: `Strike decremented: ${decrementStrike}. Content restored: ${restoreContent}.`,
+      });
+
+      // 4. Notify user
+      await createSystemNotification({
+        recipientId: appeal.appellant,
+        type: "report_accepted",
+        message: "Your moderation appeal has been APPROVED by an administrator. Your strike has been revoked and standing updated.",
+      });
+    } else {
+      // Rejected
+      await ModerationLog.create({
+        action: "appeal_rejected",
+        performedBy: req.user.id,
+        targetUser: appeal.appellant,
+        targetPost: appeal.targetPost || null,
+        targetComment: appeal.targetComment || null,
+        reason: adminNotes || "Appeal denied by administrator",
+        details: `Admin notes: ${adminNotes}`,
+      });
+
+      await createSystemNotification({
+        recipientId: appeal.appellant,
+        type: "system",
+        message: `Your moderation appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: status === "approved" ? "Appeal approved and strike penalty revoked" : "Appeal rejected",
+      appeal: appeal.toJSON(),
+      updatedStrikes: appellant?.moderationStrikes ?? 0,
+      isBanned: appellant?.isBanned ?? false,
+    });
+  } catch (err) {
+    console.error("[Resolve Appeal Error]", err);
+    return res.status(500).json({ error: "Failed to resolve appeal" });
   }
 });
 
