@@ -47,16 +47,7 @@ export default function App() {
             <Route path="/feed" element={<ForYou />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/terminal" element={<TerminalPage />} />
-            <Route
-              path="/resources"
-              element={
-                <PlaceholderPage
-                  title="GLUG Resources & Roadmaps"
-                  subtitle="Curated Linux roadmaps, distribution selection guides, cheat sheets, and open-source learning materials are currently in progress."
-                  icon={FileText}
-                />
-              }
-            />
+            <Route path="/resources" element={<Resources />} />
             <Route path="/compiler" element={<Compiler />} />
             <Route path="/forum" element={<Forum />} />
             <Route path="/discussions" element={<Forum />} />

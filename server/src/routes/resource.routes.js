@@ -8,7 +8,10 @@ const router = Router();
 // @desc    Get all learning resources
 router.get("/", async (req, res) => {
   try {
-    const resources = await Resource.find().sort({ order: 1, createdAt: 1 }).lean();
+    const resources = await Resource.find()
+      .populate("createdBy", "username name avatar")
+      .sort({ order: 1, createdAt: 1 })
+      .lean();
     return res.json(
       resources.map((r) => ({
         id: r._id.toString(),
@@ -18,6 +21,14 @@ router.get("/", async (req, res) => {
         items: r.items || [],
         links: r.links || [],
         order: r.order || 0,
+        author: r.createdBy
+          ? {
+              id: r.createdBy._id?.toString(),
+              username: r.createdBy.username,
+              name: r.createdBy.name,
+              avatar: r.createdBy.avatar,
+            }
+          : null,
         createdAt: r.createdAt,
       }))
     );

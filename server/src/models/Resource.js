@@ -15,8 +15,8 @@ const resourceSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["getting-started", "command-line", "sysadmin", "advanced", "tools", "tutorials"],
-      default: "getting-started",
+      trim: true,
+      default: "cs-intro",
       index: true,
     },
     items: {
