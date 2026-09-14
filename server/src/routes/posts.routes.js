@@ -9,6 +9,9 @@ import { Resource } from '../models/Resource.js';
 import { requireAuth, optionalAuth, requireAdmin } from '../middleware/auth.js';
 import { calculateNextVoteScore } from '../utils/voteCalculator.js';
 import { createNotification } from '../utils/notificationService.js';
+import { Report } from '../models/Report.js';
+import { ModerationLog } from '../models/ModerationLog.js';
+import { moderateContent, applyStrikePipeline } from '../utils/contentModerator.js';
 
 const router = Router();
 const recentViews = new Map();
@@ -76,6 +79,10 @@ router.get('/', optionalAuth, async (req, res) => {
       const bookmarks = await Bookmark.find({ user: req.user.id }).select('post').lean();
       const bookmarkedPostIds = bookmarks.map((b) => b.post);
       filter._id = { $in: bookmarkedPostIds };
+    }
+
+    if (req.user?.role !== 'admin') {
+      filter.isHidden = { $ne: true };
     }
 
     let sortCriteria = { isPinned: -1 };
@@ -150,6 +157,9 @@ router.get('/', optionalAuth, async (req, res) => {
       views: p.views || 0,
       isPinned: !!p.isPinned,
       isLocked: !!p.isLocked,
+      isHidden: !!p.isHidden,
+      moderationReason: req.user?.role === 'admin' ? p.moderationReason : undefined,
+      moderationCategory: req.user?.role === 'admin' ? p.moderationCategory : undefined,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       author: p.author
@@ -247,14 +257,15 @@ router.get('/feed', optionalAuth, async (req, res) => {
     }
 
     const poolSize = Math.min(Math.max(limit * page * 3, 100), 300);
+    const feedFilter = req.user?.role === 'admin' ? {} : { isHidden: { $ne: true } };
 
     const [recentPosts, topPosts] = await Promise.all([
-      Post.find({})
+      Post.find(feedFilter)
         .sort({ createdAt: -1 })
         .limit(poolSize)
         .populate('author', 'username role avatar communityRole')
         .lean(),
-      Post.find({})
+      Post.find(feedFilter)
         .sort({ voteScore: -1, createdAt: -1 })
         .limit(poolSize)
         .populate('author', 'username role avatar communityRole')
@@ -321,6 +332,9 @@ router.get('/feed', optionalAuth, async (req, res) => {
         views: rest.views || 0,
         isPinned: !!rest.isPinned,
         isLocked: !!rest.isLocked,
+        isHidden: !!rest.isHidden,
+        moderationReason: req.user?.role === 'admin' ? rest.moderationReason : undefined,
+        moderationCategory: req.user?.role === 'admin' ? rest.moderationCategory : undefined,
         createdAt: rest.createdAt,
         updatedAt: rest.updatedAt,
         author: rest.author
@@ -431,7 +445,16 @@ router.get('/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    const comments = await Comment.find({ post: post._id })
+    if (post.isHidden && req.user?.role !== 'admin') {
+      return res.status(404).json({ error: 'Post not found or is under moderation review' });
+    }
+
+    const commentFilter = { post: post._id };
+    if (req.user?.role !== 'admin') {
+      commentFilter.isHidden = { $ne: true };
+    }
+
+    const comments = await Comment.find(commentFilter)
       .sort({ createdAt: 1 })
       .populate('author', 'username role avatar communityRole')
       .lean();
@@ -477,6 +500,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
       views: currentViews,
       isPinned: !!post.isPinned,
       isLocked: !!post.isLocked,
+      isHidden: !!post.isHidden,
+      moderationReason: req.user?.role === 'admin' ? post.moderationReason : undefined,
+      moderationCategory: req.user?.role === 'admin' ? post.moderationCategory : undefined,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       author: post.author
@@ -507,6 +533,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
         createdAt: c.createdAt,
         voteScore: Math.max(0, c.voteScore || 0),
         userVote: commentUserVote,
+        isHidden: !!c.isHidden,
+        moderationReason: req.user?.role === 'admin' ? c.moderationReason : undefined,
+        moderationCategory: req.user?.role === 'admin' ? c.moderationCategory : undefined,
         author: c.author
           ? {
               id: c.author._id.toString(),
@@ -561,17 +590,59 @@ router.post('/', requireAuth, async (req, res) => {
     : [];
 
   try {
+    let isHidden = false;
+    let moderationReason = '';
+    let moderationCategory = '';
+    let hiddenAt = null;
+    let pipelineResult = null;
+
+    if (req.user.role !== 'admin') {
+      const modResult = await moderateContent(`${title.trim()}\n\n${body.trim()}`);
+      if (modResult.verdict === 'VIOLATION') {
+        isHidden = true;
+        moderationReason = modResult.reason || 'Violates community guidelines';
+        moderationCategory = modResult.category || 'abuse';
+        hiddenAt = new Date();
+      }
+    }
+
     const post = await Post.create({
       author: req.user.id,
       title: title.trim(),
       body: body.trim(),
       category: safeCategory,
       tags: cleanTags,
+      isHidden,
+      moderationReason,
+      moderationCategory,
+      hiddenAt,
     });
+
+    if (isHidden) {
+      pipelineResult = await applyStrikePipeline({
+        userId: req.user.id,
+        reason: moderationReason,
+        category: moderationCategory,
+        actionSource: 'auto_flag',
+        targetPost: post,
+      });
+    }
 
     const populated = await Post.findById(post._id).populate('author', 'username role avatar communityRole');
     clearServerPostsCache();
     return res.status(201).json(populated.toJSON());
+
+    const resJson = populated.toJSON();
+    if (isHidden && pipelineResult) {
+      resJson.moderation = {
+        flagged: true,
+        reason: moderationReason,
+        category: moderationCategory,
+        action: pipelineResult.action,
+        strikes: pipelineResult.strikes,
+      };
+    }
+    return res.status(201).json(resJson);
   } catch (err) {
     console.error('[Create Post Error]', err);
     return res.status(500).json({ error: 'Failed to create post' });
@@ -593,6 +664,38 @@ router.put('/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to edit this post' });
     }
 
+    let isHidden = post.isHidden;
+    let moderationReason = post.moderationReason;
+    let moderationCategory = post.moderationCategory;
+    let hiddenAt = post.hiddenAt;
+    let pipelineResult = null;
+
+    const newTitle = title?.trim() || post.title;
+    const newBody = body?.trim() || post.body;
+
+    if (req.user.role !== 'admin' && (title?.trim() || body?.trim())) {
+      const modResult = await moderateContent(`${newTitle}\n\n${newBody}`);
+      if (modResult.verdict === 'VIOLATION') {
+        isHidden = true;
+        moderationReason = modResult.reason || 'Violates community guidelines';
+        moderationCategory = modResult.category || 'abuse';
+        hiddenAt = new Date();
+
+        post.isHidden = true;
+        post.moderationReason = moderationReason;
+        post.moderationCategory = moderationCategory;
+        post.hiddenAt = hiddenAt;
+
+        pipelineResult = await applyStrikePipeline({
+          userId: req.user.id,
+          reason: moderationReason,
+          category: moderationCategory,
+          actionSource: 'auto_flag',
+          targetPost: post,
+        });
+      }
+    }
+
     if (title?.trim()) post.title = title.trim();
     if (body?.trim()) post.body = body.trim();
     if (category) post.category = category.toLowerCase();
@@ -604,6 +707,17 @@ router.put('/:id', requireAuth, async (req, res) => {
     clearServerPostsCache();
     const updated = await Post.findById(post._id).populate('author', 'username role avatar communityRole');
     return res.json(updated.toJSON());
+    const resJson = updated.toJSON();
+    if (isHidden && pipelineResult) {
+      resJson.moderation = {
+        flagged: true,
+        reason: moderationReason,
+        category: moderationCategory,
+        action: pipelineResult.action,
+        strikes: pipelineResult.strikes,
+      };
+    }
+    return res.json(resJson);
   } catch (err) {
     console.error('[Update Post Error]', err);
     return res.status(500).json({ error: 'Failed to update post' });
@@ -778,31 +892,71 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
       }
     }
 
+    let isHidden = false;
+    let moderationReason = '';
+    let moderationCategory = '';
+    let hiddenAt = null;
+    let pipelineResult = null;
+
+    if (req.user.role !== 'admin') {
+      const modResult = await moderateContent(body.trim());
+      if (modResult.verdict === 'VIOLATION') {
+        isHidden = true;
+        moderationReason = modResult.reason || 'Violates community guidelines';
+        moderationCategory = modResult.category || 'abuse';
+        hiddenAt = new Date();
+      }
+    }
+
     const comment = await Comment.create({
       post: post._id,
       author: req.user.id,
       body: body.trim(),
       parentComment: parentId,
+      isHidden,
+      moderationReason,
+      moderationCategory,
+      hiddenAt,
     });
 
-    post.commentCount = (post.commentCount || 0) + 1;
-    await post.save();
-
-    if (parent && parent.author) {
-      createNotification({
-        senderId: req.user.id,
-        recipientId: parent.author,
-        type: 'reply',
-        postId: post._id,
-        commentId: comment._id,
-        commentBody: comment.body,
+    if (isHidden) {
+      pipelineResult = await applyStrikePipeline({
+        userId: req.user.id,
+        reason: moderationReason,
+        category: moderationCategory,
+        actionSource: 'auto_flag',
+        targetComment: comment._id,
+        targetPost: post._id,
       });
+    } else {
+      post.commentCount = (post.commentCount || 0) + 1;
+      await post.save();
 
-      if (
-        post.author &&
-        post.author.toString() !== req.user.id &&
-        post.author.toString() !== parent.author.toString()
-      ) {
+      if (parent && parent.author) {
+        createNotification({
+          senderId: req.user.id,
+          recipientId: parent.author,
+          type: 'reply',
+          postId: post._id,
+          commentId: comment._id,
+          commentBody: comment.body,
+        });
+
+        if (
+          post.author &&
+          post.author.toString() !== req.user.id &&
+          post.author.toString() !== parent.author.toString()
+        ) {
+          createNotification({
+            senderId: req.user.id,
+            recipientId: post.author,
+            type: 'comment',
+            postId: post._id,
+            commentId: comment._id,
+            commentBody: comment.body,
+          });
+        }
+      } else if (post.author && post.author.toString() !== req.user.id) {
         createNotification({
           senderId: req.user.id,
           recipientId: post.author,
@@ -812,15 +966,6 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
           commentBody: comment.body,
         });
       }
-    } else if (post.author) {
-      createNotification({
-        senderId: req.user.id,
-        recipientId: post.author,
-        type: 'comment',
-        postId: post._id,
-        commentId: comment._id,
-        commentBody: comment.body,
-      });
     }
 
     const populated = await Comment.findById(comment._id).populate(
@@ -829,12 +974,14 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     );
 
     clearServerPostsCache();
-    return res.status(201).json({
+
+    const commentJson = {
       id: populated._id.toString(),
       _id: populated._id.toString(),
       body: populated.body,
       parentComment: populated.parentComment ? populated.parentComment.toString() : null,
       createdAt: populated.createdAt,
+      isHidden: !!populated.isHidden,
       author: populated.author
         ? {
             id: populated.author._id.toString(),
@@ -844,7 +991,19 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
             communityRole: populated.author.communityRole || {},
           }
         : { username: 'deleted', role: 'student', communityRole: {} },
-    });
+    };
+
+    if (isHidden && pipelineResult) {
+      commentJson.moderation = {
+        flagged: true,
+        reason: moderationReason,
+        category: moderationCategory,
+        action: pipelineResult.action,
+        strikes: pipelineResult.strikes,
+      };
+    }
+
+    return res.status(201).json(commentJson);
   } catch (err) {
     console.error('[Add Comment Error]', err);
     return res.status(500).json({ error: 'Failed to add comment' });
@@ -1033,6 +1192,171 @@ const handleVoteComment = async (req, res) => {
 
 router.post('/:id/comments/:commentId/vote', requireAuth, handleVoteComment);
 router.post('/comments/:commentId/vote', requireAuth, handleVoteComment);
+
+// @route   POST /api/posts/:id/report
+// @desc    Report a post (triggers AI check)
+router.post('/:id/report', requireAuth, async (req, res) => {
+  const { reason = '' } = req.body;
+
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (post.author.toString() === req.user.id) {
+      return res.status(400).json({ error: 'You cannot report your own post' });
+    }
+
+    // Check duplicate report
+    const existing = await Report.findOne({
+      reporter: req.user.id,
+      targetPost: post._id,
+    });
+    if (existing) {
+      return res.status(400).json({ error: 'You have already reported this post' });
+    }
+
+    // AI Check
+    const modResult = await moderateContent(`${post.title}\n\n${post.body}`);
+    const isViolation = modResult.verdict === 'VIOLATION';
+
+    const report = await Report.create({
+      reporter: req.user.id,
+      contentType: 'post',
+      targetPost: post._id,
+      targetAuthor: post.author,
+      userReason: String(reason).trim().slice(0, 500),
+      status: isViolation ? 'confirmed' : 'dismissed',
+      aiVerdict: modResult.verdict,
+      aiReason: modResult.reason || '',
+      aiCategory: modResult.category || '',
+      resolvedAt: new Date(),
+    });
+
+    if (isViolation) {
+      post.isHidden = true;
+      post.moderationReason = modResult.reason || 'Reported and flagged by AI';
+      post.moderationCategory = modResult.category || 'abuse';
+      post.hiddenAt = new Date();
+      await post.save();
+      clearServerPostsCache();
+
+      await applyStrikePipeline({
+        userId: post.author,
+        reason: post.moderationReason,
+        category: post.moderationCategory,
+        actionSource: 'report_flag',
+        targetPost: post,
+        performedBy: req.user.id,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      reportId: report._id,
+      status: report.status,
+      aiVerdict: modResult.verdict,
+      actionTaken: isViolation ? 'content_hidden' : 'reviewed_safe',
+      message: isViolation
+        ? 'Report confirmed by automated moderation. The post has been hidden.'
+        : 'Report reviewed by automated moderation and found safe with guidelines.',
+    });
+  } catch (err) {
+    console.error('[Report Post Error]', err);
+    return res.status(500).json({ error: 'Failed to submit post report' });
+  }
+});
+
+// @route   POST /api/posts/:id/comments/:commentId/report
+// @desc    Report a comment (triggers AI check)
+router.post('/:id/comments/:commentId/report', requireAuth, async (req, res) => {
+  const { reason = '' } = req.body;
+
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const comment = await Comment.findOne({
+      _id: req.params.commentId,
+      post: post._id,
+    });
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    if (comment.author.toString() === req.user.id) {
+      return res.status(400).json({ error: 'You cannot report your own comment' });
+    }
+
+    // Check duplicate report
+    const existing = await Report.findOne({
+      reporter: req.user.id,
+      targetComment: comment._id,
+    });
+    if (existing) {
+      return res.status(400).json({ error: 'You have already reported this comment' });
+    }
+
+    // AI Check
+    const modResult = await moderateContent(comment.body);
+    const isViolation = modResult.verdict === 'VIOLATION';
+
+    const report = await Report.create({
+      reporter: req.user.id,
+      contentType: 'comment',
+      targetPost: post._id,
+      targetComment: comment._id,
+      targetAuthor: comment.author,
+      userReason: String(reason).trim().slice(0, 500),
+      status: isViolation ? 'confirmed' : 'dismissed',
+      aiVerdict: modResult.verdict,
+      aiReason: modResult.reason || '',
+      aiCategory: modResult.category || '',
+      resolvedAt: new Date(),
+    });
+
+    if (isViolation) {
+      comment.isHidden = true;
+      comment.moderationReason = modResult.reason || 'Reported and flagged by AI';
+      comment.moderationCategory = modResult.category || 'abuse';
+      comment.hiddenAt = new Date();
+      await comment.save();
+
+      // Decrement post comment count for visible comments
+      const remainingCount = await Comment.countDocuments({ post: post._id, isHidden: { $ne: true } });
+      post.commentCount = remainingCount;
+      await post.save();
+      clearServerPostsCache();
+
+      await applyStrikePipeline({
+        userId: comment.author,
+        reason: comment.moderationReason,
+        category: comment.moderationCategory,
+        actionSource: 'report_flag',
+        targetComment: comment,
+        targetPost: post,
+        performedBy: req.user.id,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      reportId: report._id,
+      status: report.status,
+      aiVerdict: modResult.verdict,
+      actionTaken: isViolation ? 'content_hidden' : 'reviewed_safe',
+      message: isViolation
+        ? 'Report confirmed by automated moderation. The comment has been hidden.'
+        : 'Report reviewed by automated moderation and found safe with guidelines.',
+    });
+  } catch (err) {
+    console.error('[Report Comment Error]', err);
+    return res.status(500).json({ error: 'Failed to submit comment report' });
+  }
+});
 
 export default router;
 

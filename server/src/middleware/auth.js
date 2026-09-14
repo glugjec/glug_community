@@ -1,37 +1,80 @@
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
+import { User } from "../models/User.js";
 
 export function signToken(user) {
-  const secret = process.env.JWT_SECRET || 'glug-secret-key-development';
+  const secret = process.env.JWT_SECRET || "glug-secret-key-development";
   const id = user.id || user._id?.toString();
   return jwt.sign(
-    { id, username: user.username, role: user.role || 'student' },
+    { id, username: user.username, role: user.role || "student" },
     secret,
-    { expiresIn: '7d' }
+    { expiresIn: "7d" }
   );
 }
 
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Authentication required' });
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Authentication required" });
   }
 
-  const secret = process.env.JWT_SECRET || 'glug-secret-key-development';
+  const secret = process.env.JWT_SECRET || "glug-secret-key-development";
   try {
     const decoded = jwt.verify(header.slice(7), secret);
     req.user = decoded;
+
+    // Check user ban status in database
+    const dbUser = await User.findById(decoded.id).select("isBanned banReason banExpiresAt role");
+    if (!dbUser) {
+      return res.status(401).json({ error: "User no longer exists" });
+    }
+
+    req.user.role = dbUser.role || decoded.role;
+
+    if (dbUser.isBanned) {
+      // Check if temporary ban has expired
+      if (dbUser.banExpiresAt && new Date(dbUser.banExpiresAt) <= new Date()) {
+        dbUser.isBanned = false;
+        dbUser.banReason = "";
+        dbUser.banExpiresAt = null;
+        await dbUser.save();
+      } else {
+        return res.status(403).json({
+          error: "Your account has been suspended",
+          isBanned: true,
+          banReason: dbUser.banReason || "Violation of community guidelines",
+          banExpiresAt: dbUser.banExpiresAt,
+        });
+      }
+    }
+
     next();
   } catch {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
 
-export function optionalAuth(req, res, next) {
+export async function optionalAuth(req, res, next) {
   const header = req.headers.authorization;
-  if (header?.startsWith('Bearer ')) {
-    const secret = process.env.JWT_SECRET || 'glug-secret-key-development';
+  if (header?.startsWith("Bearer ")) {
+    const secret = process.env.JWT_SECRET || "glug-secret-key-development";
     try {
-      req.user = jwt.verify(header.slice(7), secret);
+      const decoded = jwt.verify(header.slice(7), secret);
+      req.user = decoded;
+      const dbUser = await User.findById(decoded.id).select("isBanned banReason banExpiresAt role");
+      if (dbUser) {
+        req.user.role = dbUser.role || decoded.role;
+        if (dbUser.isBanned) {
+          if (dbUser.banExpiresAt && new Date(dbUser.banExpiresAt) <= new Date()) {
+            dbUser.isBanned = false;
+            dbUser.banReason = "";
+            dbUser.banExpiresAt = null;
+            await dbUser.save();
+          } else {
+            // Treat as unauthenticated for optional auth if banned
+            req.user = null;
+          }
+        }
+      }
     } catch {
       // Ignore invalid token for optional auth
     }
@@ -40,9 +83,8 @@ export function optionalAuth(req, res, next) {
 }
 
 export function requireAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Administrator access required' });
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ error: "Administrator access required" });
   }
   next();
 }
-

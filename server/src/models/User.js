@@ -43,6 +43,27 @@ const userSchema = new mongoose.Schema(
       enum: ['student', 'admin', 'moderator'],
       default: 'student',
     },
+    isBanned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    banReason: {
+      type: String,
+      default: '',
+    },
+    bannedAt: {
+      type: Date,
+      default: null,
+    },
+    banExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    moderationStrikes: {
+      type: Number,
+      default: 0,
+    },
     bio: {
       type: String,
       default: '',

@@ -64,6 +64,23 @@ const postSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isHidden: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    moderationReason: {
+      type: String,
+      default: '',
+    },
+    moderationCategory: {
+      type: String,
+      default: '',
+    },
+    hiddenAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

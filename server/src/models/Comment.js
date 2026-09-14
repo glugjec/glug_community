@@ -42,6 +42,23 @@ const commentSchema = new mongoose.Schema(
         },
       },
     ],
+    isHidden: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    moderationReason: {
+      type: String,
+      default: '',
+    },
+    moderationCategory: {
+      type: String,
+      default: '',
+    },
+    hiddenAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

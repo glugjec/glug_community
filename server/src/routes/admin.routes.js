@@ -5,7 +5,10 @@ import { Comment } from "../models/Comment.js";
 import { Vote } from "../models/Vote.js";
 import { Bookmark } from "../models/Bookmark.js";
 import { Resource } from "../models/Resource.js";
+import { Report } from "../models/Report.js";
+import { ModerationLog } from "../models/ModerationLog.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { applyStrikePipeline } from "../utils/contentModerator.js";
 
 const router = Router();
 
@@ -29,6 +32,10 @@ router.get("/stats", async (req, res) => {
       adminCount,
       todayPosts,
       teamCount,
+      bannedUsersCount,
+      flaggedPostsCount,
+      flaggedCommentsCount,
+      pendingReportsCount,
     ] = await Promise.all([
       User.countDocuments(),
       Post.countDocuments(),
@@ -37,6 +44,10 @@ router.get("/stats", async (req, res) => {
       User.countDocuments({ role: "admin" }),
       Post.countDocuments({ createdAt: { $gte: today } }),
       User.countDocuments({ "communityRole.isMember": true }),
+      User.countDocuments({ isBanned: true }),
+      Post.countDocuments({ isHidden: true }),
+      Comment.countDocuments({ isHidden: true }),
+      Report.countDocuments({ status: "pending" }),
     ]);
 
     return res.json({
@@ -47,6 +58,11 @@ router.get("/stats", async (req, res) => {
       adminCount,
       todayPosts,
       teamCount,
+      bannedUsersCount,
+      flaggedPostsCount,
+      flaggedCommentsCount,
+      pendingReportsCount,
+      flaggedCount: flaggedPostsCount + flaggedCommentsCount,
     });
   } catch (err) {
     console.error("[Admin Stats Error]", err);
@@ -106,6 +122,11 @@ router.get("/users", async (req, res) => {
       role: u.role,
       avatar: u.avatar || "",
       communityRole: u.communityRole || {},
+      isBanned: Boolean(u.isBanned),
+      banReason: u.banReason || "",
+      bannedAt: u.bannedAt || null,
+      banExpiresAt: u.banExpiresAt || null,
+      moderationStrikes: u.moderationStrikes || 0,
       createdAt: u.createdAt,
       stats: {
         posts: postMap.get(u._id.toString()) || 0,
@@ -464,6 +485,607 @@ router.delete("/team/:userId", async (req, res) => {
   } catch (err) {
     console.error("[Admin Remove Team Member Error]", err);
     return res.status(500).json({ error: "Failed to remove member from team" });
+  }
+});
+
+// ==========================================
+// USER BAN / UNBAN MANAGEMENT
+// ==========================================
+
+// @route   PUT /api/admin/users/:id/ban
+// @desc    Manually ban a user
+router.put("/users/:id/ban", async (req, res) => {
+  const { reason = "Banned by administrator", hours = null } = req.body;
+
+  try {
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (PROTECTED_ADMIN_EMAILS.includes(targetUser.email) || targetUser.role === "admin") {
+      return res.status(403).json({ error: "Cannot ban administrators" });
+    }
+
+    if (targetUser._id.toString() === req.user.id) {
+      return res.status(400).json({ error: "Cannot ban your own account" });
+    }
+
+    targetUser.isBanned = true;
+    targetUser.banReason = String(reason).trim();
+    targetUser.bannedAt = new Date();
+    targetUser.banExpiresAt = hours ? new Date(Date.now() + Number(hours) * 3600000) : null;
+    await targetUser.save();
+
+    await ModerationLog.create({
+      action: "manual_ban",
+      performedBy: req.user.id,
+      targetUser: targetUser._id,
+      reason: targetUser.banReason,
+      details: hours ? `Temporary ban for ${hours} hours` : "Permanent ban",
+    });
+
+    return res.json({
+      success: true,
+      message: `User @${targetUser.username} has been banned`,
+      user: {
+        id: targetUser._id.toString(),
+        username: targetUser.username,
+        isBanned: targetUser.isBanned,
+        banReason: targetUser.banReason,
+        banExpiresAt: targetUser.banExpiresAt,
+      },
+    });
+  } catch (err) {
+    console.error("[Admin Ban User Error]", err);
+    return res.status(500).json({ error: "Failed to ban user" });
+  }
+});
+
+// @route   PUT /api/admin/users/:id/unban
+// @desc    Unban a user with optional strike reset
+router.put("/users/:id/unban", async (req, res) => {
+  const { resetStrikes = false } = req.body;
+
+  try {
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    targetUser.isBanned = false;
+    targetUser.banReason = "";
+    targetUser.banExpiresAt = null;
+    if (resetStrikes) {
+      targetUser.moderationStrikes = 0;
+    }
+    await targetUser.save();
+
+    await ModerationLog.create({
+      action: "manual_unban",
+      performedBy: req.user.id,
+      targetUser: targetUser._id,
+      details: resetStrikes ? "Unbanned and reset strikes to 0" : "Unbanned, strikes retained",
+    });
+
+    return res.json({
+      success: true,
+      message: `User @${targetUser.username} has been unbanned`,
+      user: {
+        id: targetUser._id.toString(),
+        username: targetUser.username,
+        isBanned: targetUser.isBanned,
+        moderationStrikes: targetUser.moderationStrikes,
+      },
+    });
+  } catch (err) {
+    console.error("[Admin Unban User Error]", err);
+    return res.status(500).json({ error: "Failed to unban user" });
+  }
+});
+
+// ==========================================
+// MODERATION HUB ENDPOINTS
+// ==========================================
+
+// @route   GET /api/admin/moderation/flagged
+// @desc    List all flagged (hidden) posts and comments
+router.get("/moderation/flagged", async (req, res) => {
+  try {
+    const { type = "all", category, page = 1, limit = 50 } = req.query;
+
+    const postFilter = { isHidden: true };
+    const commentFilter = { isHidden: true };
+
+    if (category && category !== "all") {
+      postFilter.moderationCategory = category;
+      commentFilter.moderationCategory = category;
+    }
+
+    let flaggedPosts = [];
+    let flaggedComments = [];
+
+    if (type === "all" || type === "posts") {
+      flaggedPosts = await Post.find(postFilter)
+        .populate("author", "username email avatar role communityRole moderationStrikes isBanned")
+        .sort({ hiddenAt: -1, createdAt: -1 })
+        .limit(parseInt(limit, 10))
+        .lean();
+    }
+
+    if (type === "all" || type === "comments") {
+      flaggedComments = await Comment.find(commentFilter)
+        .populate("author", "username email avatar role communityRole moderationStrikes isBanned")
+        .populate("post", "title")
+        .sort({ hiddenAt: -1, createdAt: -1 })
+        .limit(parseInt(limit, 10))
+        .lean();
+    }
+
+    const formattedPosts = flaggedPosts.map((p) => ({
+      id: p._id.toString(),
+      itemType: "post",
+      title: p.title,
+      body: p.body,
+      category: p.category,
+      moderationCategory: p.moderationCategory || "abuse",
+      moderationReason: p.moderationReason || "Flagged by automated moderation",
+      hiddenAt: p.hiddenAt || p.updatedAt,
+      createdAt: p.createdAt,
+      author: p.author
+        ? {
+            id: p.author._id.toString(),
+            username: p.author.username,
+            email: p.author.email,
+            avatar: p.author.avatar,
+            role: p.author.role,
+            strikes: p.author.moderationStrikes || 0,
+            isBanned: Boolean(p.author.isBanned),
+          }
+        : { username: "[deleted]", role: "student" },
+    }));
+
+    const formattedComments = flaggedComments.map((c) => ({
+      id: c._id.toString(),
+      itemType: "comment",
+      body: c.body,
+      postTitle: c.post?.title || "Unknown Post",
+      postId: c.post?._id?.toString() || c.post?.toString() || "",
+      moderationCategory: c.moderationCategory || "abuse",
+      moderationReason: c.moderationReason || "Flagged by automated moderation",
+      hiddenAt: c.hiddenAt || c.updatedAt,
+      createdAt: c.createdAt,
+      author: c.author
+        ? {
+            id: c.author._id.toString(),
+            username: c.author.username,
+            email: c.author.email,
+            avatar: c.author.avatar,
+            role: c.author.role,
+            strikes: c.author.moderationStrikes || 0,
+            isBanned: Boolean(c.author.isBanned),
+          }
+        : { username: "[deleted]", role: "student" },
+    }));
+
+    const allItems = [...formattedPosts, ...formattedComments].sort(
+      (a, b) => new Date(b.hiddenAt || b.createdAt) - new Date(a.hiddenAt || a.createdAt)
+    );
+
+    return res.json({
+      items: allItems,
+      totalPosts: flaggedPosts.length,
+      totalComments: flaggedComments.length,
+      total: allItems.length,
+    });
+  } catch (err) {
+    console.error("[Admin Get Flagged Error]", err);
+    return res.status(500).json({ error: "Failed to fetch flagged content" });
+  }
+});
+
+// @route   PUT /api/admin/moderation/posts/:id/restore
+// @desc    Restore (unhide) a flagged post
+router.put("/moderation/posts/:id/restore", async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    post.isHidden = false;
+    post.moderationReason = "";
+    post.moderationCategory = "";
+    post.hiddenAt = null;
+    await post.save();
+
+    await ModerationLog.create({
+      action: "restore_post",
+      performedBy: req.user.id,
+      targetUser: post.author,
+      targetPost: post._id,
+      details: `Restored post: "${post.title}"`,
+    });
+
+    return res.json({ success: true, message: "Discussion topic restored successfully" });
+  } catch (err) {
+    console.error("[Admin Restore Post Error]", err);
+    return res.status(500).json({ error: "Failed to restore post" });
+  }
+});
+
+// @route   PUT /api/admin/moderation/comments/:id/restore
+// @desc    Restore (unhide) a flagged comment
+router.put("/moderation/comments/:id/restore", async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+
+    comment.isHidden = false;
+    comment.moderationReason = "";
+    comment.moderationCategory = "";
+    comment.hiddenAt = null;
+    await comment.save();
+
+    // Recalculate post commentCount
+    const visibleCount = await Comment.countDocuments({
+      post: comment.post,
+      isHidden: { $ne: true },
+    });
+    await Post.findByIdAndUpdate(comment.post, { commentCount: visibleCount });
+
+    await ModerationLog.create({
+      action: "restore_comment",
+      performedBy: req.user.id,
+      targetUser: comment.author,
+      targetComment: comment._id,
+      targetPost: comment.post,
+      details: "Restored comment",
+    });
+
+    return res.json({ success: true, message: "Comment restored successfully" });
+  } catch (err) {
+    console.error("[Admin Restore Comment Error]", err);
+    return res.status(500).json({ error: "Failed to restore comment" });
+  }
+});
+
+// @route   DELETE /api/admin/moderation/posts/:id
+// @desc    Permanently delete a flagged post
+router.delete("/moderation/posts/:id", async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    await Promise.all([
+      Comment.deleteMany({ post: post._id }),
+      Vote.deleteMany({ post: post._id }),
+      Bookmark.deleteMany({ post: post._id }),
+      Report.deleteMany({ targetPost: post._id }),
+      Post.findByIdAndDelete(post._id),
+    ]);
+
+    await ModerationLog.create({
+      action: "delete_post",
+      performedBy: req.user.id,
+      targetUser: post.author,
+      details: `Permanently deleted flagged post: "${post.title}"`,
+    });
+
+    return res.json({ success: true, message: "Discussion and associated data permanently deleted" });
+  } catch (err) {
+    console.error("[Admin Delete Flagged Post Error]", err);
+    return res.status(500).json({ error: "Failed to delete post" });
+  }
+});
+
+// @route   DELETE /api/admin/moderation/comments/:id
+// @desc    Permanently delete a flagged comment
+router.delete("/moderation/comments/:id", async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+
+    const postId = comment.post;
+    const allIds = await getAllDescendantCommentIds(comment._id);
+    await Promise.all([
+      Comment.deleteMany({ _id: { $in: allIds } }),
+      Report.deleteMany({ targetComment: { $in: allIds } }),
+    ]);
+
+    const remainingCount = await Comment.countDocuments({
+      post: postId,
+      isHidden: { $ne: true },
+    });
+    await Post.findByIdAndUpdate(postId, { commentCount: remainingCount });
+
+    await ModerationLog.create({
+      action: "delete_comment",
+      performedBy: req.user.id,
+      targetUser: comment.author,
+      targetPost: postId,
+      details: `Permanently deleted flagged comment (and ${allIds.length - 1} replies)`,
+    });
+
+    return res.json({ success: true, message: "Comment permanently deleted" });
+  } catch (err) {
+    console.error("[Admin Delete Flagged Comment Error]", err);
+    return res.status(500).json({ error: "Failed to delete comment" });
+  }
+});
+
+// @route   GET /api/admin/moderation/reports
+// @desc    List all user-submitted reports with AI classification
+router.get("/moderation/reports", async (req, res) => {
+  try {
+    const { status, contentType, page = 1, limit = 50 } = req.query;
+    const filter = {};
+
+    if (status && ["pending", "confirmed", "dismissed"].includes(status)) {
+      filter.status = status;
+    }
+
+    if (contentType && ["post", "comment", "message"].includes(contentType)) {
+      filter.contentType = contentType;
+    }
+
+    const skip = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const [reports, total] = await Promise.all([
+      Report.find(filter)
+        .populate("reporter", "username email avatar")
+        .populate("targetAuthor", "username email avatar role moderationStrikes isBanned")
+        .populate("targetPost", "title body isHidden")
+        .populate("targetComment", "body isHidden")
+        .populate("targetMessage", "text")
+        .populate("resolvedBy", "username")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit, 10))
+        .lean(),
+      Report.countDocuments(filter),
+    ]);
+
+    const formatted = reports.map((r) => ({
+      id: r._id.toString(),
+      contentType: r.contentType,
+      userReason: r.userReason || "No explanation provided",
+      status: r.status,
+      aiVerdict: r.aiVerdict,
+      aiReason: r.aiReason,
+      aiCategory: r.aiCategory,
+      createdAt: r.createdAt,
+      resolvedAt: r.resolvedAt,
+      resolvedBy: r.resolvedBy?.username || null,
+      reporter: r.reporter
+        ? {
+            id: r.reporter._id.toString(),
+            username: r.reporter.username,
+            avatar: r.reporter.avatar,
+          }
+        : { username: "[deleted]" },
+      targetAuthor: r.targetAuthor
+        ? {
+            id: r.targetAuthor._id.toString(),
+            username: r.targetAuthor.username,
+            email: r.targetAuthor.email,
+            avatar: r.targetAuthor.avatar,
+            role: r.targetAuthor.role,
+            strikes: r.targetAuthor.moderationStrikes || 0,
+            isBanned: Boolean(r.targetAuthor.isBanned),
+          }
+        : { username: "[deleted]" },
+      contentPreview:
+        r.contentType === "post"
+          ? {
+              id: r.targetPost?._id?.toString() || "",
+              title: r.targetPost?.title || "[Post Removed]",
+              body: r.targetPost?.body || "",
+              isHidden: Boolean(r.targetPost?.isHidden),
+            }
+          : r.contentType === "comment"
+          ? {
+              id: r.targetComment?._id?.toString() || "",
+              body: r.targetComment?.body || "[Comment Removed]",
+              isHidden: Boolean(r.targetComment?.isHidden),
+            }
+          : {
+              id: r.targetMessage?._id?.toString() || "",
+              text: r.targetMessage?.text || "[Message Removed]",
+            },
+    }));
+
+    return res.json({
+      reports: formatted,
+      total,
+      page: parseInt(page, 10),
+      pages: Math.ceil(total / parseInt(limit, 10)),
+    });
+  } catch (err) {
+    console.error("[Admin Get Reports Error]", err);
+    return res.status(500).json({ error: "Failed to fetch moderation reports" });
+  }
+});
+
+// @route   PUT /api/admin/moderation/reports/:id/override
+// @desc    Admin manually overrides report status
+router.put("/moderation/reports/:id/override", async (req, res) => {
+  const { newStatus, action = "none", applyStrike = false, reason = "" } = req.body;
+
+  if (!["confirmed", "dismissed"].includes(newStatus)) {
+    return res.status(400).json({ error: "Status must be 'confirmed' or 'dismissed'" });
+  }
+
+  try {
+    const report = await Report.findById(req.params.id);
+    if (!report) {
+      return res.status(404).json({ error: "Report not found" });
+    }
+
+    report.status = newStatus;
+    report.resolvedBy = req.user.id;
+    report.resolvedAt = new Date();
+    await report.save();
+
+    // If action is hide/unhide on post or comment
+    if (report.contentType === "post" && report.targetPost) {
+      const post = await Post.findById(report.targetPost);
+      if (post) {
+        if (action === "hide") {
+          post.isHidden = true;
+          post.moderationReason = reason || "Hidden by administrator override";
+          post.hiddenAt = new Date();
+          await post.save();
+        } else if (action === "unhide") {
+          post.isHidden = false;
+          post.moderationReason = "";
+          post.hiddenAt = null;
+          await post.save();
+        }
+      }
+    } else if (report.contentType === "comment" && report.targetComment) {
+      const comment = await Comment.findById(report.targetComment);
+      if (comment) {
+        if (action === "hide") {
+          comment.isHidden = true;
+          comment.moderationReason = reason || "Hidden by administrator override";
+          comment.hiddenAt = new Date();
+          await comment.save();
+        } else if (action === "unhide") {
+          comment.isHidden = false;
+          comment.moderationReason = "";
+          comment.hiddenAt = null;
+          await comment.save();
+        }
+      }
+    }
+
+    // Apply strike pipeline if requested
+    if (applyStrike && report.targetAuthor) {
+      await applyStrikePipeline({
+        userId: report.targetAuthor,
+        reason: reason || "Administrator manual penalty following report review",
+        category: report.aiCategory || "abuse",
+        actionSource: "report_override",
+        performedBy: req.user.id,
+      });
+    }
+
+    await ModerationLog.create({
+      action: "report_override",
+      performedBy: req.user.id,
+      targetUser: report.targetAuthor,
+      reason: reason || `Overridden report status to ${newStatus}`,
+      details: `Action: ${action}, Applied Strike: ${applyStrike}`,
+    });
+
+    return res.json({
+      success: true,
+      message: `Report status updated to ${newStatus}`,
+      report: {
+        id: report._id.toString(),
+        status: report.status,
+        resolvedAt: report.resolvedAt,
+      },
+    });
+  } catch (err) {
+    console.error("[Admin Override Report Error]", err);
+    return res.status(500).json({ error: "Failed to override report" });
+  }
+});
+
+// @route   GET /api/admin/moderation/banned-users
+// @desc    List all currently banned users
+router.get("/moderation/banned-users", async (req, res) => {
+  try {
+    const bannedUsers = await User.find({ isBanned: true })
+      .select("-passwordHash")
+      .sort({ bannedAt: -1 })
+      .lean();
+
+    const formatted = bannedUsers.map((u) => ({
+      id: u._id.toString(),
+      username: u.username,
+      email: u.email,
+      avatar: u.avatar || "",
+      role: u.role,
+      banReason: u.banReason || "No reason specified",
+      bannedAt: u.bannedAt,
+      banExpiresAt: u.banExpiresAt,
+      isPermanent: !u.banExpiresAt,
+      moderationStrikes: u.moderationStrikes || 0,
+      createdAt: u.createdAt,
+    }));
+
+    return res.json({ users: formatted, total: formatted.length });
+  } catch (err) {
+    console.error("[Admin Get Banned Users Error]", err);
+    return res.status(500).json({ error: "Failed to fetch banned users" });
+  }
+});
+
+// @route   GET /api/admin/moderation/logs
+// @desc    Get moderation audit trail
+router.get("/moderation/logs", async (req, res) => {
+  try {
+    const { action, page = 1, limit = 50 } = req.query;
+    const filter = {};
+
+    if (action) {
+      filter.action = action;
+    }
+
+    const skip = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const [logs, total] = await Promise.all([
+      ModerationLog.find(filter)
+        .populate("performedBy", "username email avatar")
+        .populate("targetUser", "username email avatar")
+        .populate("targetPost", "title")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit, 10))
+        .lean(),
+      ModerationLog.countDocuments(filter),
+    ]);
+
+    const formatted = logs.map((l) => ({
+      id: l._id.toString(),
+      action: l.action,
+      reason: l.reason,
+      category: l.category,
+      details: l.details,
+      createdAt: l.createdAt,
+      performedBy: l.performedBy
+        ? {
+            id: l.performedBy._id.toString(),
+            username: l.performedBy.username,
+            avatar: l.performedBy.avatar,
+          }
+        : { username: "System (Automated)" },
+      targetUser: l.targetUser
+        ? {
+            id: l.targetUser._id.toString(),
+            username: l.targetUser.username,
+            avatar: l.targetUser.avatar,
+          }
+        : { username: "[deleted]" },
+      targetPostTitle: l.targetPost?.title || null,
+    }));
+
+    return res.json({
+      logs: formatted,
+      total,
+      page: parseInt(page, 10),
+      pages: Math.ceil(total / parseInt(limit, 10)),
+    });
+  } catch (err) {
+    console.error("[Admin Get Moderation Logs Error]", err);
+    return res.status(500).json({ error: "Failed to fetch moderation logs" });
   }
 });
 

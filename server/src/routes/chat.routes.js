@@ -3,7 +3,9 @@ import mongoose from 'mongoose';
 import { Conversation } from '../models/Conversation.js';
 import { Message } from '../models/Message.js';
 import { User } from '../models/User.js';
+import { Report } from '../models/Report.js';
 import { requireAuth } from '../middleware/auth.js';
+import { moderateContent, applyStrikePipeline } from '../utils/contentModerator.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -266,6 +268,79 @@ router.put('/conversations/:conversationId/read', async (req, res) => {
   } catch (err) {
     console.error('[Chat Mark Read Error]', err);
     return res.status(500).json({ error: 'Failed to mark messages read' });
+  }
+});
+
+// @route   POST /api/chat/messages/:messageId/report
+// @desc    Report a direct chat message (triggers AI check)
+router.post('/messages/:messageId/report', async (req, res) => {
+  const { reason = '' } = req.body;
+  const { messageId } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+      return res.status(400).json({ error: 'Invalid message ID' });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    if (message.recipient.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ error: 'You can only report messages sent to you' });
+    }
+
+    // Check duplicate report
+    const existing = await Report.findOne({
+      reporter: req.user.id,
+      targetMessage: message._id,
+    });
+    if (existing) {
+      return res.status(400).json({ error: 'You have already reported this message' });
+    }
+
+    // AI Check
+    const modResult = await moderateContent(message.text);
+    const isViolation = modResult.verdict === 'VIOLATION';
+
+    const report = await Report.create({
+      reporter: req.user.id,
+      contentType: 'message',
+      targetMessage: message._id,
+      targetAuthor: message.sender,
+      userReason: String(reason).trim().slice(0, 500),
+      status: isViolation ? 'confirmed' : 'dismissed',
+      aiVerdict: modResult.verdict,
+      aiReason: modResult.reason || '',
+      aiCategory: modResult.category || '',
+      resolvedAt: new Date(),
+    });
+
+    if (isViolation) {
+      await applyStrikePipeline({
+        userId: message.sender,
+        reason: modResult.reason || 'Reported DM flagged by AI',
+        category: modResult.category || 'abuse',
+        actionSource: 'report_flag',
+        targetMessage: message,
+        performedBy: req.user.id,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      reportId: report._id,
+      status: report.status,
+      aiVerdict: modResult.verdict,
+      actionTaken: isViolation ? 'user_flagged' : 'reviewed_safe',
+      message: isViolation
+        ? 'Report confirmed by automated moderation. Action has been taken against the sender.'
+        : 'Report reviewed by automated moderation and found safe with guidelines.',
+    });
+  } catch (err) {
+    console.error('[Report Message Error]', err);
+    return res.status(500).json({ error: 'Failed to report message' });
   }
 });
 

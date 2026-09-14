@@ -1474,6 +1474,74 @@ select.admin-form-input {
   color: #64748b;
 }
 
+/* Moderation Subtabs */
+.admin-subtabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 14px;
+  overflow-x: auto;
+}
+
+.admin-subtab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-subtab-btn:hover {
+  background: rgba(30, 41, 59, 0.8);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.admin-subtab-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.subtab-count-pill {
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.subtab-count-pill.danger {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.subtab-count-pill.warning {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.subtab-count-pill.neutral {
+  background: rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+}
+
+.admin-subtab-btn.active .subtab-count-pill {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
 @media (max-width: 768px) {
   .admin-page {
     padding: 24px 16px 60px;

@@ -127,6 +127,8 @@ export const postsApi = {
     return res;
   },
   voteComment: (postId, commentId, value) => client.post(`/posts/${postId}/comments/${commentId}/vote`, { value }),
+  report: (id, reason) => client.post(`/posts/${id}/report`, { reason }),
+  reportComment: (postId, commentId, reason) => client.post(`/posts/${postId}/comments/${commentId}/report`, { reason }),
 };
 
 export const usersApi = {
@@ -155,6 +157,7 @@ export const chatApi = {
   getMessages: (conversationId) => client.get(`/chat/conversations/${conversationId}/messages`),
   sendMessage: (conversationId, text) => client.post(`/chat/conversations/${conversationId}/messages`, { text }),
   markRead: (conversationId) => client.put(`/chat/conversations/${conversationId}/read`),
+  reportMessage: (messageId, reason) => client.post(`/chat/messages/${messageId}/report`, { reason }),
 };
 
 export const adminApi = {
@@ -162,6 +165,8 @@ export const adminApi = {
   getUsers: (params = {}) => client.get('/admin/users', { params }),
   updateUserRole: (id, role) => client.put(`/admin/users/${id}/role`, { role }),
   deleteUser: (id) => client.delete(`/admin/users/${id}`),
+  banUser: (id, data) => client.put(`/admin/users/${id}/ban`, data),
+  unbanUser: (id, data) => client.put(`/admin/users/${id}/unban`, data),
   getTeamMembers: () => client.get('/admin/team'),
   updateTeamPosition: (userId, data) => client.put(`/admin/team/${userId}`, data),
   removeTeamMember: (userId) => client.delete(`/admin/team/${userId}`),
@@ -170,6 +175,16 @@ export const adminApi = {
   toggleLockPost: (id) => client.put(`/admin/posts/${id}/lock`),
   deletePost: (id) => client.delete(`/admin/posts/${id}`),
   deleteComment: (id) => client.delete(`/admin/comments/${id}`),
+  // Moderation Hub
+  getFlaggedContent: (params = {}) => client.get('/admin/moderation/flagged', { params }),
+  restoreFlaggedPost: (id) => client.put(`/admin/moderation/posts/${id}/restore`),
+  restoreFlaggedComment: (id) => client.put(`/admin/moderation/comments/${id}/restore`),
+  deleteFlaggedPost: (id) => client.delete(`/admin/moderation/posts/${id}`),
+  deleteFlaggedComment: (id) => client.delete(`/admin/moderation/comments/${id}`),
+  getReports: (params = {}) => client.get('/admin/moderation/reports', { params }),
+  overrideReport: (id, data) => client.put(`/admin/moderation/reports/${id}/override`, data),
+  getBannedUsers: () => client.get('/admin/moderation/banned-users'),
+  getModerationLogs: (params = {}) => client.get('/admin/moderation/logs', { params }),
 };
 
 export const uploadApi = {

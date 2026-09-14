@@ -35,7 +35,10 @@ import {
   Tag,
   AlertCircle,
   Search,
+  Flag,
+  ShieldAlert,
 } from 'lucide-react'
+import ReportModal from '../components/common/ReportModal.jsx'
 import './Forum.css'
 
 const CATEGORIES_LIST = [
@@ -170,6 +173,17 @@ export default function Forum() {
   const [loadingMore, setLoadingMore] = useState(false)
   const cachedStats = discussionsCache.get('community_stats')
   const [stats, setStats] = useState(() => cachedStats?.data || null)
+  const [reportModalPost, setReportModalPost] = useState(null)
+  const [moderationBanner, setModerationBanner] = useState('')
+
+  const handleSubmitPostReport = async (reason) => {
+    if (!reportModalPost) return
+    const res = await postsApi.report(reportModalPost.id, reason)
+    if (res?.actionTaken === 'content_hidden') {
+      setPosts((prev) => prev.filter((p) => p.id !== reportModalPost.id))
+    }
+    return res
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -483,8 +497,15 @@ export default function Forum() {
       setNewBody('')
       setNewTags('')
       setUploadError('')
-      if (res?.post) {
+      if (res?.moderation?.flagged) {
+        setModerationBanner(
+          `Your post was flagged by automated moderation for: "${res.moderation.reason}". It is currently hidden and queued for admin review.`
+        )
+        loadPosts(selectedCategory)
+      } else if (res?.post) {
         navigate(`/forum/posts/${res.post._id || res.post.id}`)
+      } else if (res?.id) {
+        navigate(`/forum/posts/${res.id}`)
       } else {
         loadPosts(selectedCategory)
       }
@@ -656,6 +677,34 @@ export default function Forum() {
         )}
 
         <div className="forum-posts-stream">
+          {moderationBanner && (
+            <div className="forum-moderation-banner" style={{
+              backgroundColor: 'rgba(234, 179, 8, 0.15)',
+              border: '1px solid rgba(234, 179, 8, 0.4)',
+              color: '#eab308',
+              padding: '0.85rem 1rem',
+              borderRadius: '8px',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.75rem',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <ShieldAlert size={18} />
+                <span style={{ fontSize: '0.9rem' }}>{moderationBanner}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModerationBanner('')}
+                style={{ background: 'none', border: 'none', color: '#eab308', cursor: 'pointer' }}
+                aria-label="Dismiss warning"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="forum-skeleton-list">
               {[1, 2, 3, 4, 5].map((n) => (
@@ -841,6 +890,33 @@ export default function Forum() {
                     <span className="author-time">{post.timeAgo}</span>
                   </div>
                 </div>
+
+                {user && post.author?.username !== user.username && (
+                  <button
+                    type="button"
+                    className="forum-post-report-btn"
+                    title="Report post"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setReportModalPost(post)
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748b',
+                      cursor: 'pointer',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#f85149')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
+                  >
+                    <Flag size={14} />
+                  </button>
+                )}
               </div>
             ))
           )}
@@ -1098,6 +1174,15 @@ export default function Forum() {
           </div>
         </div>
       )}
+
+      <ReportModal
+        isOpen={Boolean(reportModalPost)}
+        onClose={() => setReportModalPost(null)}
+        onSubmit={handleSubmitPostReport}
+        title="Report Discussion"
+        description="Help us keep community discussions respectful, productive, and safe."
+        contentType="post"
+      />
     </div>
   )
 }

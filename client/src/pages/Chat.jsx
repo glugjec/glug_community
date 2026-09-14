@@ -16,10 +16,12 @@ import {
   RefreshCw,
   AlertCircle,
   Sparkles,
+  Flag,
 } from 'lucide-react';
 import { chatApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { avatarInitials, avatarColor } from '../components/common/avatar.js';
+import ReportModal from '../components/common/ReportModal.jsx';
 import './Chat.css';
 
 function ChatAvatar({ src, username, size = 42 }) {
@@ -98,6 +100,13 @@ export default function Chat() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobilePane, setMobilePane] = useState('list');
+  const [reportingMessage, setReportingMessage] = useState(null);
+
+  const handleSubmitMessageReport = async (reason) => {
+    if (!reportingMessage) return;
+    const res = await chatApi.reportMessage(reportingMessage.id || reportingMessage._id, reason);
+    return res;
+  };
 
   const messagesAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -563,6 +572,26 @@ export default function Chat() {
                               )}
                             </span>
                           )}
+                          {!isMine && (
+                            <button
+                              type="button"
+                              className="chat-msg-report-btn"
+                              title="Report message"
+                              onClick={() => setReportingMessage(m)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#64748b',
+                                cursor: 'pointer',
+                                padding: '2px 4px',
+                                borderRadius: '4px',
+                                opacity: 0.7,
+                                marginLeft: '6px',
+                              }}
+                            >
+                              <Flag size={11} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -610,6 +639,15 @@ export default function Chat() {
         )}
       </main>
     </div>
+
+    <ReportModal
+      isOpen={Boolean(reportingMessage)}
+      onClose={() => setReportingMessage(null)}
+      onSubmit={handleSubmitMessageReport}
+      title="Report Direct Message"
+      description="Reported messages are automatically checked by AI moderation. If abuse is confirmed, the sender will face strikes or suspension."
+      contentType="message"
+    />
   </div>
   );
 }

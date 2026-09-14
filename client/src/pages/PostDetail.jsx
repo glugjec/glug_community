@@ -36,9 +36,11 @@ import {
   Sparkles,
   Lock,
   Unlock,
+  Flag,
 } from 'lucide-react'
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx'
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal.jsx'
+import ReportModal from '../components/common/ReportModal.jsx'
 import './PostDetail.css'
 
 function capitalize(str) {
@@ -213,6 +215,7 @@ function CommentThreadItem({
   handleAddComment,
   handleCommentVote,
   handleDeleteComment,
+  handleReportComment,
   postAuthorName,
   postAuthorId,
   submitting,
@@ -330,6 +333,18 @@ function CommentThreadItem({
             <span>Delete</span>
           </button>
         )}
+
+        {user && !isCommentAuthor && (
+          <button
+            type="button"
+            className="btn-reply-action btn-report-reply"
+            onClick={() => handleReportComment?.(commentId)}
+            title="Report comment"
+          >
+            <Flag size={13} />
+            <span>Report</span>
+          </button>
+        )}
       </div>
 
       {(!isLocked || user?.role === 'admin') && isReplying && (
@@ -443,6 +458,18 @@ function CommentThreadItem({
                         >
                           <Trash2 size={13} />
                           <span>Delete</span>
+                        </button>
+                      )}
+
+                      {user && (user.username !== repAuthor) && (
+                        <button
+                          type="button"
+                          className="btn-reply-action btn-report-reply"
+                          onClick={() => handleReportComment?.(repId)}
+                          title="Report reply"
+                        >
+                          <Flag size={13} />
+                          <span>Report</span>
                         </button>
                       )}
                     </div>
@@ -592,10 +619,61 @@ export default function PostDetail() {
   const [isDeletingPost, setIsDeletingPost] = useState(false)
   const [commentToDelete, setCommentToDelete] = useState(null)
   const [isDeletingComment, setIsDeletingComment] = useState(false)
+  const [reportModalData, setReportModalData] = useState({ isOpen: false, type: 'post', id: null, commentId: null })
   const pendingPostVoteRef = useRef(null)
   const isPostVotingRef = useRef(false)
   const pendingCommentVotesRef = useRef(new Map())
   const activeCommentVotesRef = useRef(new Set())
+
+  const handleReportPost = () => {
+    if (!user) {
+      showToast('Please log in to report content')
+      navigate('/login')
+      return
+    }
+    setReportModalData({
+      isOpen: true,
+      type: 'post',
+      id: post?._id || post?.id || id,
+      commentId: null,
+    })
+  }
+
+  const handleReportComment = (commentId) => {
+    if (!user) {
+      showToast('Please log in to report content')
+      navigate('/login')
+      return
+    }
+    setReportModalData({
+      isOpen: true,
+      type: 'comment',
+      id: post?._id || post?.id || id,
+      commentId,
+    })
+  }
+
+  const handleSubmitReport = async (reason) => {
+    if (reportModalData.type === 'post') {
+      const res = await postsApi.report(reportModalData.id, reason)
+      if (res?.actionTaken === 'content_hidden') {
+        showToast('Report confirmed by AI. This post has been hidden.')
+        setTimeout(() => navigate('/forum'), 1500)
+      } else {
+        showToast('Report submitted and reviewed.')
+      }
+      return res
+    } else {
+      const res = await postsApi.reportComment(reportModalData.id, reportModalData.commentId, reason)
+      if (res?.actionTaken === 'content_hidden') {
+        setComments((prev) => prev.filter((c) => String(c.id || c._id) !== String(reportModalData.commentId)))
+        showToast('Report confirmed by AI. The comment has been hidden.')
+      } else {
+        showToast('Report submitted and reviewed.')
+      }
+      return res
+    }
+  }
 
   const [notFound, setNotFound] = useState(false)
 
@@ -1224,6 +1302,11 @@ export default function PostDetail() {
                         <Trash2 size={14} /> Delete post
                       </button>
                     )}
+                    {user && (user?.username !== authorName) && (
+                      <button type="button" className="post-more-item" onClick={handleReportPost}>
+                        <Flag size={14} /> Report post
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1344,6 +1427,7 @@ export default function PostDetail() {
                     handleAddComment={handleAddComment}
                     handleCommentVote={handleCommentVote}
                     handleDeleteComment={promptDeleteComment}
+                    handleReportComment={handleReportComment}
                     postAuthorName={authorName}
                     postAuthorId={activePost.author?.id || activePost.author?._id}
                     submitting={submitting}
@@ -1568,6 +1652,14 @@ export default function PostDetail() {
         warningNote="This action cannot be undone. Any nested replies underneath will also be permanently deleted."
         confirmText={commentToDelete?.isReply ? 'Delete Reply' : 'Delete Comment'}
         isDeleting={isDeletingComment}
+      />
+
+      <ReportModal
+        isOpen={reportModalData.isOpen}
+        onClose={() => setReportModalData((prev) => ({ ...prev, isOpen: false }))}
+        onSubmit={handleSubmitReport}
+        title={reportModalData.type === 'post' ? 'Report Discussion' : 'Report Comment'}
+        contentType={reportModalData.type}
       />
     </div>
   )

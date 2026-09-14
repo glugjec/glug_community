@@ -1,0 +1,224 @@
+.report-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: reportFadeIn 0.15s ease-out;
+}
+
+@keyframes reportFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.report-modal-dialog {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: reportSlideUp 0.15s ease-out;
+}
+
+@keyframes reportSlideUp {
+  from { transform: translateY(12px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.report-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid #21262d;
+  position: relative;
+}
+
+.report-modal-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: rgba(248, 81, 73, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.report-modal-icon {
+  color: #f85149;
+}
+
+.report-modal-titles {
+  flex: 1;
+}
+
+.report-modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f0f6fc;
+}
+
+.report-modal-desc {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: #8b949e;
+}
+
+.report-modal-close {
+  background: none;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-modal-close:hover {
+  color: #f0f6fc;
+  background-color: #21262d;
+}
+
+.report-modal-body {
+  padding: 1.25rem;
+}
+
+.report-modal-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(248, 81, 73, 0.15);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  color: #f85149;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.report-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.report-modal-field label {
+  font-size: 0.85rem;
+  color: #c9d1d9;
+  font-weight: 500;
+}
+
+.report-modal-textarea {
+  background-color: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  color: #c9d1d9;
+  font-size: 0.88rem;
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+  outline: none;
+}
+
+.report-modal-textarea:focus {
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+.report-modal-char-count {
+  font-size: 0.75rem;
+  color: #8b949e;
+  text-align: right;
+}
+
+.report-modal-info {
+  background-color: rgba(56, 139, 253, 0.1);
+  border: 1px solid rgba(56, 139, 253, 0.2);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 1.25rem;
+}
+
+.report-modal-info p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #79c0ff;
+  line-height: 1.4;
+}
+
+.report-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.report-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.report-btn.secondary {
+  background-color: #21262d;
+  border-color: #30363d;
+  color: #c9d1d9;
+}
+
+.report-btn.secondary:hover {
+  background-color: #30363d;
+  color: #f0f6fc;
+}
+
+.report-btn.danger {
+  background-color: #da3633;
+  color: #ffffff;
+}
+
+.report-btn.danger:hover {
+  background-color: #b62324;
+}
+
+.report-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-modal-success {
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.report-modal-success h4 {
+  margin: 0.5rem 0 0;
+  color: #f0f6fc;
+  font-size: 1.1rem;
+}
+
+.report-modal-success p {
+  margin: 0;
+  color: #8b949e;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
