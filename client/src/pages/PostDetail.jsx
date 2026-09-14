@@ -1339,7 +1339,15 @@ export default function PostDetail() {
               </div>
             </header>
 
-            <h1 className="discussion-title">{activePost.title}</h1>
+            <h1 className="discussion-title">
+              {activePost.isHidden && (
+                <span className="restricted-title-tag">
+                  <ShieldAlert size={14} /> Restricted
+                </span>
+              )}
+              {activePost.title}
+            </h1>
+
             {activePost.isHidden && (
               <div className="discussion-restricted-alert">
                 <div className="restricted-badge">
@@ -1353,15 +1361,6 @@ export default function PostDetail() {
                 </p>
               </div>
             )}
-
-            <h1 className="discussion-title">
-              {activePost.isHidden && (
-                <span className="restricted-title-tag">
-                  <ShieldAlert size={14} /> Restricted
-                </span>
-              )}
-              {activePost.title}
-            </h1>
 
             <div className="discussion-tags-list">
               {displayTags.map((tag, idx) => (
