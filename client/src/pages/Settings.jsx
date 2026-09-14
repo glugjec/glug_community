@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { authApi } from '../api.js'
+import { authApi, usersApi } from '../api.js'
 import ErrorMessage from '../components/common/ErrorMessage.jsx'
+import { formatRelativeTime } from '../utils/timeAgo.js'
 import {
   User,
   Shield,
+  ShieldAlert,
   Palette,
   Bell,
   AlertTriangle,
@@ -21,15 +23,23 @@ import {
   LogOut,
   Trash2,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  FileText,
+  ExternalLink,
+  Loader2,
+  X
 } from 'lucide-react'
 import './Settings.css'
 
 export default function Settings() {
   const { user, updateUser, logout } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const [activeTab, setActiveTab] = useState('account')
+  const validTabs = ['account', 'security', 'standing', 'appearance', 'notifications', 'danger']
+  const tabFromUrl = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState(() => (validTabs.includes(tabFromUrl) ? tabFromUrl : 'account'))
+
   const [toastMessage, setToastMessage] = useState('')
   const [globalError, setGlobalError] = useState('')
   const [usernameError, setUsernameError] = useState('')
@@ -39,6 +49,181 @@ export default function Settings() {
     setGlobalError('')
     setUsernameError('')
     setPasswordError('')
+  }
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    clearErrors()
+    if (tab === 'account') {
+      setSearchParams({})
+    } else {
+      setSearchParams({ tab })
+    }
+  }
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam && validTabs.includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam)
+    }
+  }, [searchParams])
+
+  // Community Standing & Appeals State
+  const [modHistory, setModHistory] = useState(null)
+  const [loadingModHistory, setLoadingModHistory] = useState(false)
+  const [appealModalItem, setAppealModalItem] = useState(null)
+  const [appealStatement, setAppealStatement] = useState('')
+  const [submittingAppeal, setSubmittingAppeal] = useState(false)
+  const [appealError, setAppealError] = useState('')
+
+  const loadModHistory = async () => {
+    if (!user) return
+    setLoadingModHistory(true)
+    try {
+      const res = await usersApi.getModerationHistory()
+      if (res) {
+        setModHistory(res)
+      }
+    } catch (err) {
+      console.error('[Load Moderation History Error]', err)
+    } finally {
+      setLoadingModHistory(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user) {
+      loadModHistory()
+    }
+  }, [user])
+
+  const openAppealModal = (item) => {
+    setAppealModalItem(item)
+    setAppealStatement('')
+    setAppealError('')
+  }
+
+  const closeAppealModal = () => {
+    if (submittingAppeal) return
+    setAppealModalItem(null)
+    setAppealStatement('')
+    setAppealError('')
+  }
+
+  const handleAppealSubmit = async (e) => {
+    e.preventDefault()
+    if (!appealStatement.trim() || !appealModalItem) return
+    setSubmittingAppeal(true)
+    setAppealError('')
+    try {
+      await usersApi.submitAppeal({
+        itemType: appealModalItem.itemType,
+        targetPostId: appealModalItem.targetPostId || null,
+        targetCommentId: appealModalItem.targetCommentId || null,
+        moderationLogId: appealModalItem.moderationLogId || null,
+        strikeIndex: appealModalItem.strikeIndex || 1,
+        originalReason: appealModalItem.reason || '',
+        originalCategory: appealModalItem.category || '',
+        statement: appealStatement.trim(),
+      })
+      showToast('Appeal submitted! An administrator will review your case.')
+      closeAppealModal()
+      loadModHistory()
+    } catch (err) {
+      setAppealError(err.message || 'Failed to submit appeal')
+    } finally {
+      setSubmittingAppeal(false)
+    }
+  }
+
+  const getArray = (val) => {
+    if (Array.isArray(val)) return val
+    if (val && typeof val === 'object') return Object.values(val)
+    return []
+  }
+
+  const strikeCount = typeof modHistory?.strikes === 'number'
+    ? modHistory.strikes
+    : typeof modHistory?.data?.strikes === 'number'
+    ? modHistory.data.strikes
+    : typeof user?.moderationStrikes === 'number'
+    ? user.moderationStrikes
+    : 0
+
+  const allFlaggedAndStrikes = []
+  if (modHistory && typeof modHistory === 'object') {
+    const flaggedPosts = getArray(modHistory.flaggedPosts ?? modHistory.data?.flaggedPosts)
+    const flaggedComments = getArray(modHistory.flaggedComments ?? modHistory.data?.flaggedComments)
+    const strikeLogs = getArray(modHistory.strikeLogs ?? modHistory.data?.strikeLogs)
+
+    flaggedPosts.forEach((p) => {
+      if (!p || typeof p !== 'object') return
+      const pId = p.targetPostId || p.postId || p.id || p._id
+      allFlaggedAndStrikes.push({
+        key: 'post-' + (pId || Math.random()),
+        id: pId,
+        itemType: 'post',
+        targetPostId: pId,
+        postId: pId,
+        title: p.title || 'Discussion Post',
+        snippet: p.bodySnippet || '',
+        reason: p.moderationReason,
+        category: p.moderationCategory,
+        date: p.hiddenAt || p.createdAt,
+      })
+    })
+
+    flaggedComments.forEach((c) => {
+      if (!c || typeof c !== 'object') return
+      const cId = c.id || c._id
+      const pId = c.targetPostId || c.postId || null
+      allFlaggedAndStrikes.push({
+        key: 'comment-' + (cId || Math.random()),
+        id: cId,
+        itemType: 'comment',
+        targetCommentId: cId,
+        targetPostId: pId,
+        postId: pId,
+        title: 'Comment on ' + (c.postTitle || 'Post'),
+        snippet: c.bodySnippet || '',
+        reason: c.moderationReason,
+        category: c.moderationCategory,
+        date: c.hiddenAt || c.createdAt,
+      })
+    })
+
+    strikeLogs.forEach((s, idx) => {
+      if (!s || typeof s !== 'object') return
+      const sKey = 'strike-' + (s.id || s._id || idx)
+      const pId = s.targetPostId || s.postId || null
+      allFlaggedAndStrikes.push({
+        key: sKey,
+        id: s.id || s._id,
+        itemType: 'strike',
+        moderationLogId: s.id || s._id,
+        targetPostId: pId,
+        postId: pId,
+        targetCommentId: s.targetCommentId || null,
+        strikeIndex: idx + 1,
+        title: s.targetPostTitle ? `Strike Record #${idx + 1} (${s.targetPostTitle})` : `Strike Record #${idx + 1}`,
+        snippet: s.details || '',
+        reason: s.reason,
+        category: s.category,
+        date: s.createdAt,
+      })
+    })
+  }
+
+  const getAppealForItem = (item) => {
+    const appeals = getArray(modHistory?.appeals ?? modHistory?.data?.appeals)
+    return appeals.find((a) => {
+      if (!a || typeof a !== 'object') return false
+      if (item.targetPostId && a.targetPostId === item.targetPostId) return true
+      if (item.targetCommentId && a.targetCommentId === item.targetCommentId) return true
+      if (item.moderationLogId && a.moderationLogId === item.moderationLogId) return true
+      if (item.itemType === 'strike' && a.strikeIndex === item.strikeIndex) return true
+      return false
+    })
   }
 
   // Account State
@@ -241,6 +426,7 @@ export default function Settings() {
             type="button"
             className={`settings-nav-item ${activeTab === 'account' ? 'is-active' : ''}`}
             onClick={() => { setActiveTab('account'); clearErrors(); }}
+            onClick={() => handleTabChange('account')}
           >
             <User size={16} />
             <span>Account</span>
@@ -250,6 +436,7 @@ export default function Settings() {
             type="button"
             className={`settings-nav-item ${activeTab === 'security' ? 'is-active' : ''}`}
             onClick={() => { setActiveTab('security'); clearErrors(); }}
+            onClick={() => handleTabChange('security')}
           >
             <Shield size={16} />
             <span>Security &amp; Password</span>
@@ -257,8 +444,27 @@ export default function Settings() {
 
           <button
             type="button"
+            className={`settings-nav-item ${activeTab === 'standing' ? 'is-active' : ''}`}
+            onClick={() => handleTabChange('standing')}
+          >
+            <ShieldAlert size={16} color={strikeCount > 0 ? '#ef4444' : '#10b981'} />
+            <span>Community Standing</span>
+            {strikeCount > 0 ? (
+              <span className="settings-nav-badge is-danger">
+                {strikeCount} {strikeCount === 1 ? 'Strike' : 'Strikes'}
+              </span>
+            ) : (
+              <span className="settings-nav-badge is-good">
+                Good
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
             className={`settings-nav-item ${activeTab === 'appearance' ? 'is-active' : ''}`}
             onClick={() => { setActiveTab('appearance'); clearErrors(); }}
+            onClick={() => handleTabChange('appearance')}
           >
             <Palette size={16} />
             <span>Theme &amp; Editor</span>
@@ -268,6 +474,7 @@ export default function Settings() {
             type="button"
             className={`settings-nav-item ${activeTab === 'notifications' ? 'is-active' : ''}`}
             onClick={() => { setActiveTab('notifications'); clearErrors(); }}
+            onClick={() => handleTabChange('notifications')}
           >
             <Bell size={16} />
             <span>Notifications</span>
@@ -277,6 +484,7 @@ export default function Settings() {
             type="button"
             className={`settings-nav-item ${activeTab === 'danger' ? 'is-active' : ''}`}
             onClick={() => { setActiveTab('danger'); clearErrors(); }}
+            onClick={() => handleTabChange('danger')}
           >
             <AlertTriangle size={16} color="#ef4444" />
             <span style={{ color: '#ef4444' }}>Danger Zone</span>
@@ -455,6 +663,188 @@ export default function Settings() {
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {activeTab === 'standing' && (
+            <div className="settings-section-card">
+              <div className="settings-section-header">
+                <h2 className="settings-section-title">
+                  <ShieldAlert size={20} color={strikeCount > 0 ? '#ef4444' : '#10b981'} />
+                  Community Standing &amp; Appeals
+                </h2>
+                <p className="settings-section-desc">
+                  Review your account's moderation standing, active policy strikes, flagged content, and submit appeals.
+                </p>
+              </div>
+
+              {/* Status Overview Hero */}
+              <div className={`settings-standing-hero strike-${Math.min(strikeCount, 3)}`}>
+                <div className="settings-standing-hero-top">
+                  <div className="settings-standing-hero-info">
+                    <div className="settings-standing-status-tag">
+                      {strikeCount === 0 ? 'Good Standing' : strikeCount === 1 ? 'Warning Active' : strikeCount === 2 ? 'High Risk' : 'Suspended'}
+                    </div>
+                    <h3 className="settings-standing-hero-headline">
+                      {strikeCount === 0
+                        ? 'Your account is in excellent standing with zero violations.'
+                        : strikeCount === 1
+                        ? 'Your account has 1 strike on record. Please review community rules.'
+                        : strikeCount === 2
+                        ? 'Warning: 2 strikes on record. One more violation will result in a permanent ban.'
+                        : 'Your account has accumulated 3 strikes and has been suspended.'}
+                    </h3>
+                    <p className="settings-standing-hero-sub">
+                      All GLUG community members are expected to maintain respectful, constructive, and open collaboration.
+                    </p>
+                  </div>
+
+                  <div className="settings-standing-counter-box">
+                    <div className="settings-standing-counter-val">
+                      {strikeCount} <span className="settings-standing-counter-denom">/ 3 Strikes</span>
+                    </div>
+                    <div className="settings-standing-pips">
+                      {[1, 2, 3].map((pip) => (
+                        <div
+                          key={pip}
+                          className={`settings-standing-pip ${
+                            strikeCount >= pip ? 'is-filled' : ''
+                          } strike-pip-${pip}`}
+                          title={`Strike ${pip}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3-Tier Community Policy */}
+                <div className="settings-standing-policy-grid">
+                  <div className={`settings-policy-card ${strikeCount >= 1 ? 'is-active' : ''}`}>
+                    <span className="settings-policy-step">Strike 1</span>
+                    <span className="settings-policy-title">Formal Warning</span>
+                    <span className="settings-policy-desc">Offending content restricted; reminder of code of conduct.</span>
+                  </div>
+                  <div className={`settings-policy-card ${strikeCount >= 2 ? 'is-active' : ''}`}>
+                    <span className="settings-policy-step">Strike 2</span>
+                    <span className="settings-policy-title">24h Suspension</span>
+                    <span className="settings-policy-desc">Temporary freeze on posting, commenting, and voting.</span>
+                  </div>
+                  <div className={`settings-policy-card is-danger ${strikeCount >= 3 ? 'is-active' : ''}`}>
+                    <span className="settings-policy-step">Strike 3</span>
+                    <span className="settings-policy-title">Permanent Ban</span>
+                    <span className="settings-policy-desc">Account permanently revoked from participating.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Flagged Content & Appeals Section */}
+              <div className="settings-standing-history-section">
+                <div className="settings-subheading-bar">
+                  <h4 className="settings-subheading-title">
+                    <FileText size={16} /> Flagged Content &amp; Appeals ({allFlaggedAndStrikes.length})
+                  </h4>
+                  <button
+                    type="button"
+                    className="profile-btn-secondary"
+                    onClick={loadModHistory}
+                    disabled={loadingModHistory}
+                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                  >
+                    {loadingModHistory ? <Loader2 size={13} className="glug-spin" /> : 'Refresh'}
+                  </button>
+                </div>
+
+                {loadingModHistory ? (
+                  <div className="profile-mod-loading">
+                    <Loader2 size={16} className="glug-spin" /> Loading moderation records...
+                  </div>
+                ) : allFlaggedAndStrikes.length === 0 ? (
+                  <div className="settings-standing-empty-box">
+                    <CheckCircle2 size={36} color="#10b981" style={{ flexShrink: 0 }} />
+                    <div>
+                      <h5>No Moderation Flags or Active Strikes</h5>
+                      <p>You have no restricted posts, flagged comments, or active strikes on your record. Thank you for keeping the GLUG community welcoming, constructive, and positive!</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="settings-mod-list">
+                    {allFlaggedAndStrikes.map((item) => {
+                      const appeal = getAppealForItem(item)
+                      return (
+                        <div key={item.key} className="settings-mod-item">
+                          <div className="settings-mod-item-main">
+                            <div className="settings-mod-item-tags">
+                              <span className={`settings-mod-type-badge type-${item.itemType}`}>
+                                {item.itemType.toUpperCase()}
+                              </span>
+                              {item.strikeIndex && (
+                                <span className="settings-mod-strike-badge">
+                                  Strike {item.strikeIndex}
+                                </span>
+                              )}
+                              <span className="settings-mod-date">
+                                {formatRelativeTime(item.date)}
+                              </span>
+                            </div>
+
+                            <h4 className="settings-mod-item-title">
+                              {(item.targetPostId || item.postId) ? (
+                                <Link
+                                  to={`/forum/posts/${item.targetPostId || item.postId}`}
+                                  className="settings-mod-item-link"
+                                  title="View restricted post"
+                                >
+                                  {item.title}
+                                  <ExternalLink size={12} />
+                                </Link>
+                              ) : (
+                                item.title
+                              )}
+                            </h4>
+                            {item.snippet && (
+                              <p className="settings-mod-item-snippet">"{item.snippet}"</p>
+                            )}
+                            <p className="settings-mod-item-reason">
+                              <strong>Reason:</strong> {item.reason || 'Violates community guidelines'}
+                            </p>
+                            {(item.targetPostId || item.postId) && (
+                              <Link
+                                to={`/forum/posts/${item.targetPostId || item.postId}`}
+                                className="settings-mod-view-post-pill"
+                              >
+                                <ExternalLink size={12} /> View Restricted Post
+                              </Link>
+                            )}
+                          </div>
+
+                          <div className="settings-mod-item-action">
+                            {appeal ? (
+                              <div className={`settings-appeal-badge status-${appeal.status}`}>
+                                {appeal.status === 'pending' && '⏳ Appeal Pending'}
+                                {appeal.status === 'approved' && '✅ Appeal Approved'}
+                                {appeal.status === 'rejected' && '❌ Appeal Denied'}
+                                {appeal.adminNotes && (
+                                  <span className="settings-appeal-note" title={appeal.adminNotes}>
+                                    Note: {appeal.adminNotes}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="settings-appeal-btn"
+                                onClick={() => openAppealModal(item)}
+                              >
+                                Request Appeal
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -665,6 +1055,101 @@ export default function Settings() {
           )}
         </div>
       </div>
+
+      {appealModalItem && (
+        <div className="modal-backdrop" onClick={closeAppealModal}>
+          <div
+            className="modal-container settings-appeal-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldAlert size={18} color="#f59e0b" /> Request Moderation Appeal
+              </h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={closeAppealModal}
+                disabled={submittingAppeal}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAppealSubmit}>
+              <div className="modal-body">
+                <div className="settings-appeal-item-summary">
+                  <div className="summary-label">
+                    {appealModalItem.itemType === 'strike'
+                      ? `Account Strike #${appealModalItem.strikeIndex || 1}`
+                      : appealModalItem.itemType === 'post'
+                      ? 'Restricted Post'
+                      : 'Restricted Comment'}
+                  </div>
+                  <div className="summary-val">
+                    {appealModalItem.title || 'Moderation Action'}
+                  </div>
+                  <p className="summary-reason">
+                    <strong>Reason:</strong> {appealModalItem.reason || 'Violates community guidelines'}
+                  </p>
+                </div>
+
+                <p className="settings-appeal-guidance">
+                  Please explain why you believe this moderation action was a mistake or provide clarifying context. An administrator will review your defense and decide whether to revoke the strike or restore your content.
+                </p>
+
+                <div className="modal-field">
+                  <label className="settings-input-label">Your Statement / Defense *</label>
+                  <textarea
+                    className="settings-appeal-textarea"
+                    rows={5}
+                    maxLength={1500}
+                    required
+                    placeholder="Explain clearly and respectfully why you are requesting an appeal..."
+                    value={appealStatement}
+                    onChange={(e) => setAppealStatement(e.target.value)}
+                    disabled={submittingAppeal}
+                  />
+                  <span className="settings-field-hint" style={{ textAlign: 'right', display: 'block', marginTop: '0.25rem' }}>
+                    {appealStatement.length} / 1500 characters
+                  </span>
+                </div>
+
+                {appealError && (
+                  <div className="settings-appeal-error">
+                    <AlertCircle size={15} color="#ef4444" />
+                    <span style={{ fontSize: '0.85rem', color: '#fca5a5' }}>{appealError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="settings-save-bar" style={{ marginTop: 0, padding: '1rem 1.5rem' }}>
+                <button
+                  type="button"
+                  className="profile-btn-secondary"
+                  onClick={closeAppealModal}
+                  disabled={submittingAppeal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="profile-btn-primary"
+                  disabled={submittingAppeal || !appealStatement.trim()}
+                >
+                  {submittingAppeal ? (
+                    <>
+                      <Loader2 size={14} className="glug-spin" /> Submitting...
+                    </>
+                  ) : (
+                    'Submit Appeal'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {toastMessage && (
         <div className="profile-toast">

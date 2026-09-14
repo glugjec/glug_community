@@ -13,10 +13,6 @@ import {
   Calendar,
   Mail,
   Shield,
-  ShieldAlert,
-  ChevronDown,
-  ChevronUp,
-  FileText,
   Send,
   MessageSquare,
   ThumbsUp,
@@ -166,13 +162,6 @@ export default function Profile() {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
   const [toastMessage, setToastMessage] = useState('')
-  const [modHistory, setModHistory] = useState(null)
-  const [loadingModHistory, setLoadingModHistory] = useState(false)
-  const [showModHistory, setShowModHistory] = useState(false)
-  const [appealModalItem, setAppealModalItem] = useState(null)
-  const [appealStatement, setAppealStatement] = useState('')
-  const [submittingAppeal, setSubmittingAppeal] = useState(false)
-  const [appealError, setAppealError] = useState('')
 
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -216,60 +205,6 @@ export default function Profile() {
       if (uploadTimerRef.current) clearTimeout(uploadTimerRef.current)
     }
   }, [])
-
-  const loadModHistory = async () => {
-    if (!isOwnProfile && user?.role !== 'admin') return;
-    setLoadingModHistory(true);
-    try {
-      const res = await usersApi.getModerationHistory();
-      if (res) {
-        setModHistory(res);
-      }
-    } catch (err) {
-      console.error('[Load Moderation History Error]', err);
-    } finally {
-      setLoadingModHistory(false);
-    }
-  };
-
-  const openAppealModal = (item) => {
-    setAppealModalItem(item);
-    setAppealStatement('');
-    setAppealError('');
-  };
-
-  const closeAppealModal = () => {
-    if (submittingAppeal) return;
-    setAppealModalItem(null);
-    setAppealStatement('');
-    setAppealError('');
-  };
-
-  const handleAppealSubmit = async (e) => {
-    e.preventDefault();
-    if (!appealStatement.trim() || !appealModalItem) return;
-    setSubmittingAppeal(true);
-    setAppealError('');
-    try {
-      await usersApi.submitAppeal({
-        itemType: appealModalItem.itemType,
-        targetPostId: appealModalItem.targetPostId || null,
-        targetCommentId: appealModalItem.targetCommentId || null,
-        moderationLogId: appealModalItem.moderationLogId || null,
-        strikeIndex: appealModalItem.strikeIndex || 1,
-        originalReason: appealModalItem.reason || '',
-        originalCategory: appealModalItem.category || '',
-        statement: appealStatement.trim(),
-      });
-      showToast('Appeal submitted! An administrator will review your case.');
-      closeAppealModal();
-      loadModHistory();
-    } catch (err) {
-      setAppealError(err.message || 'Failed to submit appeal');
-    } finally {
-      setSubmittingAppeal(false);
-    }
-  };
 
   const showToast = (msg) => {
     setToastMessage(msg)
@@ -374,9 +309,6 @@ export default function Profile() {
 
         if (profData) {
           setProfile(profData)
-          if (isOwnProfile || user?.role === 'admin') {
-            loadModHistory();
-          }
           if (isOwnProfile) {
             setEditForm({
               username: profData.username || '',
@@ -665,85 +597,6 @@ export default function Profile() {
 
   const repScore = (profile.stats?.upvotes || 0) * 5 + (profile.stats?.posts || userPosts.length) * 2 + (profile.stats?.comments || 0)
 
-  // Aggregate all flagged content & strikes
-  const allFlaggedAndStrikes = [];
-  if (modHistory) {
-    (modHistory.flaggedPosts || []).forEach((p) => {
-      const pId = p.targetPostId || p.postId || p.id || p._id;
-      allFlaggedAndStrikes.push({
-        key: 'post-' + (p.id || p._id),
-        id: p.id || p._id,
-        key: 'post-' + pId,
-        id: pId,
-        itemType: 'post',
-        targetPostId: p.id || p._id,
-        targetPostId: pId,
-        postId: pId,
-        title: p.title || 'Discussion Post',
-        snippet: p.bodySnippet || '',
-        reason: p.moderationReason,
-        category: p.moderationCategory,
-        date: p.hiddenAt,
-      });
-    });
-
-    (modHistory.flaggedComments || []).forEach((c) => {
-      const cId = c.id || c._id;
-      const pId = c.targetPostId || c.postId || null;
-      allFlaggedAndStrikes.push({
-        key: 'comment-' + (c.id || c._id),
-        id: c.id || c._id,
-        key: 'comment-' + cId,
-        id: cId,
-        itemType: 'comment',
-        targetCommentId: c.id || c._id,
-        targetCommentId: cId,
-        targetPostId: pId,
-        postId: pId,
-        title: 'Comment on ' + (c.postTitle || 'Post'),
-        snippet: c.bodySnippet || '',
-        reason: c.moderationReason,
-        category: c.moderationCategory,
-        date: c.hiddenAt,
-      });
-    });
-
-    (modHistory.strikeLogs || []).forEach((s, idx) => {
-      // Only include if not already represented
-      const sKey = 'strike-' + (s.id || s._id || idx);
-      const pId = s.targetPostId || s.postId || null;
-      allFlaggedAndStrikes.push({
-        key: sKey,
-        id: s.id || s._id,
-        itemType: 'strike',
-        moderationLogId: s.id || s._id,
-        targetPostId: pId,
-        postId: pId,
-        targetCommentId: s.targetCommentId || null,
-        strikeIndex: idx + 1,
-        title: 'Strike Record #' + (idx + 1),
-        title: s.targetPostTitle ? `Strike Record #${idx + 1} (${s.targetPostTitle})` : `Strike Record #${idx + 1}`,
-        snippet: s.details || '',
-        reason: s.reason,
-        category: s.category,
-        date: s.createdAt,
-      });
-    });
-  }
-
-  const getAppealForItem = (item) => {
-    if (!modHistory?.appeals) return null;
-    return modHistory.appeals.find((a) => {
-      if (item.targetPostId && a.targetPostId === item.targetPostId) return true;
-      if (item.targetCommentId && a.targetCommentId === item.targetCommentId) return true;
-      if (item.moderationLogId && a.moderationLogId === item.moderationLogId) return true;
-      if (item.itemType === 'strike' && a.strikeIndex === item.strikeIndex) return true;
-      return false;
-    });
-  };
-
-  const flaggedAndStrikeCount = allFlaggedAndStrikes.length;
-
   return (
     <div className="profile-page-container">
       <ErrorMessage message={error} />
@@ -1027,170 +880,6 @@ export default function Profile() {
                 )}
               </div>
             </div>
-
-            {/* Community Standing & Strike Counter Widget (Right Bottom Side) */}
-            {(isOwnProfile || user?.role === "admin") && (
-              <div className={`profile-strike-card strike-${Math.min(profile.moderationStrikes || 0, 3)}`}>
-                <div className="profile-strike-header">
-                  <div className="profile-strike-title-wrap">
-                    <ShieldAlert size={20} className="profile-strike-icon" />
-                    <div>
-                      <h3 className="profile-strike-heading">
-                        Community Standing
-                        {user?.role === "admin" && !isOwnProfile && (
-                          <span className="profile-strike-admin-tag">Admin View</span>
-                        )}
-                      </h3>
-                      <p className="profile-strike-sub">
-                        {(profile.moderationStrikes || 0) === 0
-                          ? "Good standing (0 strikes)."
-                          : (profile.moderationStrikes || 0) === 1
-                          ? "Warning: 1 strike on record. Banned at 3 strikes."
-                          : (profile.moderationStrikes || 0) === 2
-                          ? "Alert: 2 strikes on record. 1 strike remaining before permanent ban."
-                          : "Account suspended (3+ strikes)."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="profile-strike-counter-wrap">
-                    <span className="profile-strike-count-number">
-                      {profile.moderationStrikes || 0}
-                      <span className="profile-strike-count-total"> / 3</span>
-                    </span>
-                    <div className="profile-strike-pips">
-                      {[1, 2, 3].map((pip) => (
-                        <div
-                          key={pip}
-                          className={`profile-strike-pip ${
-                            (profile.moderationStrikes || 0) >= pip ? "is-filled" : ""
-                          } strike-pip-${pip}`}
-                          title={`Strike ${pip}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="profile-strike-policy-bar">
-                  <span className="profile-strike-policy-item">
-                    <strong>Strike 1:</strong> Warning
-                  </span>
-                  <span className="profile-strike-policy-sep">•</span>
-                  <span className="profile-strike-policy-item">
-                    <strong>Strike 2:</strong> 24h Suspension
-                  </span>
-                  <span className="profile-strike-policy-sep">•</span>
-                  <span className="profile-strike-policy-item is-danger">
-                    <strong>Strike 3:</strong> Ban
-                  </span>
-                </div>
-
-                <div className="profile-strike-actions-bar">
-                  <button
-                    type="button"
-                    className="profile-strike-toggle-btn"
-                    onClick={() => setShowModHistory((prev) => !prev)}
-                  >
-                    <FileText size={14} />
-                    <span>Flagged &amp; Appeals ({flaggedAndStrikeCount})</span>
-                    {showModHistory ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
-                </div>
-
-                {showModHistory && (
-                  <div className="profile-mod-history-drawer">
-                    {loadingModHistory ? (
-                      <div className="profile-mod-loading">
-                        <Loader2 size={15} className="glug-spin" /> Loading records...
-                      </div>
-                    ) : allFlaggedAndStrikes.length === 0 ? (
-                      <div className="profile-mod-empty">
-                        <CheckCircle2 size={16} color="#10b981" />
-                        <span>No moderation flags or active strikes.</span>
-                      </div>
-                    ) : (
-                      <div className="profile-mod-list">
-                        {allFlaggedAndStrikes.map((item) => {
-                          const appeal = getAppealForItem(item);
-                          return (
-                            <div key={item.key} className="profile-mod-item">
-                              <div className="profile-mod-item-main">
-                                <div className="profile-mod-item-tags">
-                                  <span className={`profile-mod-type-badge type-${item.itemType}`}>
-                                    {item.itemType.toUpperCase()}
-                                  </span>
-                                  {item.strikeIndex && (
-                                    <span className="profile-mod-strike-badge">
-                                      Strike {item.strikeIndex}
-                                    </span>
-                                  )}
-                                  <span className="profile-mod-date">
-                                    {formatRelativeTime(item.date)}
-                                  </span>
-                                </div>
-
-                                <h4 className="profile-mod-item-title">
-                                  {(item.targetPostId || item.postId) ? (
-                                    <Link
-                                      to={`/forum/posts/${item.targetPostId || item.postId}`}
-                                      className="profile-mod-item-link"
-                                      title="View restricted post"
-                                    >
-                                      {item.title}
-                                      <ExternalLink size={12} className="profile-mod-item-link-icon" />
-                                    </Link>
-                                  ) : (
-                                    item.title
-                                  )}
-                                </h4>
-                                {item.snippet && (
-                                  <p className="profile-mod-item-snippet">"{item.snippet}"</p>
-                                )}
-                                <p className="profile-mod-item-reason">
-                                  <strong>Reason:</strong> {item.reason || "Violates community guidelines"}
-                                </p>
-                                {(item.targetPostId || item.postId) && (
-                                  <Link
-                                    to={`/forum/posts/${item.targetPostId || item.postId}`}
-                                    className="profile-mod-view-post-pill"
-                                  >
-                                    <ExternalLink size={12} /> View Restricted Post
-                                  </Link>
-                                )}
-                              </div>
-
-                              <div className="profile-mod-item-action">
-                                {appeal ? (
-                                  <div className={`profile-appeal-badge status-${appeal.status}`}>
-                                    {appeal.status === "pending" && "⏳ Appeal Pending"}
-                                    {appeal.status === "approved" && "✅ Appeal Approved"}
-                                    {appeal.status === "rejected" && "❌ Appeal Denied"}
-                                    {appeal.adminNotes && (
-                                      <span className="profile-appeal-note" title={appeal.adminNotes}>
-                                        Note: {appeal.adminNotes}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="profile-appeal-btn"
-                                    onClick={() => openAppealModal(item)}
-                                  >
-                                    Request Appeal
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1475,99 +1164,6 @@ export default function Profile() {
                   disabled={savingProfile}
                 >
                   {savingProfile ? 'Saving…' : <><Check size={14} /> Save Changes</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {appealModalItem && (
-        <div className="modal-backdrop" onClick={closeAppealModal}>
-          <div
-            className="modal-container profile-appeal-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldAlert size={18} color="#f59e0b" /> Request Moderation Appeal
-              </h3>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeAppealModal}
-                disabled={submittingAppeal}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAppealSubmit}>
-              <div className="modal-body">
-                <div className="profile-appeal-item-summary">
-                  <div className="summary-label">
-                    {appealModalItem.itemType === 'strike'
-                      ? `Account Strike #${appealModalItem.strikeIndex || 1}`
-                      : appealModalItem.itemType === 'post'
-                      ? 'Restricted Post'
-                      : 'Restricted Comment'}
-                  </div>
-                  <div className="summary-val">
-                    {appealModalItem.title || 'Moderation Action'}
-                  </div>
-                  <p className="summary-reason">
-                    <strong>Reason:</strong> {appealModalItem.reason || 'Violates community guidelines'}
-                  </p>
-                </div>
-
-                <p className="profile-appeal-guidance">
-                  Please explain why you believe this moderation action was a mistake or provide clarifying context. An administrator will review your defense and decide whether to revoke the strike or restore your content.
-                </p>
-
-                <div className="modal-field">
-                  <label className="modal-label">Your Statement / Defense *</label>
-                  <textarea
-                    className="profile-appeal-textarea"
-                    rows={5}
-                    maxLength={1500}
-                    required
-                    placeholder="Explain clearly and respectfully why you are requesting an appeal..."
-                    value={appealStatement}
-                    onChange={(e) => setAppealStatement(e.target.value)}
-                    disabled={submittingAppeal}
-                  />
-                  <span className="char-count">{appealStatement.length} / 1500 characters</span>
-                </div>
-
-                {appealError && (
-                  <div className="profile-appeal-error">
-                    <AlertCircle size={15} color="#ef4444" />
-                    <span style={{ fontSize: '0.85rem', color: '#fca5a5' }}>{appealError}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="profile-btn-secondary"
-                  onClick={closeAppealModal}
-                  disabled={submittingAppeal}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="profile-btn-primary"
-                  disabled={submittingAppeal || !appealStatement.trim()}
-                >
-                  {submittingAppeal ? (
-                    <>
-                      <Loader2 size={14} className="admin-spin" /> Submitting...
-                    </>
-                  ) : (
-                    'Submit Appeal'
-                  )}
                 </button>
               </div>
             </form>

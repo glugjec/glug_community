@@ -38,6 +38,17 @@ export async function requireAuth(req, res, next) {
         dbUser.banExpiresAt = null;
         await dbUser.save();
       } else {
+        const isAppealOrStandingRoute =
+          req.originalUrl?.includes('/moderation-history') ||
+          req.originalUrl?.includes('/appeals') ||
+          req.originalUrl?.includes('/auth/me');
+        if (isAppealOrStandingRoute) {
+          req.user.isBanned = true;
+          req.user.banReason = dbUser.banReason;
+          req.user.banExpiresAt = dbUser.banExpiresAt;
+          return next();
+        }
+
         return res.status(403).json({
           error: "Your account has been suspended",
           isBanned: true,

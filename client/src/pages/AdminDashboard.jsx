@@ -1387,7 +1387,7 @@ export default function AdminDashboard() {
             <>
               <div className="admin-toolbar">
                 <p className="admin-toolbar-desc">
-                  Content automatically flagged by AI moderation or community reports. These items are hidden from ordinary members until an administrator restores them.
+                  Content automatically flagged by automated moderation tools or community reports. These items are hidden from ordinary members until an administrator restores them.
                 </p>
                 <div className="admin-filter-group">
                   <button
@@ -1409,7 +1409,7 @@ export default function AdminDashboard() {
                     <tr>
                       <th>Item & Content</th>
                       <th>Author</th>
-                      <th>AI Violation Reason</th>
+                      <th>Violation Reason</th>
                       <th>Hidden Since</th>
                       <th className="admin-th-actions">Actions</th>
                     </tr>
@@ -2099,7 +2099,7 @@ export default function AdminDashboard() {
             <>
               <div className="admin-toolbar">
                 <p className="admin-toolbar-desc">
-                  Immutable audit trail tracking all automated AI moderation actions and administrator interventions.
+                  Immutable audit trail tracking all automated moderation actions and administrator interventions.
                 </p>
                 <div className="admin-filter-group">
                   <button
