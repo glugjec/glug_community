@@ -164,7 +164,6 @@ export const chatApi = {
   getMessages: (conversationId) => client.get(`/chat/conversations/${conversationId}/messages`),
   sendMessage: (conversationId, text) => client.post(`/chat/conversations/${conversationId}/messages`, { text }),
   markRead: (conversationId) => client.put(`/chat/conversations/${conversationId}/read`),
-  reportMessage: (messageId, reason) => client.post(`/chat/messages/${messageId}/report`, { reason }),
 };
 
 export const adminApi = {
