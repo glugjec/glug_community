@@ -425,7 +425,6 @@ export default function Settings() {
           <button
             type="button"
             className={`settings-nav-item ${activeTab === 'account' ? 'is-active' : ''}`}
-            onClick={() => { setActiveTab('account'); clearErrors(); }}
             onClick={() => handleTabChange('account')}
           >
             <User size={16} />
@@ -435,7 +434,6 @@ export default function Settings() {
           <button
             type="button"
             className={`settings-nav-item ${activeTab === 'security' ? 'is-active' : ''}`}
-            onClick={() => { setActiveTab('security'); clearErrors(); }}
             onClick={() => handleTabChange('security')}
           >
             <Shield size={16} />
@@ -463,7 +461,6 @@ export default function Settings() {
           <button
             type="button"
             className={`settings-nav-item ${activeTab === 'appearance' ? 'is-active' : ''}`}
-            onClick={() => { setActiveTab('appearance'); clearErrors(); }}
             onClick={() => handleTabChange('appearance')}
           >
             <Palette size={16} />
@@ -473,7 +470,6 @@ export default function Settings() {
           <button
             type="button"
             className={`settings-nav-item ${activeTab === 'notifications' ? 'is-active' : ''}`}
-            onClick={() => { setActiveTab('notifications'); clearErrors(); }}
             onClick={() => handleTabChange('notifications')}
           >
             <Bell size={16} />
@@ -483,7 +479,6 @@ export default function Settings() {
           <button
             type="button"
             className={`settings-nav-item ${activeTab === 'danger' ? 'is-active' : ''}`}
-            onClick={() => { setActiveTab('danger'); clearErrors(); }}
             onClick={() => handleTabChange('danger')}
           >
             <AlertTriangle size={16} color="#ef4444" />
