@@ -35,7 +35,6 @@ import {
   Tag,
   AlertCircle,
   Search,
-  Flag,
   ShieldAlert,
 } from 'lucide-react'
 import ReportModal from '../components/common/ReportModal.jsx'
@@ -895,33 +894,6 @@ export default function Forum() {
                     <span className="author-time">{post.timeAgo}</span>
                   </div>
                 </div>
-
-                {user && post.author?.username !== user.username && (
-                  <button
-                    type="button"
-                    className="forum-post-report-btn"
-                    title="Report post"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setReportModalPost(post)
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#64748b',
-                      cursor: 'pointer',
-                      padding: '6px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#f85149')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
-                  >
-                    <Flag size={14} />
-                  </button>
-                )}
               </div>
             ))
           )}
