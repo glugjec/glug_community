@@ -989,6 +989,11 @@ export default function PostDetail() {
       showToast('This discussion is locked from replies')
       return
     }
+    if (user?.postingRestrictedUntil && new Date(user.postingRestrictedUntil) > new Date()) {
+      const hoursLeft = Math.ceil((new Date(user.postingRestrictedUntil) - Date.now()) / (1000 * 60 * 60))
+      showToast(`Commenting is temporarily restricted. Lifts in ${hoursLeft} hour${hoursLeft === 1 ? '' : 's'}.`)
+      return
+    }
     const hasContent = text.replace(/<[^>]*>/g, '').trim().length > 0 || text.includes('<img')
     if (!hasContent) return
     setSubmitting(true)

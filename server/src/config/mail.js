@@ -360,3 +360,121 @@ export async function sendNotificationMail({
   return { success: true, messageId: info.messageId };
 }
 
+export async function sendStrikeMail({
+  to,
+  username,
+  strikeLevel,
+  reason,
+  category = 'policy_violation',
+  postingRestrictedUntil = null,
+  strikeExpiresAt = null,
+}) {
+  const from = process.env.EMAIL_FROM || '"GLUG Moderation" <glug.jec@gmail.com>';
+  const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const standingUrl = `${clientUrl}/settings?tab=standing`;
+
+  let strikeTitle = '';
+  let strikeDetails = '';
+  let badgeColor = '#f59e0b';
+  let badgeBg = 'rgba(245, 158, 11, 0.15)';
+
+  if (strikeLevel === 1) {
+    strikeTitle = 'Moderation Warning (Strike 1 of 3)';
+    badgeColor = '#eab308';
+    badgeBg = 'rgba(234, 179, 8, 0.15)';
+    strikeDetails = `This is a formal warning regarding a community policy violation. Your account privileges remain active. This warning will automatically expire in 7 days if no further violations occur.`;
+  } else if (strikeLevel === 2) {
+    strikeTitle = 'Posting Privileges Suspended (Strike 2 of 3)';
+    badgeColor = '#f97316';
+    badgeBg = 'rgba(249, 115, 22, 0.15)';
+    strikeDetails = `Because of a second violation during your warning period, your ability to create posts, comments, and replies has been restricted for 24 hours. All other functions (including direct chats, notifications, and viewing) remain operational. This strike will automatically expire in 30 days, resetting your record to 0 strikes if no further violations occur.`;
+  } else {
+    strikeTitle = 'Account Permanently Suspended (Strike 3 of 3)';
+    badgeColor = '#ef4444';
+    badgeBg = 'rgba(239, 68, 68, 0.15)';
+    strikeDetails = `Your account has received a third strike and has been permanently suspended in accordance with community guidelines.`;
+  }
+
+  const subject = `[GLUG Notice] ${strikeTitle}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <title>${strikeTitle}</title>
+      </head>
+      <body style="margin:0;padding:28px 12px;background-color:#07090e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:540px;margin:0 auto;">
+          <tr>
+            <td align="center">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#0f1422;border:1px solid #1a2336;border-radius:24px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.7);">
+                <tr>
+                  <td height="4" style="background:${badgeColor};"></td>
+                </tr>
+                <tr>
+                  <td style="padding:32px 28px;">
+                    <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:1px;margin-bottom:2px;">GLUG</div>
+                    <div style="font-size:11px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:22px;">Community Safety</div>
+
+                    <div style="margin-bottom:18px;">
+                      <span style="background:${badgeBg};border:1px solid ${badgeColor};border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;color:${badgeColor};text-transform:uppercase;letter-spacing:0.06em;display:inline-block;">
+                        ${strikeTitle}
+                      </span>
+                    </div>
+
+                    <h1 style="font-size:19px;font-weight:700;color:#f8fafc;margin:0 0 10px 0;">Hello @${username},</h1>
+                    <p style="font-size:14px;color:#94a3b8;line-height:1.6;margin:0 0 18px 0;">
+                      ${strikeDetails}
+                    </p>
+
+                    <div style="background:#131929;border:1px solid #1e293b;border-left:3px solid ${badgeColor};border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+                      <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Violation Reason</div>
+                      <div style="font-size:13.5px;color:#cbd5e1;line-height:1.5;">${reason || 'Violation of community safety standards'}</div>
+                      <div style="font-size:11px;color:#94a3b8;margin-top:6px;">Category: <strong style="color:#f1f5f9;">${category}</strong></div>
+                    </div>
+
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:22px;">
+                      <tr>
+                        <td align="center">
+                          <a href="${standingUrl}" target="_blank" style="display:inline-block;background:${badgeColor};color:#ffffff;text-decoration:none;font-size:13.5px;font-weight:600;padding:12px 26px;border-radius:8px;letter-spacing:0.2px;">
+                            Review Standing &amp; Appeal
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <div style="font-size:11px;color:#64748b;line-height:1.5;text-align:center;">
+                      If you believe this action was applied in error, you may submit an appeal directly from your standing dashboard.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  if (!transporter) {
+    console.log('\n' + '='.repeat(54));
+    console.log('  [GLUG DEV MODE] STRIKE EMAIL CONSOLE FALLBACK');
+    console.log(`  To: ${to}`);
+    console.log(`  Subject: ${subject}`);
+    console.log(`  Level: Strike ${strikeLevel}`);
+    console.log(`  Reason: ${reason}`);
+    console.log('='.repeat(54) + '\n');
+    return { success: true, mode: 'dev-console' };
+  }
+
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject,
+    html,
+    text: `GLUG Notice: ${strikeTitle}\n\nHello @${username},\n\n${strikeDetails}\n\nReason: ${reason}\nCategory: ${category}\n\nReview standing and submit appeal: ${standingUrl}`,
+  });
+  return { success: true, messageId: info.messageId };
+}
+

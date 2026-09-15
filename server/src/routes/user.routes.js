@@ -224,7 +224,7 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
     const userId = req.user.id;
 
     const [userDoc, flaggedPosts, flaggedComments, strikeLogs, appeals] = await Promise.all([
-      User.findById(userId).select("moderationStrikes isBanned banExpiresAt banReason").lean(),
+      User.findById(userId).select("moderationStrikes isBanned banExpiresAt banReason strikeExpiresAt postingRestrictedUntil").lean(),
       Post.find({ author: userId, isHidden: true })
         .select("title body category isHidden moderationReason moderationCategory hiddenAt createdAt")
         .sort({ hiddenAt: -1, createdAt: -1 })
@@ -264,6 +264,8 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
       isBanned: !!userDoc?.isBanned,
       banExpiresAt: userDoc?.banExpiresAt || null,
       banReason: userDoc?.banReason || "",
+      strikeExpiresAt: userDoc?.strikeExpiresAt || null,
+      postingRestrictedUntil: userDoc?.postingRestrictedUntil || null,
       flaggedPosts: flaggedPosts.map((p) => ({
         id: p._id.toString(),
         _id: p._id.toString(),

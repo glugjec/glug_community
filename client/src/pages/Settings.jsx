@@ -36,7 +36,9 @@ export default function Settings() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const validTabs = ['account', 'security', 'standing', 'appearance', 'notifications', 'danger']
+  const validTabs = user?.role === 'admin'
+    ? ['account', 'security', 'appearance', 'notifications', 'danger']
+    : ['account', 'security', 'standing', 'appearance', 'notifications', 'danger']
   const tabFromUrl = searchParams.get('tab')
   const [activeTab, setActiveTab] = useState(() => (validTabs.includes(tabFromUrl) ? tabFromUrl : 'account'))
 
@@ -63,10 +65,13 @@ export default function Settings() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam && validTabs.includes(tabParam) && tabParam !== activeTab) {
+    if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam)
+    } else if (tabParam === 'standing' && user?.role === 'admin') {
+      setActiveTab('account')
+      setSearchParams({})
     }
-  }, [searchParams])
+  }, [searchParams, user])
 
   // Community Standing & Appeals State
   const [modHistory, setModHistory] = useState(null)
@@ -440,23 +445,25 @@ export default function Settings() {
             <span>Security &amp; Password</span>
           </button>
 
-          <button
-            type="button"
-            className={`settings-nav-item ${activeTab === 'standing' ? 'is-active' : ''}`}
-            onClick={() => handleTabChange('standing')}
-          >
-            <ShieldAlert size={16} color={strikeCount > 0 ? '#ef4444' : '#10b981'} />
-            <span>Community Standing</span>
-            {strikeCount > 0 ? (
-              <span className="settings-nav-badge is-danger">
-                {strikeCount} {strikeCount === 1 ? 'Strike' : 'Strikes'}
-              </span>
-            ) : (
-              <span className="settings-nav-badge is-good">
-                Good
-              </span>
-            )}
-          </button>
+          {user?.role !== 'admin' && (
+            <button
+              type="button"
+              className={`settings-nav-item ${activeTab === 'standing' ? 'is-active' : ''}`}
+              onClick={() => handleTabChange('standing')}
+            >
+              <ShieldAlert size={16} color={strikeCount > 0 ? '#ef4444' : '#10b981'} />
+              <span>Community Standing</span>
+              {strikeCount > 0 ? (
+                <span className="settings-nav-badge is-danger">
+                  {strikeCount} {strikeCount === 1 ? 'Strike' : 'Strikes'}
+                </span>
+              ) : (
+                <span className="settings-nav-badge is-good">
+                  Good
+                </span>
+              )}
+            </button>
+          )}
 
           <button
             type="button"
@@ -661,7 +668,7 @@ export default function Settings() {
             </div>
           )}
 
-          {activeTab === 'standing' && (
+          {activeTab === 'standing' && user?.role !== 'admin' && (
             <div className="settings-section-card">
               <div className="settings-section-header">
                 <h2 className="settings-section-title">
@@ -684,9 +691,9 @@ export default function Settings() {
                       {strikeCount === 0
                         ? 'Your account is in excellent standing with zero violations.'
                         : strikeCount === 1
-                        ? 'Your account has 1 strike on record. Please review community rules.'
+                        ? 'Warning active: 1 strike on record. Expires in 7 days if no further violations occur.'
                         : strikeCount === 2
-                        ? 'Warning: 2 strikes on record. One more violation will result in a permanent ban.'
+                        ? 'Posting restricted: 2 strikes on record. One more violation will result in a permanent ban.'
                         : 'Your account has accumulated 3 strikes and has been suspended.'}
                     </h3>
                     <p className="settings-standing-hero-sub">
@@ -717,17 +724,17 @@ export default function Settings() {
                   <div className={`settings-policy-card ${strikeCount >= 1 ? 'is-active' : ''}`}>
                     <span className="settings-policy-step">Strike 1</span>
                     <span className="settings-policy-title">Formal Warning</span>
-                    <span className="settings-policy-desc">Offending content restricted; reminder of code of conduct.</span>
+                    <span className="settings-policy-desc">Offending content restricted; warning auto-expires in 7 days without further offences.</span>
                   </div>
                   <div className={`settings-policy-card ${strikeCount >= 2 ? 'is-active' : ''}`}>
                     <span className="settings-policy-step">Strike 2</span>
-                    <span className="settings-policy-title">24h Suspension</span>
-                    <span className="settings-policy-desc">Temporary freeze on posting, commenting, and voting.</span>
+                    <span className="settings-policy-title">24h Restriction</span>
+                    <span className="settings-policy-desc">Cannot create posts, comments, or replies for 24h. Resets to 0 in 30 days without further offences.</span>
                   </div>
                   <div className={`settings-policy-card is-danger ${strikeCount >= 3 ? 'is-active' : ''}`}>
                     <span className="settings-policy-step">Strike 3</span>
                     <span className="settings-policy-title">Permanent Ban</span>
-                    <span className="settings-policy-desc">Account permanently revoked from participating.</span>
+                    <span className="settings-policy-desc">Account permanently suspended if further offence occurs during the 30-day period.</span>
                   </div>
                 </div>
               </div>

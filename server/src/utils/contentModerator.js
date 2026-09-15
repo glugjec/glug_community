@@ -1,4 +1,5 @@
 import { createSystemNotification } from './notificationService.js';
+import { sendStrikeMail } from '../config/mail.js';
 import crypto from 'crypto';
 import { User } from '../models/User.js';
 import { ModerationLog } from '../models/ModerationLog.js';
@@ -11,7 +12,7 @@ function hashText(text) {
 }
 
 /**
- * Calls Groq API (Llama 3.1 8B Instant) to classify user content.
+ * Calls Groq API to classify user content.
  * Returns: { verdict: 'VIOLATION' | 'SAFE', reason: string, category: string }
  */
 export async function moderateContent(text) {
@@ -32,21 +33,22 @@ export async function moderateContent(text) {
     return { verdict: 'SAFE', reason: 'Moderation key missing', category: 'none', skipped: true };
   }
 
-  const systemPrompt = `You are a strict content safety and moderation classifier for a college GNU/Linux User Group (GLUG) community forum.
-Evaluate the given text for any:
-1. NSFW / Sexual content / Pornography / Explicit language (category: "nsfw")
-2. Severe abuse, targeted insults, harassment, bullying (category: "abuse" or "harassment")
-3. Hate speech, racism, slurs, discrimination (category: "hate_speech")
-4. Threats of violence, self-harm, or illegal attacks (category: "threat")
-5. Malicious spam, scams, phishing, or malware distribution (category: "spam")
+  const systemPrompt = `You are a content safety and moderation classifier for a college GNU/Linux User Group (GLUG) community forum.
 
-Note: Normal technical discussions, bash commands, Linux errors, code snippets, and mild informal language are completely SAFE.
-Do NOT flag normal technical coding words (e.g. kill -9, execute, dump, abort, master/slave branch, daemon, etc.) as abusive.
+CORE TOLERANCE GUIDELINE:
+- Normal heated arguments, debate, disagreements, strong criticism of tools/distributions/approaches, swearing, profanity, cuss words, and informal or bad language are ACCEPTABLE and MUST be classified as SAFE.
+- Do NOT flag normal technical words (e.g. kill -9, execute, dump, abort, master/slave branch, daemon) or bad language/profanity as violations.
+
+STRICT VIOLATIONS (ONLY FLAG IF PRESENT):
+1. NSFW / Sexual content / Pornography / Explicit sexual imagery or descriptions (category: "nsfw")
+2. Targeted harassment, malicious bullying, stalking, direct personal threats, doxxing (category: "harassment")
+3. Child protection law violations, CSAM, child exploitation or endangerment - ZERO TOLERANCE (category: "child_safety")
+4. Severe real-world threats of physical violence, terrorism, or self-harm (category: "threat")
 
 Respond ONLY with a valid JSON object matching this schema with no markdown code blocks:
 {
   "verdict": "VIOLATION" or "SAFE",
-  "category": "nsfw" | "abuse" | "hate_speech" | "harassment" | "threat" | "spam" | "none",
+  "category": "nsfw" | "harassment" | "child_safety" | "threat" | "none",
   "reason": "Short explanation in one sentence of why it violated guidelines or empty string if SAFE"
 }`;
 
@@ -138,30 +140,38 @@ export async function applyStrikePipeline({
     return { skipped: true, reason: 'Admin is immune' };
   }
 
+  // Auto-reset expired strikes
+  if (user.strikeExpiresAt && new Date(user.strikeExpiresAt) <= new Date()) {
+    user.moderationStrikes = 0;
+    user.strikeExpiresAt = null;
+    user.postingRestrictedUntil = null;
+  }
+
   user.moderationStrikes = (user.moderationStrikes || 0) + 1;
   const currentStrikes = user.moderationStrikes;
   let actionTaken = 'warning';
 
-  let strikeNotice = "";
+  let strikeNotice = '';
   if (currentStrikes === 1) {
     actionTaken = 'warning';
-    strikeNotice = `⚠️ Warning: You received a moderation strike (1/3) for: "${reason || 'guideline violation'}". Accounts are permanently banned at 3 strikes.`;
+    user.strikeExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    user.postingRestrictedUntil = null;
+    user.isBanned = false;
+    strikeNotice = `Warning: You received moderation strike 1/3 for: "${reason || 'guideline violation'}". Your posting privileges remain active. This warning will automatically expire in 7 days if no further violations occur.`;
   } else if (currentStrikes === 2) {
-    actionTaken = 'temp_ban';
-    user.isBanned = true;
-    user.banReason = reason || 'Accumulated 2 moderation strikes';
-    user.bannedAt = new Date();
-    // 24-hour temporary ban
-    user.banExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    strikeNotice = `🚨 Account Suspended: You received strike (2/3) for: "${reason || 'guideline violation'}". Your account is suspended for 24 hours. A 3rd strike will result in a permanent ban.`;
+    actionTaken = 'temp_restriction';
+    user.postingRestrictedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.strikeExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    user.isBanned = false;
+    strikeNotice = `Account Restriction: You received strike 2/3 for: "${reason || 'guideline violation'}". You cannot create posts, comments, or replies for 24 hours. Other functions (chats, notifications) remain operational. This strike will automatically reset to 0 in 30 days if no further violations occur.`;
   } else {
-    // 3 or more strikes -> Permanent ban
     actionTaken = 'permanent_ban';
     user.isBanned = true;
     user.banReason = reason || `Accumulated ${currentStrikes} moderation strikes`;
     user.bannedAt = new Date();
-    user.banExpiresAt = null; // null represents permanent ban
-    strikeNotice = `🛑 Account Banned: You received strike (${currentStrikes}/3) for: "${reason || 'repeated violations'}". Your account has been permanently suspended.`;
+    user.banExpiresAt = null;
+    user.postingRestrictedUntil = null;
+    strikeNotice = `Account Banned: You received strike ${currentStrikes}/3 for: "${reason || 'repeated violations'}". Your account has been permanently suspended.`;
   }
 
   await user.save();
@@ -169,13 +179,29 @@ export async function applyStrikePipeline({
   try {
     await createSystemNotification({
       recipientId: user._id,
-      type: "moderation_strike",
+      type: 'moderation_strike',
       message: strikeNotice,
       postId: targetPost?._id || targetPost || null,
       commentId: targetComment?._id || targetComment || null,
     });
   } catch (notifErr) {
-    console.error("[Strike Notification Error]", notifErr.message);
+    console.error('[Strike Notification Error]', notifErr.message);
+  }
+
+  if (user.email) {
+    try {
+      await sendStrikeMail({
+        to: user.email,
+        username: user.username,
+        strikeLevel: currentStrikes,
+        reason,
+        category,
+        postingRestrictedUntil: user.postingRestrictedUntil,
+        strikeExpiresAt: user.strikeExpiresAt,
+      });
+    } catch (mailErr) {
+      console.error('[Strike Mail Error]', mailErr.message);
+    }
   }
 
   // Record in audit log

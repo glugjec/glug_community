@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import AuthLayout from '../components/auth/AuthLayout.jsx';
 import GoogleAuthButton from '../components/auth/GoogleAuthButton.jsx';
 import UsernameStep from '../components/auth/UsernameStep.jsx';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, ShieldAlert, CheckCircle2, X } from 'lucide-react';
 import './Auth.css';
 
 export default function Login() {
@@ -19,6 +19,12 @@ export default function Login() {
 
   const [oauthData, setOauthData] = useState(null);
   const [chosenUsername, setChosenUsername] = useState('');
+
+  const [bannedModalData, setBannedModalData] = useState(null);
+  const [appealStatement, setAppealStatement] = useState('');
+  const [appealSubmitting, setAppealSubmitting] = useState(false);
+  const [appealSuccess, setAppealSuccess] = useState('');
+  const [appealError, setAppealError] = useState('');
 
   const submit = async (e) => {
     e.preventDefault();
@@ -40,8 +46,33 @@ export default function Login() {
       login(data.user, data.token);
       navigate('/');
     } catch (err) {
-      setError(err.message || 'Invalid email or password');
+      if (err.data?.isBanned) {
+        setBannedModalData(err.data);
+      } else {
+        setError(err.message || 'Invalid email or password');
+      }
       setLoading(false);
+    }
+  };
+
+  const handleBannedAppealSubmit = async (e) => {
+    e.preventDefault();
+    if (!appealStatement.trim()) {
+      setAppealError('Please provide an explanation for your appeal.');
+      return;
+    }
+    setAppealSubmitting(true);
+    setAppealError('');
+    try {
+      const res = await authApi.submitBannedAppeal({
+        appealToken: bannedModalData.appealToken,
+        statement: appealStatement.trim(),
+      });
+      setAppealSuccess(res.message || 'Your appeal has been submitted and queued for review.');
+    } catch (aErr) {
+      setAppealError(aErr.message || 'Failed to submit appeal. Please try logging in again.');
+    } finally {
+      setAppealSubmitting(false);
     }
   };
 
@@ -191,6 +222,138 @@ export default function Login() {
           </div>
         )}
       </div>
+
+      {bannedModalData && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#161b22',
+              border: '1px solid #ef4444',
+              borderRadius: '16px',
+              maxWidth: '500px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
+              color: '#f0f6fc',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                  <ShieldAlert size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#f87171', fontWeight: 700 }}>Account Suspended</h3>
+                  <span style={{ fontSize: '0.78rem', color: '#8b949e' }}>Community Policy Enforcement</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setBannedModalData(null)}
+                style={{ background: 'transparent', border: 'none', color: '#8b949e', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.88rem', color: '#c9d1d9', lineHeight: 1.5, margin: '0 0 14px' }}>
+              Your account has been permanently suspended due to repeated community policy violations (3 of 3 strikes).
+            </p>
+
+            <div style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.74rem', color: '#8b949e', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>
+                Violation Details
+              </div>
+              <div style={{ fontSize: '0.86rem', color: '#fca5a5' }}>
+                {bannedModalData.banReason || 'Violation of community safety standards'}
+              </div>
+            </div>
+
+            {appealSuccess ? (
+              <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '14px', color: '#34d399', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={18} />
+                <span>{appealSuccess}</span>
+              </div>
+            ) : (
+              <form onSubmit={handleBannedAppealSubmit}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#c9d1d9', marginBottom: '6px' }}>
+                  Submit an Appeal
+                </label>
+                <textarea
+                  value={appealStatement}
+                  onChange={(e) => setAppealStatement(e.target.value)}
+                  placeholder="Explain why you believe this suspension should be reviewed by administrators..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    background: '#0d1117',
+                    border: '1px solid #30363d',
+                    borderRadius: '8px',
+                    color: '#f0f6fc',
+                    fontSize: '0.85rem',
+                    padding: '10px',
+                    outline: 'none',
+                    resize: 'vertical',
+                    marginBottom: '10px',
+                  }}
+                />
+
+                {appealError && (
+                  <div style={{ color: '#f87171', fontSize: '0.8rem', marginBottom: '10px' }}>
+                    {appealError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setBannedModalData(null)}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #30363d',
+                      color: '#8b949e',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={appealSubmitting}
+                    style={{
+                      background: '#ef4444',
+                      border: 'none',
+                      color: '#ffffff',
+                      padding: '8px 18px',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {appealSubmitting ? 'Submitting...' : 'Submit Appeal'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </AuthLayout>
   );
 }

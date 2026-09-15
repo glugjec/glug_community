@@ -410,6 +410,11 @@ export default function Forum() {
         navigate('/login')
         return
       }
+      if (user.postingRestrictedUntil && new Date(user.postingRestrictedUntil) > new Date()) {
+        const hoursLeft = Math.ceil((new Date(user.postingRestrictedUntil) - Date.now()) / (1000 * 60 * 60))
+        setModerationBanner(`Your posting privileges are temporarily restricted due to a moderation strike. Restriction lifts in ${hoursLeft} hour${hoursLeft === 1 ? '' : 's'}.`)
+        return
+      }
       const catToUse = categoryOverride || selectedCategory || 'linux'
       const isValid = CATEGORIES_LIST.some((c) => c.id === catToUse)
       setNewCategory(isValid ? catToUse : 'linux')

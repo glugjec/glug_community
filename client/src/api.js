@@ -30,7 +30,11 @@ client.interceptors.response.use(
       error.response?.data?.message ||
       error.message ||
       'An unexpected network error occurred';
-    return Promise.reject(new Error(message));
+    const err = new Error(message);
+    err.response = error.response;
+    err.data = error.response?.data;
+    err.status = error.response?.status;
+    return Promise.reject(err);
   }
 );
 
@@ -44,6 +48,7 @@ export const api = {
 export const authApi = {
   register: (data) => client.post('/auth/register', data),
   login: (data) => client.post('/auth/login', data),
+  submitBannedAppeal: (data) => client.post('/auth/banned-appeal', data),
   sendOtp: (data) => client.post('/auth/send-otp', data),
   verifyOtp: (data) => client.post('/auth/verify-otp', data),
   checkUsername: (username) => client.get('/auth/check-username', { params: { username } }),

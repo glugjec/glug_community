@@ -599,6 +599,14 @@ router.post('/', requireAuth, async (req, res) => {
     ? tags.map((t) => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 5)
     : [];
 
+  if (req.user.postingRestrictedUntil && new Date(req.user.postingRestrictedUntil) > new Date()) {
+    const hoursLeft = Math.ceil((new Date(req.user.postingRestrictedUntil) - Date.now()) / (1000 * 60 * 60));
+    return res.status(403).json({
+      error: `Your posting privileges are temporarily restricted due to a moderation strike. Restriction lifts in ${hoursLeft} hour${hoursLeft === 1 ? '' : 's'}.`,
+      postingRestrictedUntil: req.user.postingRestrictedUntil,
+    });
+  }
+
   try {
     let isHidden = false;
     let moderationReason = '';
@@ -887,6 +895,14 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
 
   if (!body?.trim()) {
     return res.status(400).json({ error: 'Comment body is required' });
+  }
+
+  if (req.user.postingRestrictedUntil && new Date(req.user.postingRestrictedUntil) > new Date()) {
+    const hoursLeft = Math.ceil((new Date(req.user.postingRestrictedUntil) - Date.now()) / (1000 * 60 * 60));
+    return res.status(403).json({
+      error: `Your commenting privileges are temporarily restricted due to a moderation strike. Restriction lifts in ${hoursLeft} hour${hoursLeft === 1 ? '' : 's'}.`,
+      postingRestrictedUntil: req.user.postingRestrictedUntil,
+    });
   }
 
   try {

@@ -64,6 +64,14 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    strikeExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    postingRestrictedUntil: {
+      type: Date,
+      default: null,
+    },
     bio: {
       type: String,
       default: '',

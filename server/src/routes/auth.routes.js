@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { Appeal } from '../models/Appeal.js';
 import { EmailOtp } from '../models/EmailOtp.js';
 import { sendOtpMail } from '../config/mail.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
@@ -251,6 +252,22 @@ router.post(
         await user.save();
       }
 
+      if (user.isBanned) {
+        const appealToken = jwt.sign(
+          { id: user._id.toString(), email: user.email, role: user.role, isBanned: true },
+          process.env.JWT_SECRET || 'glug-secret-key-development',
+          { expiresIn: '24h' }
+        );
+        return res.status(403).json({
+          error: 'Your account has been permanently suspended for repeated community violations.',
+          isBanned: true,
+          banReason: user.banReason || 'Accumulated moderation strikes',
+          moderationStrikes: user.moderationStrikes || 3,
+          bannedAt: user.bannedAt,
+          appealToken,
+        });
+      }
+
       const token = signToken(user);
       return res.json({ user: user.toJSON(), token });
     } catch (err) {
@@ -259,6 +276,56 @@ router.post(
     }
   }
 );
+
+router.post('/banned-appeal', async (req, res) => {
+  const { appealToken, statement } = req.body;
+
+  if (!statement || typeof statement !== 'string' || !statement.trim()) {
+    return res.status(400).json({ error: 'Please provide an appeal statement.' });
+  }
+
+  if (!appealToken) {
+    return res.status(401).json({ error: 'Appeal authorization token missing.' });
+  }
+
+  try {
+    const secret = process.env.JWT_SECRET || 'glug-secret-key-development';
+    const decoded = jwt.verify(appealToken, secret);
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const existingPending = await Appeal.findOne({
+      appellant: user._id,
+      status: 'pending',
+    });
+
+    if (existingPending) {
+      return res.status(400).json({ error: 'You already have a pending appeal under review.' });
+    }
+
+    const appeal = await Appeal.create({
+      appellant: user._id,
+      itemType: 'strike',
+      strikeIndex: user.moderationStrikes || 3,
+      originalReason: user.banReason || 'Permanent ban from 3 moderation strikes',
+      originalCategory: 'account_ban',
+      statement: statement.trim().slice(0, 1500),
+      status: 'pending',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Your appeal has been submitted and queued for administrator review.',
+      appeal: appeal.toJSON(),
+    });
+  } catch (err) {
+    console.error('[Banned Appeal Error]', err);
+    return res.status(401).json({ error: 'Invalid or expired appeal session. Please try logging in again.' });
+  }
+});
 
 router.post(
   '/forgot-password',
