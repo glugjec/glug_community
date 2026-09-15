@@ -21,6 +21,89 @@ let notificationsCache = {
   timestamp: 0,
 }
 
+function getNotificationBadge(notif) {
+  if (notif.type === 'moderation_strike') {
+    if (/warning/i.test(notif.message) || /strike 1/i.test(notif.message)) {
+      return <span className="notif-category-pill pill-warning">Warning · Strike 1</span>
+    }
+    if (/restriction/i.test(notif.message) || /strike 2/i.test(notif.message)) {
+      return <span className="notif-category-pill pill-strike">Restriction · Strike 2</span>
+    }
+    if (/banned/i.test(notif.message) || /strike 3/i.test(notif.message)) {
+      return <span className="notif-category-pill pill-strike">Banned · Strike 3</span>
+    }
+    return <span className="notif-category-pill pill-strike">Strike Alert</span>
+  }
+  if (notif.type === 'moderation_review') {
+    return <span className="notif-category-pill pill-warning">Under Review</span>
+  }
+  if (notif.type === 'report_accepted') {
+    if (/appeal/i.test(notif.message)) {
+      return <span className="notif-category-pill pill-success">Appeal Approved</span>
+    }
+    return <span className="notif-category-pill pill-success">Report Accepted</span>
+  }
+  if (/appeal.*denied/i.test(notif.message)) {
+    return <span className="notif-category-pill pill-strike">Appeal Denied</span>
+  }
+  if (notif.type === 'reply') {
+    return <span className="notif-category-pill pill-info">Reply</span>
+  }
+  if (notif.type === 'comment') {
+    return <span className="notif-category-pill pill-info">Comment</span>
+  }
+  return null
+}
+
+function renderNotificationRichText(message) {
+  if (!message || typeof message !== 'string') return null
+
+  let clean = message
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  clean = clean.replace(/^(Warning|Account Restriction|Account Banned):\s*/i, '')
+
+  const parts = []
+  const regex = /(\*\*[^*]+\*\*|"[^"]+")/g
+  let lastIndex = 0
+  let match
+
+  while ((match = regex.exec(clean)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(clean.slice(lastIndex, match.index))
+    }
+    const token = match[0]
+    if (token.startsWith('**') && token.endsWith('**')) {
+      parts.push(
+        <strong key={match.index} className="notif-strong">
+          {token.slice(2, -2)}
+        </strong>
+      )
+    } else if (token.startsWith('"') && token.endsWith('"')) {
+      parts.push(
+        <span key={match.index} className="notif-quote-tag">
+          {token}
+        </span>
+      )
+    }
+    lastIndex = regex.lastIndex
+  }
+
+  if (lastIndex < clean.length) {
+    parts.push(clean.slice(lastIndex))
+  }
+
+  return parts
+}
+
 function TopBarAvatar({ src, username, email, size = 30, className = '' }) {
   const [error, setError] = useState(false)
   const name = username || email || 'User'
@@ -293,7 +376,11 @@ export default function TopBar() {
       notificationsCache.data = updated
     }
     setNotifOpen(false)
-    if (notif.type === 'moderation_strike') {
+    if (
+      notif.type === 'moderation_strike' ||
+      notif.type === 'moderation_review' ||
+      /appeal/i.test(notif.message)
+    ) {
       navigate('/settings?tab=standing')
       return
     }
@@ -565,7 +652,8 @@ export default function TopBar() {
                         )}
                       </div>
                       <div className="notif-content">
-                        <p className="notif-text">{notif.message}</p>
+                        {getNotificationBadge(notif)}
+                        <p className="notif-text">{renderNotificationRichText(notif.message)}</p>
                         <span className="notif-time">
                           {formatRelativeTime(notif.createdAt)}
                         </span>

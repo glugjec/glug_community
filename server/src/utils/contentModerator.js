@@ -2,6 +2,8 @@ import { createSystemNotification } from './notificationService.js';
 import { sendStrikeMail } from '../config/mail.js';
 import crypto from 'crypto';
 import { User } from '../models/User.js';
+import { Post } from '../models/Post.js';
+import { Comment } from '../models/Comment.js';
 import { ModerationLog } from '../models/ModerationLog.js';
 
 const cache = new Map();
@@ -151,19 +153,37 @@ export async function applyStrikePipeline({
   const currentStrikes = user.moderationStrikes;
   let actionTaken = 'warning';
 
+  let postTitle = '';
+  if (targetPost && typeof targetPost === 'object' && targetPost.title) {
+    postTitle = targetPost.title;
+  } else if (targetPost) {
+    const p = await Post.findById(targetPost).select('title').lean().catch(() => null);
+    if (p) postTitle = p.title;
+  }
+  if (!postTitle && targetComment) {
+    const c = await Comment.findById(targetComment).populate('post', 'title').lean().catch(() => null);
+    if (c?.post?.title) postTitle = c.post.title;
+  }
+
+  const cleanReason = String(reason || 'community guideline violation').replace(/["'“”]+/g, '').replace(/\.+$/, '').trim();
+
   let strikeNotice = '';
   if (currentStrikes === 1) {
     actionTaken = 'warning';
     user.strikeExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     user.postingRestrictedUntil = null;
     user.isBanned = false;
-    strikeNotice = `Warning: You received moderation strike 1/3 for: "${reason || 'guideline violation'}". Your posting privileges remain active. This warning will automatically expire in 7 days if no further violations occur.`;
+    strikeNotice = postTitle
+      ? `Warning: Your content on "${postTitle}" was removed for: ${cleanReason}. You received Strike 1/3 (Warning). Your posting privileges remain active. This warning expires in 7 days if no further violations occur. You can request an appeal in Settings.`
+      : `Warning: You received moderation Strike 1/3 (Warning) for: ${cleanReason}. Your posting privileges remain active. This warning expires in 7 days if no further violations occur. You can request an appeal in Settings.`;
   } else if (currentStrikes === 2) {
     actionTaken = 'temp_restriction';
     user.postingRestrictedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
     user.strikeExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     user.isBanned = false;
-    strikeNotice = `Account Restriction: You received strike 2/3 for: "${reason || 'guideline violation'}". You cannot create posts, comments, or replies for 24 hours. Other functions (chats, notifications) remain operational. This strike will automatically reset to 0 in 30 days if no further violations occur.`;
+    strikeNotice = postTitle
+      ? `Account Restriction: Your content on "${postTitle}" was removed for: ${cleanReason}. You received Strike 2/3. Posting and commenting are paused for 24 hours. Your strike count will reset to 0 in 30 days if no further violations occur. You can request an appeal in Settings.`
+      : `Account Restriction: You received moderation Strike 2/3 for: ${cleanReason}. Posting and commenting are paused for 24 hours. Your strike count will reset to 0 in 30 days if no further violations occur. You can request an appeal in Settings.`;
   } else {
     actionTaken = 'permanent_ban';
     user.isBanned = true;
@@ -171,7 +191,7 @@ export async function applyStrikePipeline({
     user.bannedAt = new Date();
     user.banExpiresAt = null;
     user.postingRestrictedUntil = null;
-    strikeNotice = `Account Banned: You received strike ${currentStrikes}/3 for: "${reason || 'repeated violations'}". Your account has been permanently suspended.`;
+    strikeNotice = `Account Banned: You received Strike ${currentStrikes}/3 for: ${cleanReason}. Your account has been permanently suspended. You can submit an appeal from the login screen.`;
   }
 
   await user.save();

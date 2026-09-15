@@ -85,11 +85,16 @@
 .settings-nav-badge {
   margin-left: auto;
   font-size: 0.72rem;
-  padding: 0.15rem 0.5rem;
+  padding: 0.18rem 0.55rem;
   border-radius: 999px;
   background: var(--bg-card-subtle);
   border: 1px solid var(--border);
   font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
 }
 
 .settings-nav-item.is-active .settings-nav-badge {

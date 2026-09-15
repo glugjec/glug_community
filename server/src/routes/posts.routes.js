@@ -644,13 +644,6 @@ router.post('/', requireAuth, async (req, res) => {
         actionSource: 'auto_flag',
         targetPost: post,
       });
-
-      await createSystemNotification({
-        recipientId: req.user.id,
-        type: "moderation_review",
-        postId: post._id,
-        message: `Your post "${post.title}" was flagged by automated moderation and is under review. It is temporarily hidden.`,
-      });
     }
 
     const populated = await Post.findById(post._id).populate('author', 'username role avatar communityRole');
@@ -959,14 +952,6 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
         actionSource: 'auto_flag',
         targetComment: comment._id,
         targetPost: post._id,
-      });
-
-      await createSystemNotification({
-        recipientId: req.user.id,
-        type: "moderation_review",
-        postId: post._id,
-        commentId: comment._id,
-        message: `Your comment on "${post.title}" was flagged by automated moderation and is under review. It is temporarily hidden.`,
       });
     } else {
       post.commentCount = (post.commentCount || 0) + 1;

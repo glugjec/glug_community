@@ -217,6 +217,20 @@ router.get('/:id/posts', async (req, res) => {
 });
 
 
+function stripHtml(html) {
+  if (!html || typeof html !== 'string') return '';
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // @route   GET /api/users/me/moderation-history
 // @desc    Get user flagged content, strikes, and appeals
 router.get("/me/moderation-history", requireAuth, async (req, res) => {
@@ -272,7 +286,7 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
         postId: p._id.toString(),
         targetPostId: p._id.toString(),
         title: p.title,
-        bodySnippet: (p.body || "").slice(0, 150),
+        bodySnippet: stripHtml(p.body).slice(0, 150),
         category: p.category,
         moderationReason: p.moderationReason,
         moderationCategory: p.moderationCategory,
@@ -286,7 +300,7 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
           postTitle: c.post?.title || "Discussion Post",
           postId,
           targetPostId: postId,
-          bodySnippet: (c.body || "").slice(0, 150),
+          bodySnippet: stripHtml(c.body).slice(0, 150),
           moderationReason: c.moderationReason,
           moderationCategory: c.moderationCategory,
           hiddenAt: c.hiddenAt || c.createdAt,
@@ -311,7 +325,7 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
             ? s.targetComment._id.toString()
             : (s.targetComment ? s.targetComment.toString() : null),
           targetPostTitle: s.targetPost?.title || s.targetComment?.post?.title || null,
-          targetCommentSnippet: s.targetComment?.body ? s.targetComment.body.slice(0, 100) : null,
+          targetCommentSnippet: s.targetComment?.body ? stripHtml(s.targetComment.body).slice(0, 100) : null,
           createdAt: s.createdAt,
         };
       }),

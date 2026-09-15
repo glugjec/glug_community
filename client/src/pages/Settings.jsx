@@ -157,6 +157,20 @@ export default function Settings() {
     ? user.moderationStrikes
     : 0
 
+function stripHtml(html) {
+  if (!html || typeof html !== 'string') return ''
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
   const allFlaggedAndStrikes = []
   if (modHistory && typeof modHistory === 'object') {
     const flaggedPosts = getArray(modHistory.flaggedPosts ?? modHistory.data?.flaggedPosts)
@@ -195,19 +209,19 @@ export default function Settings() {
         itemType = 'comment'
         const postTitle = s.targetPostTitle || matchedComment?.postTitle
         title = postTitle ? `Comment on "${postTitle}"` : 'Flagged Comment'
-        snippet = matchedComment?.bodySnippet || s.targetCommentSnippet || ''
+        snippet = stripHtml(matchedComment?.bodySnippet || s.targetCommentSnippet || '')
       } else if (pId || matchedPost) {
         itemType = 'post'
         const postTitle = s.targetPostTitle || matchedPost?.title
         title = postTitle ? `Post: "${postTitle}"` : 'Flagged Post'
-        snippet = matchedPost?.bodySnippet || ''
+        snippet = stripHtml(matchedPost?.bodySnippet || '')
       } else {
         itemType = 'strike'
         title = `Account Strike #${strikeNumber}`
       }
 
       if (!snippet && s.details && !/^strike #/i.test(s.details.trim())) {
-        snippet = s.details
+        snippet = stripHtml(s.details)
       }
 
       allFlaggedAndStrikes.push({
@@ -242,7 +256,7 @@ export default function Settings() {
         targetPostId: pId,
         postId: pId,
         title: c.postTitle ? `Comment on "${c.postTitle}"` : 'Flagged Comment',
-        snippet: c.bodySnippet || '',
+        snippet: stripHtml(c.bodySnippet || ''),
         reason: c.moderationReason || 'Violates community guidelines',
         category: c.moderationCategory,
         date: c.hiddenAt || c.createdAt,
@@ -261,7 +275,7 @@ export default function Settings() {
         targetPostId: pId,
         postId: pId,
         title: p.title ? `Post: "${p.title}"` : 'Flagged Post',
-        snippet: p.bodySnippet || '',
+        snippet: stripHtml(p.bodySnippet || ''),
         reason: p.moderationReason || 'Violates community guidelines',
         category: p.moderationCategory,
         date: p.hiddenAt || p.createdAt,
