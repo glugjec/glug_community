@@ -955,6 +955,16 @@
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+.profile-btn-primary:disabled,
+.profile-btn-primary[disabled] {
+  opacity: 0.42 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  filter: grayscale(0.6);
+}
+
 @media (max-width: 768px) {
   .settings-standing-policy-grid {
     grid-template-columns: 1fr;

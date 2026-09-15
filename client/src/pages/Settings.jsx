@@ -885,7 +885,12 @@ function stripHtml(html) {
                                 to={`/forum/posts/${item.targetPostId || item.postId}`}
                                 className="settings-mod-view-post-pill"
                               >
-                                <ExternalLink size={12} /> View Restricted Post
+                                <ExternalLink size={12} />
+                                {item.itemType === 'comment'
+                                  ? 'View Comment on Post'
+                                  : item.itemType === 'post'
+                                  ? 'View Restricted Post'
+                                  : 'View Discussion Post'}
                               </Link>
                             )}
                           </div>
@@ -925,7 +930,11 @@ function stripHtml(html) {
                                 className="settings-appeal-btn"
                                 onClick={() => openAppealModal(item)}
                               >
-                                Request Appeal
+                                {item.itemType === 'comment'
+                                  ? 'Appeal Comment'
+                                  : item.itemType === 'post'
+                                  ? 'Appeal Post'
+                                  : 'Appeal Strike'}
                               </button>
                             )}
                           </div>
@@ -1154,7 +1163,12 @@ function stripHtml(html) {
           >
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldAlert size={18} color="#f59e0b" /> Request Moderation Appeal
+                <ShieldAlert size={18} color="#f59e0b" />
+                {appealModalItem.itemType === 'comment'
+                  ? 'Request Comment Appeal'
+                  : appealModalItem.itemType === 'post'
+                  ? 'Request Post Appeal'
+                  : 'Request Moderation Appeal'}
               </h3>
               <button
                 type="button"
@@ -1231,6 +1245,10 @@ function stripHtml(html) {
                     <>
                       <Loader2 size={14} className="glug-spin" /> Submitting...
                     </>
+                  ) : appealModalItem?.itemType === 'comment' ? (
+                    'Submit Comment Appeal'
+                  ) : appealModalItem?.itemType === 'post' ? (
+                    'Submit Post Appeal'
                   ) : (
                     'Submit Appeal'
                   )}
