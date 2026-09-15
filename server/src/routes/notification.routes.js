@@ -7,10 +7,11 @@ const router = Router();
 
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const notifications = await Notification.find({ recipient: req.user.id })
+    const recipientId = new mongoose.Types.ObjectId(req.user.id);
+    const notifications = await Notification.find({ recipient: recipientId })
       .select('type message isRead createdAt sender post comment')
       .sort({ createdAt: -1 })
-      .limit(30)
+      .limit(20)
       .populate('sender', 'username avatar role')
       .populate('post', 'title')
       .lean();
@@ -39,6 +40,7 @@ router.get('/', requireAuth, async (req, res) => {
       commentId: n.comment ? n.comment.toString() : null,
     }));
 
+    res.set('Cache-Control', 'private, no-cache');
     return res.json({ notifications: formatted });
   } catch (err) {
     console.error('[Get Notifications Error]', err);
@@ -48,8 +50,9 @@ router.get('/', requireAuth, async (req, res) => {
 
 router.get('/unread-count', requireAuth, async (req, res) => {
   try {
+    const recipientId = new mongoose.Types.ObjectId(req.user.id);
     const unreadCount = await Notification.countDocuments({
-      recipient: req.user.id,
+      recipient: recipientId,
       isRead: false,
     });
     return res.json({ unreadCount });
