@@ -278,12 +278,6 @@ function CommentThreadItem({
           </div>
         </div>
 
-        {comment.isAccepted && (
-          <div className="accepted-answer-pill">
-            <CheckCircle2 size={14} />
-            <span>Accepted Answer</span>
-          </div>
-        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {comment.isHidden && (
             <div

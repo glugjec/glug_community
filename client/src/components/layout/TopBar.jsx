@@ -294,7 +294,7 @@ export default function TopBar() {
     }
     setNotifOpen(false)
     if (notif.type === 'moderation_strike') {
-      navigate('/profile')
+      navigate('/settings?tab=standing')
       return
     }
     const targetPostId = notif.post?.id || notif.post?._id || notif.post

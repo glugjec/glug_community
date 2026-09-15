@@ -13,7 +13,6 @@ import {
   Calendar,
   Mail,
   Shield,
-  Send,
   MessageSquare,
   ThumbsUp,
   Award,
@@ -38,7 +37,6 @@ import {
 } from 'lucide-react'
 import { uploadApi } from '../api.js'
 import { compressImage } from '../utils/imageCompressor.js'
-import { formatRelativeTime } from '../utils/timeAgo.js'
 import './Profile.css'
 
 function GithubIcon({ size = 16, style = {} }) {

@@ -82,9 +82,6 @@ export async function optionalAuth(req, res, next) {
             await dbUser.save();
             req.user.isBanned = false;
           } else {
-            // Treat as unauthenticated for optional auth if banned
-            req.user = null;
-            // Mark user as banned on req.user for read checks without losing identity
             req.user.isBanned = true;
           }
         } else {

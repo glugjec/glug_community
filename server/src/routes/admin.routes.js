@@ -1145,45 +1145,6 @@ router.get("/moderation/appeals", async (req, res) => {
       .lean();
 
     return res.json({
-      appeals: appeals.map((a) => ({
-        id: a._id.toString(),
-        _id: a._id.toString(),
-        appellant: a.appellant
-          ? {
-              id: a.appellant._id.toString(),
-              username: a.appellant.username,
-              email: a.appellant.email,
-              role: a.appellant.role,
-              avatar: a.appellant.avatar,
-              moderationStrikes: a.appellant.moderationStrikes || 0,
-              isBanned: !!a.appellant.isBanned,
-              banExpiresAt: a.appellant.banExpiresAt,
-            }
-          : null,
-        itemType: a.itemType,
-        strikeIndex: a.strikeIndex,
-        originalReason: a.originalReason,
-        originalCategory: a.originalCategory,
-        statement: a.statement,
-        status: a.status,
-        adminNotes: a.adminNotes || "",
-        targetPost: a.targetPost
-          ? {
-              id: a.targetPost._id.toString(),
-              title: a.targetPost.title,
-              bodySnippet: (a.targetPost.body || "").slice(0, 150),
-            }
-          : null,
-        targetComment: a.targetComment
-          ? {
-              id: a.targetComment._id.toString(),
-              bodySnippet: (a.targetComment.body || "").slice(0, 150),
-            }
-          : null,
-        resolvedBy: a.resolvedBy?.username || null,
-        resolvedAt: a.resolvedAt,
-        createdAt: a.createdAt,
-      })),
       appeals: appeals.map((a) => {
         const targetPostId = a.targetPost?._id
           ? a.targetPost._id.toString()
