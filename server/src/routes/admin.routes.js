@@ -19,6 +19,22 @@ router.use(requireAuth, requireAdmin);
 
 const PROTECTED_ADMIN_EMAILS = ["glug.jec@gmail.com"];
 
+const stripHtmlText = (str = "") => {
+  if (!str || typeof str !== "string") return "";
+  return str
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
 // @route   GET /api/admin/stats
 // @desc    Get platform-wide metrics
 router.get("/stats", async (req, res) => {
@@ -896,6 +912,7 @@ router.get("/moderation/reports", async (req, res) => {
               postId: r.targetPost?._id?.toString() || "",
               title: r.targetPost?.title || "[Post Removed]",
               body: r.targetPost?.body || "",
+              bodySnippet: stripHtmlText(r.targetPost?.body || "").slice(0, 150),
               isHidden: Boolean(r.targetPost?.isHidden),
             }
           : r.contentType === "comment"
@@ -904,12 +921,14 @@ router.get("/moderation/reports", async (req, res) => {
               postId: r.targetComment?.post?._id?.toString() || r.targetComment?.post?.toString() || "",
               postTitle: r.targetComment?.post?.title || "Discussion Post",
               body: r.targetComment?.body || "[Comment Removed]",
+              bodySnippet: stripHtmlText(r.targetComment?.body || "").slice(0, 150),
               isHidden: Boolean(r.targetComment?.isHidden),
             }
           : {
               id: r.targetMessage?._id?.toString() || "",
               postId: null,
               text: r.targetMessage?.text || "[Message Removed]",
+              bodySnippet: stripHtmlText(r.targetMessage?.text || "").slice(0, 150),
             },
     }));
 
@@ -1178,7 +1197,8 @@ router.get("/moderation/appeals", async (req, res) => {
             ? {
                 id: a.targetPost._id.toString(),
                 title: a.targetPost.title,
-                bodySnippet: (a.targetPost.body || "").slice(0, 150),
+                body: a.targetPost.body || "",
+                bodySnippet: stripHtmlText(a.targetPost.body || "").slice(0, 150),
               }
             : null,
           targetComment: a.targetComment
@@ -1186,7 +1206,8 @@ router.get("/moderation/appeals", async (req, res) => {
                 id: a.targetComment._id.toString(),
                 postId: a.targetComment.post?._id?.toString() || a.targetComment.post?.toString() || null,
                 postTitle: a.targetComment.post?.title || "Discussion Post",
-                bodySnippet: (a.targetComment.body || "").slice(0, 150),
+                body: a.targetComment.body || "",
+                bodySnippet: stripHtmlText(a.targetComment.body || "").slice(0, 150),
               }
             : null,
           resolvedBy: a.resolvedBy?.username || null,

@@ -43,7 +43,24 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { adminApi, resourcesApi } from "../api.js";
 import ConfirmDeleteModal from "../components/common/ConfirmDeleteModal.jsx";
 import { avatarInitials, avatarColor } from "../components/common/avatar.js";
+import MarkdownRenderer from "../components/common/MarkdownRenderer.jsx";
 import "./AdminDashboard.css";
+
+function stripHtml(str = "") {
+  if (!str || typeof str !== "string") return "";
+  return str
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function AdminUserAvatar({ src, username }) {
   const [error, setError] = useState(false);
@@ -1452,12 +1469,12 @@ export default function AdminDashboard() {
                                       style={{ fontSize: "0.95rem", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "4px" }}
                                       title="View post on forum"
                                     >
-                                      {item.title || (item.body ? (item.body.length > 50 ? item.body.substring(0, 50) + "..." : item.body) : "[No content]")}
+                                      {item.title || (item.body ? (stripHtml(item.body).length > 50 ? stripHtml(item.body).substring(0, 50) + "..." : stripHtml(item.body)) : "[No content]")}
                                       <ExternalLink size={12} />
                                     </Link>
                                   ) : (
                                     <span className="admin-post-title" style={{ fontSize: "0.95rem" }}>
-                                      {item.title || (item.body ? (item.body.length > 50 ? item.body.substring(0, 50) + "..." : item.body) : "[No content]")}
+                                      {item.title || (item.body ? (stripHtml(item.body).length > 50 ? stripHtml(item.body).substring(0, 50) + "..." : stripHtml(item.body)) : "[No content]")}
                                     </span>
                                   )}
                                 </div>
@@ -1634,23 +1651,26 @@ export default function AdminDashboard() {
                                   <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
                                     {r.contentType}
                                   </span>
-                                  {reportPostId ? (
-                                    <Link
-                                      to={`/forum/posts/${reportPostId}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="admin-post-title"
-                                      style={{ fontSize: "0.88rem", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                                      title="View reported content on forum"
-                                    >
-                                      {r.contentPreview?.title || r.contentPreview?.body || r.contentPreview?.text || "[Removed]"}
-                                      <ExternalLink size={11} />
-                                    </Link>
-                                  ) : (
-                                    <span className="admin-post-title" style={{ fontSize: "0.88rem" }}>
-                                      {r.contentPreview?.title || r.contentPreview?.body || r.contentPreview?.text || "[Removed]"}
-                                    </span>
-                                  )}
+                                  {(() => {
+                                    const previewText = r.contentPreview?.title || stripHtml(r.contentPreview?.bodySnippet || r.contentPreview?.body || r.contentPreview?.text) || "[Removed]";
+                                    return reportPostId ? (
+                                      <Link
+                                        to={`/forum/posts/${reportPostId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="admin-post-title"
+                                        style={{ fontSize: "0.88rem", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "4px", maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                                        title="View reported content on forum"
+                                      >
+                                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewText}</span>
+                                        <ExternalLink size={11} style={{ flexShrink: 0 }} />
+                                      </Link>
+                                    ) : (
+                                      <span className="admin-post-title" style={{ fontSize: "0.88rem", maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block" }}>
+                                        {previewText}
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
                                 <span className="admin-date-subtext">
                                   Reason: <em>"{r.userReason}"</em>
@@ -1878,7 +1898,7 @@ export default function AdminDashboard() {
                                   style={{ maxWidth: "200px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit", display: "inline-flex", alignItems: "center", gap: "3px" }}
                                   title="Open post discussion in new tab"
                                 >
-                                  Comment: "{a.targetComment.bodySnippet || a.targetComment.postTitle || "Comment"}" {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} />}
+                                  Comment: "{stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}" {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} />}
                                 </Link>
                               )}
                             </div>
@@ -1932,6 +1952,24 @@ export default function AdminDashboard() {
                           </td>
                           <td className="admin-td-actions">
                             <div className="admin-actions-cell" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <button
+                                type="button"
+                                className="admin-icon-btn secondary"
+                                onClick={() =>
+                                  setViewItemModal({
+                                    contentType: a.itemType,
+                                    body: a.targetComment?.body || a.targetComment?.bodySnippet || a.targetPost?.body || a.targetPost?.bodySnippet || a.statement,
+                                    title: a.targetPost?.title || (a.targetComment ? `Comment on: "${a.targetComment.postTitle || 'Post'}"` : "Appealed Content"),
+                                    author: a.appellant,
+                                    postId: a.targetPostId || a.targetPost?.id || a.targetComment?.postId,
+                                    moderationCategory: a.originalCategory,
+                                    moderationReason: `[Original Reason]: ${a.originalReason} | [Appeal Statement]: "${a.statement}"`,
+                                  })
+                                }
+                                title="Inspect appealed content"
+                              >
+                                <Eye size={13} />
+                              </button>
                               {(a.targetPostId || a.targetPost?.id || a.targetComment?.postId) && (
                                 <Link
                                   to={`/forum/posts/${a.targetPostId || a.targetPost?.id || a.targetComment?.postId}`}
@@ -2643,7 +2681,7 @@ export default function AdminDashboard() {
 
             <div className="admin-preview-body">
               {previewingPost.body ? (
-                <div dangerouslySetInnerHTML={{ __html: previewingPost.body }} />
+                <MarkdownRenderer content={previewingPost.body} />
               ) : (
                 <p className="text-muted">No content in discussion body.</p>
               )}
@@ -3268,9 +3306,11 @@ export default function AdminDashboard() {
               </h3>
             )}
             <div className="admin-preview-body" style={{ maxHeight: "350px", overflowY: "auto", background: "rgba(0,0,0,0.25)", padding: "14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
-              {viewItemModal.body || viewItemModal.text || viewItemModal.contentPreview?.body || viewItemModal.contentPreview?.text || (
-                <p className="text-muted">No text content.</p>
-              )}
+              {(() => {
+                const rawContent = viewItemModal.body || viewItemModal.text || viewItemModal.contentPreview?.body || viewItemModal.contentPreview?.text;
+                if (!rawContent) return <p className="text-muted">No text content.</p>;
+                return <MarkdownRenderer content={rawContent} />;
+              })()}
             </div>
             <div className="admin-modal-actions" style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
