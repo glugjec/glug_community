@@ -491,14 +491,11 @@ export default function Chat() {
                       </span>
                     )}
                   </div>
-                  {(activeConversation.otherUser?.communityRole?.positionTitle ||
-                    activeConversation.otherUser?.communityRole?.category) ? (
+                  {(activeConversation.otherUser?.communityRole?.isMember ||
+                    activeConversation.otherUser?.communityRole?.category) && (
                     <span className="chat-header-status">
-                      {activeConversation.otherUser.communityRole.positionTitle ||
-                        activeConversation.otherUser.communityRole.category}
+                      GLUG Community Member
                     </span>
-                  ) : (
-                    <span className="chat-header-status">Member</span>
                   )}
                 </div>
               </div>
