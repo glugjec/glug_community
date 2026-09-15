@@ -882,7 +882,6 @@ export default function AdminDashboard() {
             className={`admin-tab-btn ${activeTab === "moderation" ? "active" : ""}`}
             onClick={() => setSearchParams({ tab: "moderation" })}
           >
-            <MessageSquare size={16} />
             <ShieldAlert size={16} />
             <span>Moderation</span>
             {(stats.flaggedCount || 0) > 0 && (
