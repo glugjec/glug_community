@@ -839,6 +839,12 @@
   border-radius: 8px;
 }
 
+.settings-appeal-badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .settings-appeal-badge.status-pending {
   background: rgba(234, 179, 8, 0.12);
   color: #eab308;

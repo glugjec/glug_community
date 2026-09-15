@@ -307,6 +307,9 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
           details: s.details,
           targetPostId,
           postId: targetPostId,
+          targetCommentId: s.targetComment?._id
+            ? s.targetComment._id.toString()
+            : (s.targetComment ? s.targetComment.toString() : null),
           targetPostTitle: s.targetPost?.title || s.targetComment?.post?.title || null,
           targetCommentSnippet: s.targetComment?.body ? s.targetComment.body.slice(0, 100) : null,
           createdAt: s.createdAt,
@@ -373,12 +376,12 @@ router.post("/me/appeals", requireAuth, async (req, res) => {
       status: "pending",
     };
 
-    if (targetPostId) {
-      query.targetPost = targetPostId;
-    } else if (targetCommentId) {
+    if (targetCommentId) {
       query.targetComment = targetCommentId;
     } else if (moderationLogId) {
       query.moderationLog = moderationLogId;
+    } else if (targetPostId && itemType === "post") {
+      query.targetPost = targetPostId;
     } else {
       query.strikeIndex = strikeIndex;
     }
@@ -391,7 +394,7 @@ router.post("/me/appeals", requireAuth, async (req, res) => {
     const appeal = await Appeal.create({
       appellant: userId,
       itemType,
-      targetPost: targetPostId || null,
+      targetPost: (itemType === "post" ? targetPostId : null) || null,
       targetComment: targetCommentId || null,
       targetMessage: targetMessageId || null,
       moderationLog: moderationLogId || null,

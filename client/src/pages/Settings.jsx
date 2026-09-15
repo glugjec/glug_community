@@ -27,6 +27,8 @@ import {
   FileText,
   ExternalLink,
   Loader2,
+  Clock,
+  XCircle,
   X
 } from 'lucide-react'
 import './Settings.css'
@@ -161,27 +163,77 @@ export default function Settings() {
     const flaggedComments = getArray(modHistory.flaggedComments ?? modHistory.data?.flaggedComments)
     const strikeLogs = getArray(modHistory.strikeLogs ?? modHistory.data?.strikeLogs)
 
-    flaggedPosts.forEach((p) => {
-      if (!p || typeof p !== 'object') return
-      const pId = p.targetPostId || p.postId || p.id || p._id
+    const handledCommentIds = new Set()
+    const handledPostIds = new Set()
+
+    strikeLogs.forEach((s, idx) => {
+      if (!s || typeof s !== 'object') return
+      const sId = s.id || s._id
+      const pId = s.targetPostId || s.postId || null
+      const cId = s.targetCommentId || null
+
+      let matchedComment = null
+      if (cId) {
+        handledCommentIds.add(String(cId))
+        matchedComment = flaggedComments.find((c) => String(c.id || c._id) === String(cId))
+      }
+
+      let matchedPost = null
+      if (!cId && pId) {
+        handledPostIds.add(String(pId))
+        matchedPost = flaggedPosts.find((p) => String(p.targetPostId || p.postId || p.id || p._id) === String(pId))
+      }
+
+      const strikeMatch = s.details?.match(/Strike #(\d+)/i)
+      const strikeNumber = strikeMatch ? parseInt(strikeMatch[1], 10) : (strikeLogs.length - idx)
+
+      let itemType = 'strike'
+      let title = ''
+      let snippet = ''
+
+      if (cId || matchedComment) {
+        itemType = 'comment'
+        const postTitle = s.targetPostTitle || matchedComment?.postTitle
+        title = postTitle ? `Comment on "${postTitle}"` : 'Flagged Comment'
+        snippet = matchedComment?.bodySnippet || s.targetCommentSnippet || ''
+      } else if (pId || matchedPost) {
+        itemType = 'post'
+        const postTitle = s.targetPostTitle || matchedPost?.title
+        title = postTitle ? `Post: "${postTitle}"` : 'Flagged Post'
+        snippet = matchedPost?.bodySnippet || ''
+      } else {
+        itemType = 'strike'
+        title = `Account Strike #${strikeNumber}`
+      }
+
+      if (!snippet && s.details && !/^strike #/i.test(s.details.trim())) {
+        snippet = s.details
+      }
+
       allFlaggedAndStrikes.push({
-        key: 'post-' + (pId || Math.random()),
-        id: pId,
-        itemType: 'post',
+        key: 'strike-' + (sId || idx),
+        id: sId,
+        itemType,
+        isStrike: true,
+        moderationLogId: sId,
         targetPostId: pId,
         postId: pId,
-        title: p.title || 'Discussion Post',
-        snippet: p.bodySnippet || '',
-        reason: p.moderationReason,
-        category: p.moderationCategory,
-        date: p.hiddenAt || p.createdAt,
+        targetCommentId: cId,
+        strikeIndex: strikeNumber,
+        title,
+        snippet,
+        reason: s.reason || matchedComment?.moderationReason || matchedPost?.moderationReason || 'Violates community guidelines',
+        category: s.category || matchedComment?.moderationCategory || matchedPost?.moderationCategory,
+        date: s.createdAt,
       })
     })
 
     flaggedComments.forEach((c) => {
       if (!c || typeof c !== 'object') return
       const cId = c.id || c._id
+      if (cId && handledCommentIds.has(String(cId))) return
       const pId = c.targetPostId || c.postId || null
+
       allFlaggedAndStrikes.push({
         key: 'comment-' + (cId || Math.random()),
         id: cId,
@@ -189,32 +241,30 @@ export default function Settings() {
         targetCommentId: cId,
         targetPostId: pId,
         postId: pId,
-        title: 'Comment on ' + (c.postTitle || 'Post'),
+        title: c.postTitle ? `Comment on "${c.postTitle}"` : 'Flagged Comment',
         snippet: c.bodySnippet || '',
-        reason: c.moderationReason,
+        reason: c.moderationReason || 'Violates community guidelines',
         category: c.moderationCategory,
         date: c.hiddenAt || c.createdAt,
       })
     })
 
-    strikeLogs.forEach((s, idx) => {
-      if (!s || typeof s !== 'object') return
-      const sKey = 'strike-' + (s.id || s._id || idx)
-      const pId = s.targetPostId || s.postId || null
+    flaggedPosts.forEach((p) => {
+      if (!p || typeof p !== 'object') return
+      const pId = p.targetPostId || p.postId || p.id || p._id
+      if (pId && handledPostIds.has(String(pId))) return
+
       allFlaggedAndStrikes.push({
-        key: sKey,
-        id: s.id || s._id,
-        itemType: 'strike',
-        moderationLogId: s.id || s._id,
+        key: 'post-' + (pId || Math.random()),
+        id: pId,
+        itemType: 'post',
         targetPostId: pId,
         postId: pId,
-        targetCommentId: s.targetCommentId || null,
-        strikeIndex: idx + 1,
-        title: s.targetPostTitle ? `Strike Record #${idx + 1} (${s.targetPostTitle})` : `Strike Record #${idx + 1}`,
-        snippet: s.details || '',
-        reason: s.reason,
-        category: s.category,
-        date: s.createdAt,
+        title: p.title ? `Post: "${p.title}"` : 'Flagged Post',
+        snippet: p.bodySnippet || '',
+        reason: p.moderationReason || 'Violates community guidelines',
+        category: p.moderationCategory,
+        date: p.hiddenAt || p.createdAt,
       })
     })
   }
@@ -223,10 +273,28 @@ export default function Settings() {
     const appeals = getArray(modHistory?.appeals ?? modHistory?.data?.appeals)
     return appeals.find((a) => {
       if (!a || typeof a !== 'object') return false
-      if (item.targetPostId && a.targetPostId === item.targetPostId) return true
-      if (item.targetCommentId && a.targetCommentId === item.targetCommentId) return true
-      if (item.moderationLogId && a.moderationLogId === item.moderationLogId) return true
-      if (item.itemType === 'strike' && a.strikeIndex === item.strikeIndex) return true
+
+      if (item.moderationLogId && a.moderationLogId) {
+        if (String(item.moderationLogId) === String(a.moderationLogId)) return true
+      }
+
+      if (item.targetCommentId) {
+        return Boolean(a.targetCommentId && String(item.targetCommentId) === String(a.targetCommentId))
+      }
+
+      if (item.itemType === 'post' && !item.targetCommentId) {
+        if (a.itemType === 'post' && !a.targetCommentId) {
+          const itemPostId = item.targetPostId || item.postId || item.id
+          const appealPostId = a.targetPostId || a.postId
+          return Boolean(itemPostId && appealPostId && String(itemPostId) === String(appealPostId))
+        }
+        return false
+      }
+
+      if (item.strikeIndex && a.strikeIndex) {
+        return Number(item.strikeIndex) === Number(a.strikeIndex)
+      }
+
       return false
     })
   }
@@ -790,18 +858,7 @@ export default function Settings() {
                             </div>
 
                             <h4 className="settings-mod-item-title">
-                              {(item.targetPostId || item.postId) ? (
-                                <Link
-                                  to={`/forum/posts/${item.targetPostId || item.postId}`}
-                                  className="settings-mod-item-link"
-                                  title="View restricted post"
-                                >
-                                  {item.title}
-                                  <ExternalLink size={12} />
-                                </Link>
-                              ) : (
-                                item.title
-                              )}
+                              {item.title}
                             </h4>
                             {item.snippet && (
                               <p className="settings-mod-item-snippet">"{item.snippet}"</p>
@@ -822,9 +879,26 @@ export default function Settings() {
                           <div className="settings-mod-item-action">
                             {appeal ? (
                               <div className={`settings-appeal-badge status-${appeal.status}`}>
-                                {appeal.status === 'pending' && '⏳ Appeal Pending'}
-                                {appeal.status === 'approved' && '✅ Appeal Approved'}
-                                {appeal.status === 'rejected' && '❌ Appeal Denied'}
+                                <div className="settings-appeal-badge-status">
+                                  {appeal.status === 'pending' && (
+                                    <>
+                                      <Clock size={13} />
+                                      <span>Appeal Pending</span>
+                                    </>
+                                  )}
+                                  {appeal.status === 'approved' && (
+                                    <>
+                                      <CheckCircle2 size={13} />
+                                      <span>Appeal Approved</span>
+                                    </>
+                                  )}
+                                  {appeal.status === 'rejected' && (
+                                    <>
+                                      <XCircle size={13} />
+                                      <span>Appeal Denied</span>
+                                    </>
+                                  )}
+                                </div>
                                 {appeal.adminNotes && (
                                   <span className="settings-appeal-note" title={appeal.adminNotes}>
                                     Note: {appeal.adminNotes}
