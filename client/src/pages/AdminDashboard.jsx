@@ -2980,7 +2980,7 @@ export default function AdminDashboard() {
               </select>
             </div>
 
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", flexShrink: 0 }}>
               <Link to="/resources" target="_blank" className="admin-outline-btn">
                 <ExternalLink size={14} />
                 <span>View Public Page</span>
