@@ -1282,7 +1282,10 @@ export default function PostDetail() {
                     <Link to={`/profile/${encodeURIComponent(authorName)}`} className="author-username">
                       {authorName}
                     </Link>
-                    <span className="op-badge">Original Poster</span>
+                    <span className="op-badge" title="Original Poster">
+                      <span className="op-badge-full">Original Poster</span>
+                      <span className="op-badge-short">OP</span>
+                    </span>
                     {getAuthorBadge(activePost?.author) && (
                       <span className={`role-badge ${getAuthorBadge(activePost.author).className}`}>
                         {getAuthorBadge(activePost.author).text}
