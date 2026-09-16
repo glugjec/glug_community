@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Shield,
+  User,
   Users,
   BookOpen,
   MessageSquare,
@@ -2151,20 +2152,22 @@ export default function AdminDashboard() {
                               <button
                                 type="button"
                                 className="admin-icon-btn secondary"
-                                onClick={() =>
+                                onClick={() => {
+                                  const isAccBan = a.itemType === "account_ban" || a.originalCategory === "account_ban";
                                   setViewItemModal({
                                     contentType: a.itemType,
-                                    body: a.targetComment?.body || a.targetComment?.bodySnippet || a.targetPost?.body || a.targetPost?.bodySnippet || a.statement,
-                                    title: a.targetPost?.title || (a.targetComment ? `Comment on: "${a.targetComment.postTitle || 'Post'}"` : "Appealed Content"),
+                                    isAccountBan: isAccBan,
+                                    body: isAccBan ? null : (a.targetComment?.body || a.targetComment?.bodySnippet || a.targetPost?.body || a.targetPost?.bodySnippet),
+                                    title: isAccBan ? null : (a.targetPost?.title || (a.targetComment ? `Comment on: "${a.targetComment.postTitle || 'Post'}"` : "Appealed Content")),
                                     author: a.appellant,
                                     postId: a.targetPostId || a.targetPost?.id || a.targetComment?.postId,
                                     moderationCategory: a.originalCategory,
                                     originalReason: a.originalReason,
                                     appealStatement: a.statement,
                                     moderationReason: `[Original Reason]: ${a.originalReason} | [Appeal Statement]: "${a.statement}"`,
-                                  })
-                                }
-                                title="Inspect appealed content"
+                                  });
+                                }}
+                                title={a.itemType === "account_ban" || a.originalCategory === "account_ban" ? "Inspect appeal details" : "Inspect appealed content"}
                               >
                                 <Eye size={13} />
                               </button>
@@ -3742,14 +3745,21 @@ export default function AdminDashboard() {
       })()}
 
       {/* MODERATION MODAL 4: VIEW FLAGGED CONTENT */}
-      {viewItemModal && (
-        <div className="admin-modal-overlay" onClick={() => setViewItemModal(null)}>
-          <div className="admin-modal-box preview" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "680px" }}>
-            <div className="admin-modal-header">
-              <h2 className="admin-modal-title">
-                <ShieldAlert size={20} className="text-red" />
-                <span>Flagged Content Details</span>
-              </h2>
+      {viewItemModal && (() => {
+        const isAccountBan = Boolean(
+          viewItemModal.isAccountBan ||
+          viewItemModal.itemType === "account_ban" ||
+          viewItemModal.contentType === "account_ban" ||
+          viewItemModal.moderationCategory === "account_ban"
+        );
+        return (
+          <div className="admin-modal-overlay" onClick={() => setViewItemModal(null)}>
+            <div className="admin-modal-box preview" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "680px" }}>
+              <div className="admin-modal-header">
+                <h2 className="admin-modal-title">
+                  <ShieldAlert size={20} className="text-red" />
+                  <span>{isAccountBan ? "Account Suspension Appeal" : "Flagged Content Details"}</span>
+                </h2>
               <button
                 type="button"
                 className="admin-modal-close"
@@ -3786,19 +3796,47 @@ export default function AdminDashboard() {
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
                       {origReason && (
                         <div style={{ background: "rgba(239, 68, 68, 0.09)", border: "1px solid rgba(239, 68, 68, 0.3)", padding: "10px 14px", borderRadius: "10px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
-                            <span className="admin-badge danger" style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em" }}>
-                              ORIGINAL REASON
-                            </span>
-                            {viewItemModal.moderationCategory && viewItemModal.moderationCategory !== "none" && (
-                              <span className="admin-badge neutral" style={{ fontSize: "0.72rem", textTransform: "uppercase" }}>
-                                {viewItemModal.moderationCategory}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "5px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span className="admin-badge danger" style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em" }}>
+                                ORIGINAL REASON
                               </span>
+                              {viewItemModal.moderationCategory && viewItemModal.moderationCategory !== "none" && (
+                                <span className="admin-badge neutral" style={{ fontSize: "0.72rem", textTransform: "uppercase" }}>
+                                  {viewItemModal.moderationCategory}
+                                </span>
+                              )}
+                            </div>
+                            {origReason.length > 120 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleTextExpanded("modal-orig-reason")}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#f87171",
+                                  fontSize: "0.74rem",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  padding: "0 2px",
+                                }}
+                              >
+                                {expandedTextMap["modal-orig-reason"] ? "Show less" : "Show more"}
+                              </button>
                             )}
                           </div>
-                          <span style={{ fontSize: "0.86rem", color: "#fca5a5", lineHeight: "1.4", wordBreak: "break-word" }}>
-                            {origReason}
-                          </span>
+                          <div
+                            style={{
+                              maxHeight: expandedTextMap["modal-orig-reason"] ? "220px" : "90px",
+                              overflowY: "auto",
+                              paddingRight: "4px",
+                              transition: "max-height 0.2s ease",
+                            }}
+                          >
+                            <span style={{ fontSize: "0.86rem", color: "#fca5a5", lineHeight: "1.4", wordBreak: "break-word", display: "block" }}>
+                              {origReason}
+                            </span>
+                          </div>
                         </div>
                       )}
                       {appealStmt && (
@@ -3844,15 +3882,47 @@ export default function AdminDashboard() {
                 }
 
                 if (viewItemModal.moderationReason) {
+                  const cleanedReason = viewItemModal.moderationReason.replace(/\s*\|\s*\[AI\]:\s*$/, "");
                   return (
                     <div style={{ marginTop: "10px", background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.25)", padding: "10px 14px", borderRadius: "10px", fontSize: "0.85rem", color: "#fca5a5" }}>
-                      <strong>Flag Reason:</strong>{" "}
-                      {viewItemModal.moderationCategory && viewItemModal.moderationCategory !== "none" && (
-                        <span className="admin-badge danger" style={{ marginRight: "6px", fontSize: "0.75rem" }}>
-                          {viewItemModal.moderationCategory}
-                        </span>
-                      )}
-                      {viewItemModal.moderationReason.replace(/\s*\|\s*\[AI\]:\s*$/, "")}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                        <div>
+                          <strong>Flag Reason:</strong>{" "}
+                          {viewItemModal.moderationCategory && viewItemModal.moderationCategory !== "none" && (
+                            <span className="admin-badge danger" style={{ marginRight: "6px", fontSize: "0.75rem" }}>
+                              {viewItemModal.moderationCategory}
+                            </span>
+                          )}
+                        </div>
+                        {cleanedReason.length > 120 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleTextExpanded("modal-mod-reason")}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#f87171",
+                              fontSize: "0.74rem",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              padding: "0 2px",
+                            }}
+                          >
+                            {expandedTextMap["modal-mod-reason"] ? "Show less" : "Show more"}
+                          </button>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          maxHeight: expandedTextMap["modal-mod-reason"] ? "220px" : "90px",
+                          overflowY: "auto",
+                          wordBreak: "break-word",
+                          paddingRight: "4px",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        {cleanedReason}
+                      </div>
                     </div>
                   );
                 }
@@ -3860,36 +3930,115 @@ export default function AdminDashboard() {
                 return null;
               })()}
             </div>
-            {viewItemModal.title && (
-              <h3 style={{ margin: "4px 0 10px 0", fontSize: "1.05rem", color: "#f8fafc", flexShrink: 0 }}>
-                {viewItemModal.title}
-              </h3>
+            {isAccountBan ? (
+              <div
+                style={{
+                  marginTop: "14px",
+                  background: "rgba(15, 23, 42, 0.65)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: "12px",
+                  padding: "24px 20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  gap: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "50%",
+                    background: "rgba(239, 68, 68, 0.15)",
+                    color: "#f87171",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <User size={24} />
+                </div>
+                <div>
+                  <h4 style={{ margin: "0 0 5px", fontSize: "1.02rem", color: "#f8fafc", fontWeight: 600 }}>
+                    No Associated Content
+                  </h4>
+                  <p style={{ margin: 0, fontSize: "0.85rem", color: "#94a3b8", maxWidth: "420px", lineHeight: "1.45" }}>
+                    This appeal is for an account-level suspension rather than a specific post or comment.
+                  </p>
+                </div>
+                {(viewItemModal.author?.username || viewItemModal.author?.id || viewItemModal.author?._id) && (
+                  <Link
+                    to={`/profile/${viewItemModal.author.username || viewItemModal.author.id || viewItemModal.author._id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="admin-secondary-btn"
+                    style={{
+                      marginTop: "6px",
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 18px",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      background: "rgba(59, 130, 246, 0.15)",
+                      border: "1px solid rgba(59, 130, 246, 0.35)",
+                      color: "#60a5fa",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <User size={15} />
+                    <span>View @{viewItemModal.author.username || "User"}'s Profile</span>
+                    <ExternalLink size={13} />
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <>
+                {viewItemModal.title && (
+                  <h3 style={{ margin: "4px 0 10px 0", fontSize: "1.05rem", color: "#f8fafc", flexShrink: 0 }}>
+                    {viewItemModal.title}
+                  </h3>
+                )}
+                <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "#94a3b8", marginBottom: "6px", flexShrink: 0 }}>
+                  Content Preview
+                </div>
+                <div
+                  className="admin-preview-body"
+                  style={{
+                    minHeight: "160px",
+                    maxHeight: "360px",
+                    flexShrink: 0,
+                    overflowY: "auto",
+                    background: "rgba(0,0,0,0.3)",
+                    padding: "16px",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  {(() => {
+                    const rawContent = viewItemModal.body || viewItemModal.text || viewItemModal.contentPreview?.body || viewItemModal.contentPreview?.text;
+                    if (!rawContent) return <p className="text-muted">No text content.</p>;
+                    return <MarkdownRenderer content={rawContent} />;
+                  })()}
+                </div>
+              </>
             )}
-            <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "#94a3b8", marginBottom: "6px", flexShrink: 0 }}>
-              Content Preview
-            </div>
-            <div
-              className="admin-preview-body"
-              style={{
-                minHeight: "160px",
-                maxHeight: "360px",
-                flexShrink: 0,
-                overflowY: "auto",
-                background: "rgba(0,0,0,0.3)",
-                padding: "16px",
-                borderRadius: "10px",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              {(() => {
-                const rawContent = viewItemModal.body || viewItemModal.text || viewItemModal.contentPreview?.body || viewItemModal.contentPreview?.text;
-                if (!rawContent) return <p className="text-muted">No text content.</p>;
-                return <MarkdownRenderer content={rawContent} />;
-              })()}
-            </div>
             <div className="admin-modal-actions" style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                {(viewItemModal.postId || (viewItemModal.itemType === "post" ? (viewItemModal.id || viewItemModal._id) : null)) && (
+                {isAccountBan && (viewItemModal.author?.username || viewItemModal.author?.id || viewItemModal.author?._id) ? (
+                  <Link
+                    to={`/profile/${viewItemModal.author.username || viewItemModal.author.id || viewItemModal.author._id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="admin-secondary-btn"
+                    style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <User size={14} /> View Profile
+                  </Link>
+                ) : (viewItemModal.postId || (viewItemModal.itemType === "post" ? (viewItemModal.id || viewItemModal._id) : null)) && (
                   <Link
                     to={`/forum/posts/${viewItemModal.postId || (viewItemModal.itemType === "post" ? (viewItemModal.id || viewItemModal._id) : null)}`}
                     target="_blank"
@@ -3911,7 +4060,8 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* CONFIRMATION MODAL: RESTORE FLAGGED ITEM */}
       {itemToRestore && (

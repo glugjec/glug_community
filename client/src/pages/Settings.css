@@ -929,6 +929,10 @@
   font-size: 0.82rem;
   color: #fca5a5;
   margin: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-height: 90px;
+  overflow-y: auto;
 }
 
 .settings-appeal-guidance {

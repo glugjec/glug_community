@@ -169,11 +169,23 @@ export default function Login() {
                 <X size={15} />
               </button>
             </div>
-            <p style={{ margin: 0, fontSize: '0.84rem', color: '#fca5a5', lineHeight: 1.45 }}>
+            <div
+              style={{
+                maxHeight: '76px',
+                overflowY: 'auto',
+                wordBreak: 'break-word',
+                fontSize: '0.84rem',
+                color: '#fca5a5',
+                lineHeight: 1.45,
+                margin: 0,
+                width: '100%',
+                paddingRight: '2px',
+              }}
+            >
               {bannedModalData.banReason
                 ? `Reason: ${bannedModalData.banReason}`
                 : 'Your account was suspended by an administrator.'}
-            </p>
+            </div>
             {bannedModalData.banExpiresAt && (
               <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
                 Expires: {new Date(bannedModalData.banExpiresAt).toLocaleString()}
@@ -349,6 +361,9 @@ export default function Login() {
               borderRadius: '16px',
               maxWidth: '520px',
               width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxSizing: 'border-box',
               padding: '24px',
               boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(239, 68, 68, 0.15)',
               color: '#f0f6fc',
@@ -419,10 +434,24 @@ export default function Login() {
 
                 <div style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: '12px', padding: '14px 16px', marginBottom: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div>
-                    <div style={{ fontSize: '0.72rem', color: '#8b949e', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em', marginBottom: '3px' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#8b949e', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em', marginBottom: '4px' }}>
                       Violation Reason
                     </div>
-                    <div style={{ fontSize: '0.88rem', color: '#fca5a5', fontWeight: 500 }}>
+                    <div
+                      style={{
+                        maxHeight: '120px',
+                        overflowY: 'auto',
+                        wordBreak: 'break-word',
+                        fontSize: '0.86rem',
+                        color: '#fca5a5',
+                        fontWeight: 500,
+                        lineHeight: 1.45,
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                      }}
+                    >
                       {bannedModalData.banReason || 'Violation of community guidelines'}
                     </div>
                   </div>
@@ -468,9 +497,11 @@ export default function Login() {
                       <Clock size={13} />
                       <span>Appeal Currently Under Review</span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#f1f5f9', fontStyle: 'italic', wordBreak: 'break-word' }}>
-                      "{bannedModalData.pendingAppeal.statement}"
-                    </p>
+                    <div style={{ maxHeight: '90px', overflowY: 'auto', wordBreak: 'break-word' }}>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#f1f5f9', fontStyle: 'italic', lineHeight: 1.4 }}>
+                        "{bannedModalData.pendingAppeal.statement}"
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -518,8 +549,10 @@ export default function Login() {
             ) : (
               /* STEP 2: APPEAL FORM */
               <form onSubmit={handleBannedAppealSubmit}>
-                <div style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <span>Appealing suspension for: <strong style={{ color: '#fca5a5' }}>{bannedModalData.banReason || 'Community Guidelines'}</strong></span>
+                <div style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: '#94a3b8', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                  <div style={{ maxHeight: '60px', overflowY: 'auto', wordBreak: 'break-word', flex: 1, paddingRight: '4px' }}>
+                    <span>Appealing suspension for: <strong style={{ color: '#fca5a5' }}>{bannedModalData.banReason || 'Community Guidelines'}</strong></span>
+                  </div>
                   <span style={{ fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.35)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>
                     Account Suspension
                   </span>

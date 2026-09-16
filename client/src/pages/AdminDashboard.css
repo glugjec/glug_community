@@ -1404,6 +1404,10 @@ select.admin-form-input {
   border-radius: 8px;
   border-left: 3px solid #3b82f6;
   margin: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 .admin-duration-grid {

@@ -82,6 +82,11 @@ export default function Settings() {
   const [appealStatement, setAppealStatement] = useState('')
   const [submittingAppeal, setSubmittingAppeal] = useState(false)
   const [appealError, setAppealError] = useState('')
+  const [expandedReasons, setExpandedReasons] = useState({})
+
+  const toggleReasonExpanded = (key) => {
+    setExpandedReasons((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
 
   const loadModHistory = async () => {
     if (!user) return
@@ -889,9 +894,54 @@ function stripHtml(html) {
                             {item.snippet && (
                               <p className="settings-mod-item-snippet">"{item.snippet}"</p>
                             )}
-                            <p className="settings-mod-item-reason">
-                              <strong>Reason:</strong> {item.reason || 'Violates community guidelines'}
-                            </p>
+                            {item.reason && (
+                              <div style={{ marginBottom: '0.45rem' }}>
+                                <div
+                                  style={{
+                                    maxHeight: expandedReasons[`item-reason-${item.key}`] ? 'none' : '52px',
+                                    overflow: expandedReasons[`item-reason-${item.key}`] ? 'visible' : 'hidden',
+                                    position: 'relative',
+                                    transition: 'max-height 0.2s ease',
+                                  }}
+                                >
+                                  <p className="settings-mod-item-reason" style={{ margin: 0 }}>
+                                    <strong>Reason:</strong> {item.reason}
+                                  </p>
+                                  {!expandedReasons[`item-reason-${item.key}`] && item.reason.length > 120 && (
+                                    <div
+                                      style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        height: '20px',
+                                        background: 'linear-gradient(to bottom, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.95))',
+                                        pointerEvents: 'none',
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                                {item.reason.length > 120 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleReasonExpanded(`item-reason-${item.key}`)}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: '#60a5fa',
+                                      fontSize: '0.74rem',
+                                      fontWeight: 600,
+                                      padding: '2px 0',
+                                      marginTop: '2px',
+                                      cursor: 'pointer',
+                                      display: 'inline-block',
+                                    }}
+                                  >
+                                    {expandedReasons[`item-reason-${item.key}`] ? 'Show less' : 'Show full reason'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
                             {(item.targetPostId || item.postId) && (
                               <Link
                                 to={`/forum/posts/${item.targetPostId || item.postId}`}
