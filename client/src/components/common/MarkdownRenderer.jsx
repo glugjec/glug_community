@@ -29,7 +29,8 @@ export default function MarkdownRenderer({ content = '', className = '' }) {
   const cleanHtml = useMemo(() => {
     if (!content || typeof content !== 'string') return ''
     try {
-      const rawHtml = marked.parse(content)
+      const hasHtmlTags = /<\/?(?:p|div|span|h[1-6]|ul|ol|li|strong|em|b|i|u|s|blockquote|pre|code|a|img|table|tr|td|th|br|hr)\b/i.test(content)
+      const rawHtml = hasHtmlTags ? content : marked.parse(content)
       return DOMPurify.sanitize(rawHtml, {
         ADD_ATTR: ['target', 'rel', 'loading'],
         ADD_TAGS: ['img']

@@ -38,6 +38,7 @@ import {
   Flag,
   UserX,
   RotateCcw,
+  XCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { adminApi, resourcesApi } from "../api.js";
@@ -3043,7 +3044,7 @@ export default function AdminDashboard() {
       {/* MODERATION MODAL 2: UNBAN USER */}
       {unbanTarget && (
         <div className="admin-modal-overlay" onClick={() => !isUnbanning && setUnbanTarget(null)}>
-          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
             <div className="admin-modal-header">
               <h2 className="admin-modal-title">
                 <UserCheck size={20} className="text-emerald" />
@@ -3058,11 +3059,11 @@ export default function AdminDashboard() {
                 <X size={18} />
               </button>
             </div>
-            <p className="admin-modal-desc" style={{ marginTop: "12px" }}>
+            <p className="admin-modal-desc" style={{ marginTop: "4px" }}>
               Are you sure you want to lift the suspension for <strong>@{unbanTarget.username}</strong>? Their posting and chatting privileges will be restored immediately.
             </p>
-            <div className="admin-checkbox-field" style={{ margin: "16px 0" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "0.9rem" }}>
+            <div className="admin-checkbox-card" style={{ margin: "14px 0" }}>
+              <label className="admin-checkbox-label">
                 <input
                   type="checkbox"
                   checked={unbanResetStrikes}
@@ -3096,7 +3097,7 @@ export default function AdminDashboard() {
       {/* MODERATION MODAL 3: OVERRIDE REPORT */}
       {overrideReportTarget && (
         <div className="admin-modal-overlay" onClick={() => !isOverriding && setOverrideReportTarget(null)}>
-          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "540px" }}>
             <div className="admin-modal-header">
               <h2 className="admin-modal-title">
                 <ShieldCheck size={20} className="text-blue" />
@@ -3111,17 +3112,23 @@ export default function AdminDashboard() {
                 <X size={18} />
               </button>
             </div>
-            <div style={{ background: "rgba(15, 23, 42, 0.6)", padding: "14px", borderRadius: "8px", margin: "16px 0", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem", color: "#94a3b8" }}>
-                <strong>Content Type:</strong> {overrideReportTarget.contentType?.toUpperCase()} &nbsp;|&nbsp;
-                <strong>Reported By:</strong> @{overrideReportTarget.reporter?.username || "unknown"}
+            <div className="admin-user-summary-box" style={{ margin: "12px 0 16px" }}>
+              <div className="admin-user-summary-top">
+                <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
+                  {overrideReportTarget.contentType}
+                </span>
+                <span className="admin-date-subtext">
+                  Reported by @{overrideReportTarget.reporter?.username || "unknown"}
+                </span>
+              </div>
+              <p style={{ margin: "2px 0 0 0", fontSize: "0.85rem", color: "#f8fafc" }}>
+                <strong>Report Reason:</strong> {overrideReportTarget.userReason || "No explanation provided"}
               </p>
-              <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem" }}>
-                <strong>Report Reason:</strong> {overrideReportTarget.userReason}
-              </p>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: overrideReportTarget.aiVerdict === "VIOLATION" ? "#ef4444" : "#10b981" }}>
-                <strong>AI Assessment:</strong> {overrideReportTarget.aiVerdict || "PENDING"} {overrideReportTarget.aiCategory ? `(${overrideReportTarget.aiCategory})` : ""} — {overrideReportTarget.aiReason}
-              </p>
+              {overrideReportTarget.aiVerdict && (
+                <p style={{ margin: 0, fontSize: "0.82rem", color: overrideReportTarget.aiVerdict === "VIOLATION" ? "#ef4444" : "#10b981" }}>
+                  <strong>AI Assessment:</strong> {overrideReportTarget.aiVerdict} {overrideReportTarget.aiCategory ? `(${overrideReportTarget.aiCategory})` : ""} {overrideReportTarget.aiReason ? `— ${overrideReportTarget.aiReason}` : ""}
+                </p>
+              )}
             </div>
             <form onSubmit={handleConfirmOverride} className="admin-modal-form">
               <div className="admin-form-group">
@@ -3132,8 +3139,8 @@ export default function AdminDashboard() {
                   onChange={(e) => setOverrideForm({ ...overrideForm, newStatus: e.target.value })}
                   required
                 >
-                  <option value="confirmed">Confirmed (Violation verified)</option>
                   <option value="dismissed">Dismissed (Safe / False alarm)</option>
+                  <option value="confirmed">Confirmed (Violation verified)</option>
                 </select>
               </div>
               {overrideReportTarget.contentType !== "message" && (
@@ -3150,8 +3157,8 @@ export default function AdminDashboard() {
                   </select>
                 </div>
               )}
-              <div className="admin-checkbox-field" style={{ margin: "12px 0" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <div className="admin-checkbox-card" style={{ margin: "4px 0" }}>
+                <label className="admin-checkbox-label">
                   <input
                     type="checkbox"
                     checked={overrideForm.applyStrike}
@@ -3212,72 +3219,74 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleResolveAppealSubmit}>
               <div className="admin-user-summary-box" style={{ marginBottom: "14px" }}>
-                <span className="admin-username">@{appealToResolve.appellant?.username}</span>
-                <span className="admin-date-subtext">
-                  Current Strikes: {appealToResolve.appellant?.moderationStrikes || 0}
-                  {appealToResolve.appellant?.isBanned ? " (Account Suspended)" : ""}
-                </span>
-                <p style={{ margin: "8px 0 0 0", fontSize: "0.85rem", fontStyle: "italic", color: "#f8fafc" }}>
-                  "{appealToResolve.statement}"
-                </p>
+                <div className="admin-user-summary-top">
+                  <span className="admin-username" style={{ fontSize: "0.95rem" }}>
+                    @{appealToResolve.appellant?.username || "unknown"}
+                  </span>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                    <span className="admin-badge warning">
+                      {appealToResolve.appellant?.moderationStrikes || 0} Strikes
+                    </span>
+                    {appealToResolve.appellant?.isBanned && (
+                      <span className="admin-badge danger">Suspended</span>
+                    )}
+                  </div>
+                </div>
+                {appealToResolve.statement && (
+                  <p className="admin-user-summary-quote">
+                    "{appealToResolve.statement}"
+                  </p>
+                )}
               </div>
 
               <div className="admin-form-group">
                 <label className="admin-form-label">Decision *</label>
-                <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+                <div className="admin-decision-toggles">
                   <button
                     type="button"
-                    className={`admin-filter-pill ${appealResolveForm.status === "approved" ? "active" : ""}`}
-                    style={{
-                      flex: 1,
-                      justifyContent: "center",
-                      background: appealResolveForm.status === "approved" ? "#10b981" : "rgba(255,255,255,0.06)",
-                      borderColor: appealResolveForm.status === "approved" ? "#10b981" : "transparent",
-                      color: "#fff",
-                    }}
+                    className={`admin-decision-btn ${appealResolveForm.status === "approved" ? "approve-active" : ""}`}
                     onClick={() => setAppealResolveForm({ ...appealResolveForm, status: "approved" })}
                   >
-                    ✓ Approve Appeal
+                    <CheckCircle2 size={16} />
+                    <span>Approve Appeal</span>
                   </button>
                   <button
                     type="button"
-                    className={`admin-filter-pill ${appealResolveForm.status === "rejected" ? "active" : ""}`}
-                    style={{
-                      flex: 1,
-                      justifyContent: "center",
-                      background: appealResolveForm.status === "rejected" ? "#ef4444" : "rgba(255,255,255,0.06)",
-                      borderColor: appealResolveForm.status === "rejected" ? "#ef4444" : "transparent",
-                      color: "#fff",
-                    }}
+                    className={`admin-decision-btn ${appealResolveForm.status === "rejected" ? "deny-active" : ""}`}
                     onClick={() => setAppealResolveForm({ ...appealResolveForm, status: "rejected" })}
                   >
-                    ✗ Deny Appeal
+                    <XCircle size={16} />
+                    <span>Deny Appeal</span>
                   </button>
                 </div>
               </div>
 
               {appealResolveForm.status === "approved" && (
-                <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "8px", padding: "10px 14px", margin: "14px 0", display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "0.85rem", color: "#f8fafc" }}>
-                    <input
-                      type="checkbox"
-                      checked={appealResolveForm.decrementStrike}
-                      onChange={(e) => setAppealResolveForm({ ...appealResolveForm, decrementStrike: e.target.checked })}
-                    />
-                    <span>Revoke / decrement 1 moderation strike</span>
-                  </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "0.85rem", color: "#f8fafc" }}>
-                    <input
-                      type="checkbox"
-                      checked={appealResolveForm.restoreContent}
-                      onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
-                    />
-                    <span>Restore flagged content to public view (unhide)</span>
-                  </label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "14px 0" }}>
+                  <div className="admin-checkbox-card success">
+                    <label className="admin-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={appealResolveForm.decrementStrike}
+                        onChange={(e) => setAppealResolveForm({ ...appealResolveForm, decrementStrike: e.target.checked })}
+                      />
+                      <span>Revoke / decrement 1 moderation strike</span>
+                    </label>
+                  </div>
+                  <div className="admin-checkbox-card success">
+                    <label className="admin-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={appealResolveForm.restoreContent}
+                        onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
+                      />
+                      <span>Restore flagged content to public view (unhide)</span>
+                    </label>
+                  </div>
                 </div>
               )}
 
-              <div className="admin-form-group">
+              <div className="admin-form-group" style={{ marginTop: "12px" }}>
                 <label className="admin-form-label">Administrator Response Note</label>
                 <textarea
                   className="admin-form-textarea"
@@ -3317,7 +3326,7 @@ export default function AdminDashboard() {
       {/* MODERATION MODAL 4: VIEW FLAGGED CONTENT */}
       {viewItemModal && (
         <div className="admin-modal-overlay" onClick={() => setViewItemModal(null)}>
-          <div className="admin-modal-box preview" onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-box preview" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "680px" }}>
             <div className="admin-modal-header">
               <h2 className="admin-modal-title">
                 <ShieldAlert size={20} className="text-red" />
@@ -3331,29 +3340,38 @@ export default function AdminDashboard() {
                 <X size={18} />
               </button>
             </div>
-            <div className="admin-preview-header" style={{ marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span className="admin-category-pill" style={{ textTransform: "uppercase" }}>
+            <div className="admin-preview-header" style={{ marginBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
                   {viewItemModal.itemType || viewItemModal.contentType || "Item"}
                 </span>
                 {viewItemModal.author?.username && (
-                  <span className="admin-author-text">
+                  <span className="admin-date-subtext">
                     Author: @{viewItemModal.author.username} ({viewItemModal.author.strikes || 0} strikes)
                   </span>
                 )}
               </div>
               {viewItemModal.moderationReason && (
-                <div style={{ marginTop: "8px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.25)", padding: "8px 12px", borderRadius: "6px", fontSize: "0.82rem", color: "#fca5a5" }}>
-                  <strong>Flag Reason:</strong> [{viewItemModal.moderationCategory || "abuse"}] {viewItemModal.moderationReason}
+                <div style={{ marginTop: "10px", background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.25)", padding: "10px 14px", borderRadius: "10px", fontSize: "0.85rem", color: "#fca5a5" }}>
+                  <strong>Flag Reason:</strong>{" "}
+                  {viewItemModal.moderationCategory && viewItemModal.moderationCategory !== "none" && (
+                    <span className="admin-badge danger" style={{ marginRight: "6px", fontSize: "0.75rem" }}>
+                      {viewItemModal.moderationCategory}
+                    </span>
+                  )}
+                  {viewItemModal.moderationReason.replace(/\s*\|\s*\[AI\]:\s*$/, "")}
                 </div>
               )}
             </div>
             {viewItemModal.title && (
-              <h3 style={{ margin: "0 0 10px 0", fontSize: "1.1rem", color: "#f8fafc" }}>
+              <h3 style={{ margin: "4px 0 10px 0", fontSize: "1.05rem", color: "#f8fafc" }}>
                 {viewItemModal.title}
               </h3>
             )}
-            <div className="admin-preview-body" style={{ maxHeight: "350px", overflowY: "auto", background: "rgba(0,0,0,0.25)", padding: "14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "#94a3b8", marginBottom: "6px" }}>
+              Content Preview
+            </div>
+            <div className="admin-preview-body" style={{ maxHeight: "350px", overflowY: "auto", background: "rgba(0,0,0,0.3)", padding: "16px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.08)" }}>
               {(() => {
                 const rawContent = viewItemModal.body || viewItemModal.text || viewItemModal.contentPreview?.body || viewItemModal.contentPreview?.text;
                 if (!rawContent) return <p className="text-muted">No text content.</p>;
