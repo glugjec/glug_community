@@ -198,6 +198,14 @@ function stripHtml(html) {
         matchedPost = flaggedPosts.find((p) => String(p.targetPostId || p.postId || p.id || p._id) === String(pId))
       }
 
+      const isAccountBan =
+        s.action === 'manual_ban' ||
+        s.action === 'ban' ||
+        s.action === 'auto_ban' ||
+        s.category === 'account_ban' ||
+        /ban/i.test(s.details || '') ||
+        /ban/i.test(s.action || '')
+
       const strikeMatch = s.details?.match(/Strike #(\d+)/i)
       const strikeNumber = strikeMatch ? parseInt(strikeMatch[1], 10) : (strikeLogs.length - idx)
 
@@ -205,7 +213,10 @@ function stripHtml(html) {
       let title = ''
       let snippet = ''
 
-      if (cId || matchedComment) {
+      if (isAccountBan) {
+        itemType = 'ban'
+        title = s.details ? `Account Suspension (${s.details})` : 'Account Suspension'
+      } else if (cId || matchedComment) {
         itemType = 'comment'
         const postTitle = s.targetPostTitle || matchedComment?.postTitle
         title = postTitle ? `"${postTitle}"` : 'Flagged Content'
@@ -220,7 +231,7 @@ function stripHtml(html) {
         title = `Account Strike #${strikeNumber}`
       }
 
-      if (!snippet && s.details && !/^strike #/i.test(s.details.trim())) {
+      if (!snippet && s.details && !/^strike #/i.test(s.details.trim()) && !isAccountBan) {
         snippet = stripHtml(s.details)
       }
 
@@ -228,12 +239,13 @@ function stripHtml(html) {
         key: 'strike-' + (sId || idx),
         id: sId,
         itemType,
-        isStrike: true,
+        isStrike: !isAccountBan,
+        isAccountBan,
         moderationLogId: sId,
         targetPostId: pId,
         postId: pId,
         targetCommentId: cId,
-        strikeIndex: strikeNumber,
+        strikeIndex: isAccountBan ? null : strikeNumber,
         title,
         snippet,
         reason: s.reason || matchedComment?.moderationReason || matchedPost?.moderationReason || 'Violates community guidelines',
@@ -859,9 +871,9 @@ function stripHtml(html) {
                           <div className="settings-mod-item-main">
                             <div className="settings-mod-item-tags">
                               <span className={`settings-mod-type-badge type-${item.itemType}`}>
-                                {item.itemType.toUpperCase()}
+                                {item.isAccountBan ? 'ACCOUNT BAN' : item.itemType.toUpperCase()}
                               </span>
-                              {item.strikeIndex && (
+                              {item.strikeIndex && !item.isAccountBan && (
                                 <span className="settings-mod-strike-badge">
                                   Strike {item.strikeIndex}
                                 </span>
@@ -920,7 +932,7 @@ function stripHtml(html) {
                                   </span>
                                 )}
                               </div>
-                            ) : (
+                            ) : item.isAccountBan || item.itemType === 'ban' || item.itemType === 'account_ban' ? null : (
                               <button
                                 type="button"
                                 className="settings-appeal-btn"

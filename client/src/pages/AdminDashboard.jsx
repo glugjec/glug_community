@@ -2015,11 +2015,54 @@ export default function AdminDashboard() {
                               )}
                             </div>
                           </td>
-                          <td style={{ maxWidth: "220px" }}>
+                          <td style={{ maxWidth: "260px", minWidth: "180px" }}>
                             <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                              <span style={{ fontSize: "0.82rem", color: "#fca5a5", wordBreak: "break-word" }}>
-                                {a.originalReason || "Policy violation"}
-                              </span>
+                              <div>
+                                <div
+                                  style={{
+                                    maxHeight: expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "none" : "60px",
+                                    overflow: expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "visible" : "hidden",
+                                    position: "relative",
+                                    transition: "max-height 0.2s ease",
+                                  }}
+                                >
+                                  <span style={{ fontSize: "0.82rem", color: "#fca5a5", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
+                                    {a.originalReason || "Policy violation"}
+                                  </span>
+                                  {!expandedTextMap[`appeal-reason-${a.id || a._id}`] && a.originalReason && a.originalReason.length > 80 && (
+                                    <div
+                                      style={{
+                                        position: "absolute",
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        height: "22px",
+                                        background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
+                                        pointerEvents: "none",
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                                {a.originalReason && a.originalReason.length > 80 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleTextExpanded(`appeal-reason-${a.id || a._id}`)}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: "#60a5fa",
+                                      fontSize: "0.74rem",
+                                      fontWeight: 600,
+                                      padding: "1px 0",
+                                      marginTop: "2px",
+                                      cursor: "pointer",
+                                      display: "inline-block",
+                                    }}
+                                  >
+                                    {expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "Show less" : "Show full reason"}
+                                  </button>
+                                )}
+                              </div>
                               {a.originalCategory && (
                                 <span className="admin-date-subtext" style={{ textTransform: "capitalize" }}>
                                   Category: {a.originalCategory === "account_ban" ? "Account Ban" : a.originalCategory}
@@ -2235,10 +2278,53 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                           </td>
-                          <td>
-                            <span style={{ fontSize: "0.85rem", color: "#f87171" }}>
-                              {u.banReason || "No reason specified"}
-                            </span>
+                          <td style={{ maxWidth: "340px", minWidth: "200px" }}>
+                            <div>
+                              <div
+                                style={{
+                                  maxHeight: expandedTextMap[`banned-reason-${u.id}`] ? "none" : "64px",
+                                  overflow: expandedTextMap[`banned-reason-${u.id}`] ? "visible" : "hidden",
+                                  position: "relative",
+                                  transition: "max-height 0.2s ease",
+                                }}
+                              >
+                                <span style={{ fontSize: "0.85rem", color: "#f87171", wordBreak: "break-word", lineHeight: "1.4", display: "block" }}>
+                                  {u.banReason || "No reason specified"}
+                                </span>
+                                {!expandedTextMap[`banned-reason-${u.id}`] && u.banReason && u.banReason.length > 80 && (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "24px",
+                                      background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
+                                      pointerEvents: "none",
+                                    }}
+                                  />
+                                )}
+                              </div>
+                              {u.banReason && u.banReason.length > 80 && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleTextExpanded(`banned-reason-${u.id}`)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#60a5fa",
+                                    fontSize: "0.74rem",
+                                    fontWeight: 600,
+                                    padding: "2px 0",
+                                    marginTop: "2px",
+                                    cursor: "pointer",
+                                    display: "inline-block",
+                                  }}
+                                >
+                                  {expandedTextMap[`banned-reason-${u.id}`] ? "Show less" : "Show full text"}
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td>
                             <span className="admin-category-pill">
@@ -2388,11 +2474,54 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                           <td style={{ maxWidth: "340px", minWidth: "220px" }}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                               {log.reason && (
-                                <span style={{ fontSize: "0.83rem", color: "#f1f5f9", wordBreak: "break-word" }}>
-                                  {log.reason}
-                                </span>
+                                <div>
+                                  <div
+                                    style={{
+                                      maxHeight: expandedTextMap[`log-reason-${log.id}`] ? "none" : "60px",
+                                      overflow: expandedTextMap[`log-reason-${log.id}`] ? "visible" : "hidden",
+                                      position: "relative",
+                                      transition: "max-height 0.2s ease",
+                                    }}
+                                  >
+                                    <span style={{ fontSize: "0.83rem", color: "#f1f5f9", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
+                                      {log.reason}
+                                    </span>
+                                    {!expandedTextMap[`log-reason-${log.id}`] && log.reason.length > 80 && (
+                                      <div
+                                        style={{
+                                          position: "absolute",
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          height: "22px",
+                                          background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
+                                          pointerEvents: "none",
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                  {log.reason.length > 80 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleTextExpanded(`log-reason-${log.id}`)}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#60a5fa",
+                                        fontSize: "0.74rem",
+                                        fontWeight: 600,
+                                        padding: "1px 0",
+                                        marginTop: "2px",
+                                        cursor: "pointer",
+                                        display: "inline-block",
+                                      }}
+                                    >
+                                      {expandedTextMap[`log-reason-${log.id}`] ? "Show less" : "Show full reason"}
+                                    </button>
+                                  )}
+                                </div>
                               )}
                               {log.details && (
                                 <div>
