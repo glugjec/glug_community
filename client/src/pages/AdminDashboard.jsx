@@ -198,6 +198,11 @@ export default function AdminDashboard() {
   const [overrideForm, setOverrideForm] = useState({ newStatus: 'confirmed', action: 'none', applyStrike: false, reason: '' });
   const [isOverriding, setIsOverriding] = useState(false);
 
+  const [itemToRestore, setItemToRestore] = useState(null);
+  const [isRestoringItem, setIsRestoringItem] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [isDeletingFlaggedItem, setIsDeletingFlaggedItem] = useState(false);
+
   const [viewItemModal, setViewItemModal] = useState(null);
   const [expandedTextMap, setExpandedTextMap] = useState({});
   const toggleTextExpanded = (id) => {
@@ -467,34 +472,43 @@ export default function AdminDashboard() {
     }
   }, [user, activeTab, modSubTab, appealStatusFilter]);
 
-  const handleRestoreItem = async (item) => {
+  const handleConfirmRestoreItem = async () => {
+    if (!itemToRestore) return;
+    setIsRestoringItem(true);
     try {
-      if (item.itemType === "post") {
-        await adminApi.restoreFlaggedPost(item.id);
+      if (itemToRestore.itemType === "post") {
+        await adminApi.restoreFlaggedPost(itemToRestore.id);
       } else {
-        await adminApi.restoreFlaggedComment(item.id);
+        await adminApi.restoreFlaggedComment(itemToRestore.id);
       }
-      showToast(`Restored ${item.itemType} successfully`);
+      showToast(`Restored ${itemToRestore.itemType} to public view`);
+      setItemToRestore(null);
       loadFlaggedItems();
       loadStats();
     } catch (err) {
       showToast(err.message || "Failed to restore content", "error");
+    } finally {
+      setIsRestoringItem(false);
     }
   };
 
-  const handleDeleteFlaggedItem = async (item) => {
-    if (!window.confirm(`Permanently delete this flagged ${item.itemType}?`)) return;
+  const handleConfirmDeleteFlaggedItem = async () => {
+    if (!itemToDelete) return;
+    setIsDeletingFlaggedItem(true);
     try {
-      if (item.itemType === "post") {
-        await adminApi.deleteFlaggedPost(item.id);
+      if (itemToDelete.itemType === "post") {
+        await adminApi.deleteFlaggedPost(itemToDelete.id);
       } else {
-        await adminApi.deleteFlaggedComment(item.id);
+        await adminApi.deleteFlaggedComment(itemToDelete.id);
       }
-      showToast(`Deleted ${item.itemType} permanently`);
+      showToast(`Deleted ${itemToDelete.itemType} permanently`);
+      setItemToDelete(null);
       loadFlaggedItems();
       loadStats();
     } catch (err) {
       showToast(err.message || "Failed to delete item", "error");
+    } finally {
+      setIsDeletingFlaggedItem(false);
     }
   };
 
@@ -1565,7 +1579,7 @@ export default function AdminDashboard() {
                                 <button
                                   type="button"
                                   className="admin-icon-btn active"
-                                  onClick={() => handleRestoreItem(item)}
+                                  onClick={() => setItemToRestore(item)}
                                   title="Restore item to public view (unhide)"
                                 >
                                   <RotateCcw size={14} />
@@ -1573,7 +1587,7 @@ export default function AdminDashboard() {
                                 <button
                                   type="button"
                                   className="admin-icon-btn danger"
-                                  onClick={() => handleDeleteFlaggedItem(item)}
+                                  onClick={() => setItemToDelete(item)}
                                   title="Delete item permanently"
                                 >
                                   <Trash2 size={14} />
@@ -3601,6 +3615,77 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* CONFIRMATION MODAL: RESTORE FLAGGED ITEM */}
+      {itemToRestore && (
+        <div className="admin-modal-overlay" onClick={() => !isRestoringItem && setItemToRestore(null)}>
+          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <div className="admin-modal-header">
+              <h2 className="admin-modal-title">
+                <RotateCcw size={20} className="text-emerald" />
+                <span>Restore Flagged {itemToRestore.itemType === "post" ? "Post" : "Comment"}</span>
+              </h2>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setItemToRestore(null)}
+                disabled={isRestoringItem}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="admin-modal-desc" style={{ marginTop: "6px" }}>
+              Are you sure you want to unhide and restore this {itemToRestore.itemType}? It will be made visible to all community members immediately.
+            </p>
+            {itemToRestore.author?.username && (
+              <div className="admin-user-summary-box" style={{ margin: "14px 0" }}>
+                <span style={{ fontSize: "0.86rem", color: "#e2e8f0" }}>
+                  Author: <strong>@{itemToRestore.author.username}</strong>
+                </span>
+                {itemToRestore.title && (
+                  <span style={{ fontSize: "0.84rem", color: "#94a3b8" }}>
+                    Title: <em>{itemToRestore.title}</em>
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-cancel-btn"
+                disabled={isRestoringItem}
+                onClick={() => setItemToRestore(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="admin-primary-btn"
+                style={{ background: "#10b981", borderColor: "#10b981" }}
+                disabled={isRestoringItem}
+                onClick={handleConfirmRestoreItem}
+              >
+                {isRestoringItem ? "Restoring..." : "Restore Content"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION MODAL: DELETE FLAGGED ITEM */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(itemToDelete)}
+        onClose={() => {
+          if (!isDeletingFlaggedItem) setItemToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteFlaggedItem}
+        title={`Delete Flagged ${itemToDelete?.itemType === "post" ? "Post" : "Comment"}`}
+        description={`Are you sure you want to permanently delete this flagged ${itemToDelete?.itemType || "item"}? This action cannot be undone.`}
+        itemTitle={itemToDelete?.title || stripHtml(itemToDelete?.body || "")}
+        warningNote={`This will permanently wipe this ${itemToDelete?.itemType || "content"} from the database.`}
+        confirmText="Delete Permanently"
+        isDeleting={isDeletingFlaggedItem}
+      />
     </section>
   );
 }
