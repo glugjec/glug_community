@@ -2950,8 +2950,9 @@ export default function AdminDashboard() {
                 {resourceSearch && (
                   <button
                     type="button"
-                    className="admin-clear-btn"
+                    className="admin-search-clear"
                     onClick={() => setResourceSearch("")}
+                    title="Clear search"
                   >
                     <X size={14} />
                   </button>
