@@ -1089,7 +1089,8 @@
 }
 
 .admin-modal-box.preview {
-  max-width: 720px;
+  max-width: 760px;
+  gap: 16px;
 }
 
 .admin-modal-box.alert {

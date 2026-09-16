@@ -3476,14 +3476,40 @@ export default function AdminDashboard() {
                       )}
                       {appealStmt && (
                         <div style={{ background: "rgba(59, 130, 246, 0.09)", border: "1px solid rgba(59, 130, 246, 0.3)", padding: "10px 14px", borderRadius: "10px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "5px" }}>
                             <span className="admin-badge" style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em", background: "rgba(59, 130, 246, 0.2)", color: "#60a5fa", border: "1px solid rgba(59, 130, 246, 0.4)" }}>
                               APPEAL STATEMENT
                             </span>
+                            {appealStmt.length > 180 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleTextExpanded("modal-appeal-stmt")}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#60a5fa",
+                                  fontSize: "0.74rem",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  padding: "0 2px",
+                                }}
+                              >
+                                {expandedTextMap["modal-appeal-stmt"] ? "Show less" : "Show all"}
+                              </button>
+                            )}
                           </div>
-                          <p style={{ fontSize: "0.86rem", color: "#e2e8f0", lineHeight: "1.45", margin: 0, fontStyle: "italic", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                            "{appealStmt}"
-                          </p>
+                          <div
+                            style={{
+                              maxHeight: expandedTextMap["modal-appeal-stmt"] ? "220px" : "100px",
+                              overflowY: "auto",
+                              paddingRight: "4px",
+                              transition: "max-height 0.2s ease",
+                            }}
+                          >
+                            <p style={{ fontSize: "0.86rem", color: "#e2e8f0", lineHeight: "1.45", margin: 0, fontStyle: "italic", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                              "{appealStmt}"
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -3508,14 +3534,26 @@ export default function AdminDashboard() {
               })()}
             </div>
             {viewItemModal.title && (
-              <h3 style={{ margin: "4px 0 10px 0", fontSize: "1.05rem", color: "#f8fafc" }}>
+              <h3 style={{ margin: "4px 0 10px 0", fontSize: "1.05rem", color: "#f8fafc", flexShrink: 0 }}>
                 {viewItemModal.title}
               </h3>
             )}
-            <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "#94a3b8", marginBottom: "6px" }}>
+            <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "#94a3b8", marginBottom: "6px", flexShrink: 0 }}>
               Content Preview
             </div>
-            <div className="admin-preview-body" style={{ maxHeight: "350px", overflowY: "auto", background: "rgba(0,0,0,0.3)", padding: "16px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div
+              className="admin-preview-body"
+              style={{
+                minHeight: "160px",
+                maxHeight: "360px",
+                flexShrink: 0,
+                overflowY: "auto",
+                background: "rgba(0,0,0,0.3)",
+                padding: "16px",
+                borderRadius: "10px",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
               {(() => {
                 const rawContent = viewItemModal.body || viewItemModal.text || viewItemModal.contentPreview?.body || viewItemModal.contentPreview?.text;
                 if (!rawContent) return <p className="text-muted">No text content.</p>;
