@@ -138,34 +138,33 @@ export default function ResourceDetailModal({
             <span className="res-meta-item">
               <Eye size={13} /> {resource.viewsCount || 0} views
             </span>
-            <span className="res-meta-dot">•</span>
-            <span className="res-meta-item">
-              <Download size={13} /> {downloadCount} downloads
-            </span>
+            {(downloadCount > 0 || files.length > 0) && (
+              <>
+                <span className="res-meta-dot">•</span>
+                <span className="res-meta-item">
+                  <Download size={13} /> {downloadCount} downloads
+                </span>
+              </>
+            )}
           </div>
 
           {/* Download Center Section */}
-          <section className="res-section download-center">
-            <div className="res-section-title-wrap">
-              <div className="res-section-icon-wrap download">
-                <Download size={18} />
+          {files.length > 0 && (
+            <section className="res-section download-center">
+              <div className="res-section-title-wrap">
+                <div className="res-section-icon-wrap download">
+                  <Download size={18} />
+                </div>
+                <div>
+                  <h3 className="res-section-title">
+                    Downloadable Files & Materials ({files.length})
+                  </h3>
+                  <p className="res-section-sub">
+                    Cloud mirrors for offline study, lab exercises, and starter source code.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="res-section-title">
-                  Downloadable Files & Materials ({files.length})
-                </h3>
-                <p className="res-section-sub">
-                  Cloud mirrors for offline study, lab exercises, and starter source code.
-                </p>
-              </div>
-            </div>
 
-            {files.length === 0 ? (
-              <div className="res-empty-section-card">
-                <p>No direct download bundles currently attached to this track.</p>
-                <span>Use the authoritative reference and portal links below.</span>
-              </div>
-            ) : (
               <div className="res-files-grid">
                 {files.map((file, idx) => (
                   <div className="res-file-card" key={idx}>
@@ -202,8 +201,8 @@ export default function ResourceDetailModal({
                   </div>
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          )}
 
           {/* Curriculum Subtopics */}
           {items.length > 0 && (
