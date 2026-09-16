@@ -208,12 +208,12 @@ function stripHtml(html) {
       if (cId || matchedComment) {
         itemType = 'comment'
         const postTitle = s.targetPostTitle || matchedComment?.postTitle
-        title = postTitle ? `Comment on "${postTitle}"` : 'Flagged Comment'
+        title = postTitle ? `"${postTitle}"` : 'Flagged Content'
         snippet = stripHtml(matchedComment?.bodySnippet || s.targetCommentSnippet || '')
       } else if (pId || matchedPost) {
         itemType = 'post'
         const postTitle = s.targetPostTitle || matchedPost?.title
-        title = postTitle ? `Post: "${postTitle}"` : 'Flagged Post'
+        title = postTitle ? `"${postTitle}"` : 'Flagged Content'
         snippet = stripHtml(matchedPost?.bodySnippet || '')
       } else {
         itemType = 'strike'
@@ -255,7 +255,7 @@ function stripHtml(html) {
         targetCommentId: cId,
         targetPostId: pId,
         postId: pId,
-        title: c.postTitle ? `Comment on "${c.postTitle}"` : 'Flagged Comment',
+        title: c.postTitle ? `"${c.postTitle}"` : 'Flagged Content',
         snippet: stripHtml(c.bodySnippet || ''),
         reason: c.moderationReason || 'Violates community guidelines',
         category: c.moderationCategory,
@@ -274,7 +274,7 @@ function stripHtml(html) {
         itemType: 'post',
         targetPostId: pId,
         postId: pId,
-        title: p.title ? `Post: "${p.title}"` : 'Flagged Post',
+        title: p.title ? `"${p.title}"` : 'Flagged Content',
         snippet: stripHtml(p.bodySnippet || ''),
         reason: p.moderationReason || 'Violates community guidelines',
         category: p.moderationCategory,
@@ -886,11 +886,7 @@ function stripHtml(html) {
                                 className="settings-mod-view-post-pill"
                               >
                                 <ExternalLink size={12} />
-                                {item.itemType === 'comment'
-                                  ? 'View Comment on Post'
-                                  : item.itemType === 'post'
-                                  ? 'View Restricted Post'
-                                  : 'View Discussion Post'}
+                                View Discussion
                               </Link>
                             )}
                           </div>
@@ -930,11 +926,7 @@ function stripHtml(html) {
                                 className="settings-appeal-btn"
                                 onClick={() => openAppealModal(item)}
                               >
-                                {item.itemType === 'comment'
-                                  ? 'Appeal Comment'
-                                  : item.itemType === 'post'
-                                  ? 'Appeal Post'
-                                  : 'Appeal Strike'}
+                                Appeal
                               </button>
                             )}
                           </div>
@@ -1164,11 +1156,7 @@ function stripHtml(html) {
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ShieldAlert size={18} color="#f59e0b" />
-                {appealModalItem.itemType === 'comment'
-                  ? 'Request Comment Appeal'
-                  : appealModalItem.itemType === 'post'
-                  ? 'Request Post Appeal'
-                  : 'Request Moderation Appeal'}
+                Request Appeal
               </h3>
               <button
                 type="button"
@@ -1186,9 +1174,7 @@ function stripHtml(html) {
                   <div className="summary-label">
                     {appealModalItem.itemType === 'strike'
                       ? `Account Strike #${appealModalItem.strikeIndex || 1}`
-                      : appealModalItem.itemType === 'post'
-                      ? 'Restricted Post'
-                      : 'Restricted Comment'}
+                      : 'Flagged Content'}
                   </div>
                   <div className="summary-val">
                     {appealModalItem.title || 'Moderation Action'}
@@ -1245,10 +1231,6 @@ function stripHtml(html) {
                     <>
                       <Loader2 size={14} className="glug-spin" /> Submitting...
                     </>
-                  ) : appealModalItem?.itemType === 'comment' ? (
-                    'Submit Comment Appeal'
-                  ) : appealModalItem?.itemType === 'post' ? (
-                    'Submit Post Appeal'
                   ) : (
                     'Submit Appeal'
                   )}

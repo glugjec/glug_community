@@ -716,7 +716,7 @@
 
 .settings-mod-item-main {
   flex: 1;
-  min-width: 260px;
+  min-width: 0;
 }
 
 .settings-mod-item-tags {
@@ -768,6 +768,8 @@
   font-weight: 700;
   color: var(--text);
   margin: 0 0 0.35rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .settings-mod-item-link {
@@ -788,12 +790,16 @@
   margin: 0 0 0.4rem;
   font-style: italic;
   line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .settings-mod-item-reason {
   font-size: 0.82rem;
   color: #fca5a5;
   margin: 0 0 0.45rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .settings-mod-view-post-pill {
@@ -975,10 +981,42 @@
   .settings-mod-item {
     flex-direction: column;
     align-items: stretch;
+    padding: 1rem;
+    gap: 0.85rem;
+  }
+  .settings-mod-item-main {
+    min-width: 0;
+    width: 100%;
   }
   .settings-mod-item-action {
     justify-content: flex-end;
     padding-top: 0.6rem;
     border-top: 1px solid var(--border);
+    width: 100%;
+  }
+  .settings-appeal-note {
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-mod-item {
+    padding: 0.85rem;
+  }
+  .settings-appeal-btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.55rem 1rem;
+  }
+  .settings-appeal-badge {
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .settings-appeal-badge-status {
+    justify-content: center;
+    width: 100%;
   }
 }
