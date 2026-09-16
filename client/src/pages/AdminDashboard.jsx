@@ -361,10 +361,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const loadAppeals = async () => {
+  const loadAppeals = async (statusOverride) => {
     setLoadingAppeals(true);
     try {
-      const res = await adminApi.getAppeals({ status: appealStatusFilter });
+      const activeFilter = typeof statusOverride === "string" ? statusOverride : appealStatusFilter;
+      const res = await adminApi.getAppeals({ status: activeFilter });
       setAppeals(res.appeals || []);
     } catch (err) {
       showToast(err.message || "Failed to load appeals", "error");
@@ -433,6 +434,7 @@ export default function AdminDashboard() {
     if (user && user.role === "admin" && activeTab === "moderation") {
       if (modSubTab === "flagged") loadFlaggedItems();
       else if (modSubTab === "reports") loadReports();
+      else if (modSubTab === "appeals") loadAppeals();
       else if (modSubTab === "banned") loadBannedUsers();
       else if (modSubTab === "logs") loadModLogs();
       else if (modSubTab === "discussions") {
@@ -446,7 +448,19 @@ export default function AdminDashboard() {
           .finally(() => setLoadingPosts(false));
       }
     }
-  }, [user, activeTab, modSubTab, reportStatusFilter, postSearch]);
+  }, [user, activeTab, modSubTab, reportStatusFilter, appealStatusFilter, postSearch]);
+
+  useEffect(() => {
+    if (user && user.role === "admin" && activeTab === "moderation" && modSubTab === "appeals") {
+      const interval = setInterval(() => {
+        if (!document.hidden) {
+          loadAppeals();
+          loadStats();
+        }
+      }, 20000);
+      return () => clearInterval(interval);
+    }
+  }, [user, activeTab, modSubTab, appealStatusFilter]);
 
   const handleRestoreItem = async (item) => {
     try {
@@ -1798,20 +1812,25 @@ export default function AdminDashboard() {
                 </p>
                 <div className="admin-filter-group">
                   <select
-                    className="admin-form-select"
+                    className="admin-select"
                     value={appealStatusFilter}
-                    onChange={(e) => setAppealStatusFilter(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAppealStatusFilter(val);
+                      loadAppeals(val);
+                    }}
                   >
+                    <option value="all">All Appeals</option>
                     <option value="pending">Pending Appeals</option>
                     <option value="approved">Approved Appeals</option>
                     <option value="rejected">Rejected Appeals</option>
-                    <option value="all">All Appeals</option>
                   </select>
                   <button
                     type="button"
                     className="admin-secondary-btn"
-                    onClick={loadAppeals}
+                    onClick={() => loadAppeals()}
                     disabled={loadingAppeals}
+                    title="Reload appeals"
                   >
                     <RefreshCw size={14} className={loadingAppeals ? "admin-spin" : ""} />
                     <span>Refresh</span>
@@ -1866,15 +1885,21 @@ export default function AdminDashboard() {
                           </td>
                           <td>
                             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
-                                  {a.itemType}
-                                </span>
-                                {a.strikeIndex && (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                                {a.itemType !== "strike" && (
+                                  <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
+                                    {a.itemType}
+                                  </span>
+                                )}
+                                {a.strikeIndex ? (
                                   <span className="admin-badge warning">
                                     Strike #{a.strikeIndex}
                                   </span>
-                                )}
+                                ) : a.itemType === "strike" ? (
+                                  <span className="admin-badge warning">
+                                    Strike
+                                  </span>
+                                ) : null}
                               </div>
                               {a.targetPost?.title && (
                                 <Link
@@ -1882,10 +1907,20 @@ export default function AdminDashboard() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="admin-date-subtext"
-                                  style={{ maxWidth: "200px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "3px" }}
-                                  title="Open post in new tab"
+                                  style={{
+                                    maxWidth: "240px",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    color: "#60a5fa",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                  title={a.targetPost.title}
                                 >
-                                  Post: "{a.targetPost.title}" <ExternalLink size={10} />
+                                  <span>"{a.targetPost.title}"</span>
+                                  <ExternalLink size={10} style={{ flexShrink: 0 }} />
                                 </Link>
                               )}
                               {a.targetComment && (
@@ -1894,17 +1929,27 @@ export default function AdminDashboard() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="admin-date-subtext"
-                                  style={{ maxWidth: "200px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit", display: "inline-flex", alignItems: "center", gap: "3px" }}
-                                  title="Open post discussion in new tab"
+                                  style={{
+                                    maxWidth: "240px",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                  title={stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}
                                 >
-                                  Comment: "{stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}" {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} />}
+                                  <span>"{stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}"</span>
+                                  {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} style={{ flexShrink: 0 }} />}
                                 </Link>
                               )}
                             </div>
                           </td>
-                          <td>
+                          <td style={{ maxWidth: "220px" }}>
                             <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                              <span style={{ fontSize: "0.82rem", color: "#fca5a5" }}>
+                              <span style={{ fontSize: "0.82rem", color: "#fca5a5", wordBreak: "break-word" }}>
                                 {a.originalReason || "Policy violation"}
                               </span>
                               {a.originalCategory && (
@@ -1915,7 +1960,7 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                           <td style={{ maxWidth: "260px" }}>
-                            <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.35", whiteSpace: "pre-wrap" }}>
+                            <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.35", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                               "{a.statement}"
                             </p>
                             <span className="admin-date-subtext" style={{ display: "block", marginTop: "4px" }}>
@@ -1950,7 +1995,7 @@ export default function AdminDashboard() {
                             )}
                           </td>
                           <td className="admin-td-actions">
-                            <div className="admin-actions-cell" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <div className="admin-actions-row" style={{ justifyContent: "flex-end", gap: "6px" }}>
                               <button
                                 type="button"
                                 className="admin-icon-btn secondary"
@@ -1980,7 +2025,7 @@ export default function AdminDashboard() {
                                   <ExternalLink size={13} />
                                 </Link>
                               )}
-                              {a.status === "pending" ? (
+                              {a.status === "pending" && (
                                 <button
                                   type="button"
                                   className="admin-action-btn primary"
@@ -1999,12 +2044,16 @@ export default function AdminDashboard() {
                                   <Edit3 size={13} />
                                   <span>Resolve</span>
                                 </button>
-                              ) : (
-                                <span className="admin-date-subtext">
-                                  Resolved by @{a.resolvedBy || "admin"}
-                                </span>
                               )}
                             </div>
+                            {a.status !== "pending" && a.resolvedBy && (
+                              <span
+                                className="admin-date-subtext"
+                                style={{ display: "block", marginTop: "4px", textAlign: "right", whiteSpace: "nowrap" }}
+                              >
+                                Resolved by @{a.resolvedBy}
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))
