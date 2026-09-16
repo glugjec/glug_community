@@ -557,7 +557,7 @@
   padding: 14px 18px;
   border-bottom: 1px solid #131d31;
   color: #cbd5e1;
-  vertical-align: middle;
+  vertical-align: top;
 }
 
 .admin-table tr:last-child td {

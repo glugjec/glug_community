@@ -199,6 +199,10 @@ export default function AdminDashboard() {
   const [isOverriding, setIsOverriding] = useState(false);
 
   const [viewItemModal, setViewItemModal] = useState(null);
+  const [expandedTextMap, setExpandedTextMap] = useState({});
+  const toggleTextExpanded = (id) => {
+    setExpandedTextMap((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const selectableUsers = useMemo(() => {
     const q = memberPickerSearch.trim().toLowerCase();
@@ -1960,10 +1964,51 @@ export default function AdminDashboard() {
                               )}
                             </div>
                           </td>
-                          <td style={{ maxWidth: "260px" }}>
-                            <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.35", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                              "{a.statement}"
-                            </p>
+                          <td style={{ maxWidth: "280px", minWidth: "200px" }}>
+                            <div
+                              style={{
+                                maxHeight: expandedTextMap[`appeal-${a.id || a._id}`] ? "none" : "86px",
+                                overflow: expandedTextMap[`appeal-${a.id || a._id}`] ? "visible" : "hidden",
+                                position: "relative",
+                                transition: "max-height 0.2s ease",
+                              }}
+                            >
+                              <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                "{a.statement}"
+                              </p>
+                              {!expandedTextMap[`appeal-${a.id || a._id}`] && a.statement && a.statement.length > 100 && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: "30px",
+                                    background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
+                                    pointerEvents: "none",
+                                  }}
+                                />
+                              )}
+                            </div>
+                            {a.statement && a.statement.length > 100 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleTextExpanded(`appeal-${a.id || a._id}`)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#60a5fa",
+                                  fontSize: "0.75rem",
+                                  fontWeight: 600,
+                                  padding: "2px 0",
+                                  marginTop: "2px",
+                                  cursor: "pointer",
+                                  display: "inline-block",
+                                }}
+                              >
+                                {expandedTextMap[`appeal-${a.id || a._id}`] ? "Show less" : "Show full text"}
+                              </button>
+                            )}
                             <span className="admin-date-subtext" style={{ display: "block", marginTop: "4px" }}>
                               Submitted {new Date(a.createdAt).toLocaleDateString()}
                             </span>
@@ -2008,6 +2053,8 @@ export default function AdminDashboard() {
                                     author: a.appellant,
                                     postId: a.targetPostId || a.targetPost?.id || a.targetComment?.postId,
                                     moderationCategory: a.originalCategory,
+                                    originalReason: a.originalReason,
+                                    appealStatement: a.statement,
                                     moderationReason: `[Original Reason]: ${a.originalReason} | [Appeal Statement]: "${a.statement}"`,
                                   })
                                 }
@@ -2277,13 +2324,57 @@ export default function AdminDashboard() {
                               )}
                             </div>
                           </td>
-                          <td>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <td style={{ maxWidth: "340px", minWidth: "220px" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                               {log.reason && (
-                                <span style={{ fontSize: "0.82rem", color: "#e2e8f0" }}>{log.reason}</span>
+                                <span style={{ fontSize: "0.83rem", color: "#f1f5f9", wordBreak: "break-word" }}>
+                                  {log.reason}
+                                </span>
                               )}
                               {log.details && (
-                                <span className="admin-date-subtext">{log.details}</span>
+                                <div>
+                                  <div
+                                    style={{
+                                      maxHeight: expandedTextMap[`log-${log.id}`] ? "none" : "60px",
+                                      overflow: expandedTextMap[`log-${log.id}`] ? "visible" : "hidden",
+                                      position: "relative",
+                                    }}
+                                  >
+                                    <span className="admin-date-subtext" style={{ wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
+                                      {log.details}
+                                    </span>
+                                    {!expandedTextMap[`log-${log.id}`] && log.details.length > 90 && (
+                                      <div
+                                        style={{
+                                          position: "absolute",
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          height: "22px",
+                                          background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
+                                          pointerEvents: "none",
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                  {log.details.length > 90 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleTextExpanded(`log-${log.id}`)}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#60a5fa",
+                                        fontSize: "0.74rem",
+                                        fontWeight: 600,
+                                        padding: "1px 0",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      {expandedTextMap[`log-${log.id}`] ? "Show less" : "Show full text"}
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </td>
@@ -3351,17 +3442,70 @@ export default function AdminDashboard() {
                   </span>
                 )}
               </div>
-              {viewItemModal.moderationReason && (
-                <div style={{ marginTop: "10px", background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.25)", padding: "10px 14px", borderRadius: "10px", fontSize: "0.85rem", color: "#fca5a5" }}>
-                  <strong>Flag Reason:</strong>{" "}
-                  {viewItemModal.moderationCategory && viewItemModal.moderationCategory !== "none" && (
-                    <span className="admin-badge danger" style={{ marginRight: "6px", fontSize: "0.75rem" }}>
-                      {viewItemModal.moderationCategory}
-                    </span>
-                  )}
-                  {viewItemModal.moderationReason.replace(/\s*\|\s*\[AI\]:\s*$/, "")}
-                </div>
-              )}
+              {(() => {
+                let origReason = viewItemModal.originalReason;
+                let appealStmt = viewItemModal.appealStatement;
+
+                if (!origReason && viewItemModal.moderationReason?.includes("[Original Reason]:")) {
+                  const parts = viewItemModal.moderationReason.split("|");
+                  const rPart = parts.find((p) => p.includes("[Original Reason]:"));
+                  const sPart = parts.find((p) => p.includes("[Appeal Statement]:"));
+                  if (rPart) origReason = rPart.replace("[Original Reason]:", "").trim();
+                  if (sPart) appealStmt = sPart.replace("[Appeal Statement]:", "").trim().replace(/^"(.*)"$/, "$1");
+                }
+
+                if (origReason || appealStmt) {
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+                      {origReason && (
+                        <div style={{ background: "rgba(239, 68, 68, 0.09)", border: "1px solid rgba(239, 68, 68, 0.3)", padding: "10px 14px", borderRadius: "10px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
+                            <span className="admin-badge danger" style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em" }}>
+                              ORIGINAL REASON
+                            </span>
+                            {viewItemModal.moderationCategory && viewItemModal.moderationCategory !== "none" && (
+                              <span className="admin-badge neutral" style={{ fontSize: "0.72rem", textTransform: "uppercase" }}>
+                                {viewItemModal.moderationCategory}
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: "0.86rem", color: "#fca5a5", lineHeight: "1.4", wordBreak: "break-word" }}>
+                            {origReason}
+                          </span>
+                        </div>
+                      )}
+                      {appealStmt && (
+                        <div style={{ background: "rgba(59, 130, 246, 0.09)", border: "1px solid rgba(59, 130, 246, 0.3)", padding: "10px 14px", borderRadius: "10px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
+                            <span className="admin-badge" style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em", background: "rgba(59, 130, 246, 0.2)", color: "#60a5fa", border: "1px solid rgba(59, 130, 246, 0.4)" }}>
+                              APPEAL STATEMENT
+                            </span>
+                          </div>
+                          <p style={{ fontSize: "0.86rem", color: "#e2e8f0", lineHeight: "1.45", margin: 0, fontStyle: "italic", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                            "{appealStmt}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (viewItemModal.moderationReason) {
+                  return (
+                    <div style={{ marginTop: "10px", background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.25)", padding: "10px 14px", borderRadius: "10px", fontSize: "0.85rem", color: "#fca5a5" }}>
+                      <strong>Flag Reason:</strong>{" "}
+                      {viewItemModal.moderationCategory && viewItemModal.moderationCategory !== "none" && (
+                        <span className="admin-badge danger" style={{ marginRight: "6px", fontSize: "0.75rem" }}>
+                          {viewItemModal.moderationCategory}
+                        </span>
+                      )}
+                      {viewItemModal.moderationReason.replace(/\s*\|\s*\[AI\]:\s*$/, "")}
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
             </div>
             {viewItemModal.title && (
               <h3 style={{ margin: "4px 0 10px 0", fontSize: "1.05rem", color: "#f8fafc" }}>
