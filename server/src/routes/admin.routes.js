@@ -11,6 +11,7 @@ import { Appeal } from "../models/Appeal.js";
 import { ModerationLog } from "../models/ModerationLog.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { applyStrikePipeline } from "../utils/contentModerator.js";
+import { sendAppealDecisionMail } from "../config/mail.js";
 
 const router = Router();
 
@@ -1390,6 +1391,44 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
           ? `Your account ban appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`
           : `Your moderation appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`,
       });
+    }
+
+    const appealType = isAccountBanAppeal ? "account_ban" : (appeal.itemType || "strike");
+    let contentTitle = "";
+    let relatedPostId = null;
+
+    if (appeal.targetPost) {
+      relatedPostId = appeal.targetPost.toString();
+      const p = await Post.findById(appeal.targetPost).select("title");
+      if (p?.title) contentTitle = p.title;
+    } else if (appeal.targetComment) {
+      const c = await Comment.findById(appeal.targetComment).populate("post", "title").select("body post");
+      if (c?.post) {
+        relatedPostId = c.post._id ? c.post._id.toString() : c.post.toString();
+        contentTitle = c.post.title || "";
+      }
+    }
+
+    if (appellant?.email) {
+      try {
+        await sendAppealDecisionMail({
+          to: appellant.email,
+          username: appellant.username || "Member",
+          decision: status,
+          appealType,
+          strikeIndex: appeal.strikeIndex || 1,
+          adminNotes: appeal.adminNotes || "",
+          originalReason: appeal.originalReason || "",
+          originalCategory: appeal.originalCategory || "",
+          statement: appeal.statement || "",
+          contentTitle,
+          postId: relatedPostId,
+          currentStrikes: appellant?.moderationStrikes ?? 0,
+          isBanned: appellant?.isBanned ?? false,
+        });
+      } catch (mailErr) {
+        console.error("[Appeal Decision Mail Error]", mailErr.message);
+      }
     }
 
     return res.json({

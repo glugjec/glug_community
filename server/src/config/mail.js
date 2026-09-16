@@ -478,3 +478,221 @@ export async function sendStrikeMail({
   return { success: true, messageId: info.messageId };
 }
 
+export async function sendAppealDecisionMail({
+  to,
+  username,
+  decision = 'approved',
+  appealType = 'strike',
+  strikeIndex = 1,
+  adminNotes = '',
+  originalReason = '',
+  originalCategory = '',
+  statement = '',
+  contentTitle = '',
+  postId = null,
+  currentStrikes = null,
+  isBanned = false,
+}) {
+  const isApproved = decision === 'approved';
+  const from = process.env.EMAIL_FROM || '"GLUG Moderation" <glug.jec@gmail.com>';
+  const clientUrl = getClientBaseUrl();
+  const accentColor = isApproved ? '#10b981' : '#ef4444';
+  const badgeBg = isApproved ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+  const badgeText = isApproved ? 'APPEAL APPROVED' : 'APPEAL DENIED';
+
+  let subject = '';
+  let appealLabel = '';
+  let mainMessage = '';
+  let buttonLabel = '';
+  let buttonUrl = '';
+
+  const safeTitle = contentTitle ? String(contentTitle).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+  const safeReason = originalReason ? String(originalReason).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+  const safeStatement = statement ? String(statement).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+  const safeAdminNotes = adminNotes ? String(adminNotes).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+
+  if (appealType === 'account_ban') {
+    appealLabel = 'Account Ban Appeal';
+    if (isApproved) {
+      subject = '[GLUG Notice] Account Ban Appeal Approved - Access Restored';
+      mainMessage = 'We have reviewed your appeal regarding the suspension of your GLUG account. An administrator has approved your appeal and lifted your account suspension. Your account access has been fully restored.';
+      buttonLabel = 'Log In to Your Account';
+      buttonUrl = `${clientUrl}/login`;
+    } else {
+      subject = '[GLUG Notice] Account Ban Appeal Decision - Ban Upheld';
+      mainMessage = 'We have reviewed your appeal regarding the suspension of your GLUG account. After review by the moderation team, your appeal has been denied. The permanent suspension remains in effect in accordance with community guidelines.';
+      buttonLabel = 'Community Guidelines';
+      buttonUrl = `${clientUrl}/about`;
+    }
+  } else if (appealType === 'strike') {
+    const sIndexLabel = strikeIndex ? `Strike ${strikeIndex}` : 'Strike';
+    appealLabel = `Strike Penalty Appeal (${sIndexLabel})`;
+    if (isApproved) {
+      subject = `[GLUG Notice] ${sIndexLabel} Appeal Approved - Penalty Revoked`;
+      mainMessage = `Your appeal regarding ${sIndexLabel} has been reviewed and approved. The strike penalty has been removed from your record, and any restrictions on your posting privileges have been lifted.`;
+      buttonLabel = 'View Account Standing';
+      buttonUrl = `${clientUrl}/settings?tab=standing`;
+    } else {
+      subject = `[GLUG Notice] ${sIndexLabel} Appeal Decision - Strike Maintained`;
+      mainMessage = `Your appeal regarding ${sIndexLabel} has been reviewed and denied. The strike and associated restrictions remain active on your account in accordance with community guidelines.`;
+      buttonLabel = 'View Account Standing';
+      buttonUrl = `${clientUrl}/settings?tab=standing`;
+    }
+  } else if (appealType === 'post') {
+    appealLabel = 'Post Content Appeal';
+    if (isApproved) {
+      subject = '[GLUG Notice] Post Appeal Approved - Content Restored';
+      mainMessage = safeTitle
+        ? `Your appeal regarding your post "${safeTitle}" has been approved. The moderation restrictions have been cleared, and your post has been restored to the community.`
+        : 'Your appeal regarding your flagged post has been approved. The content has been restored and is visible to the community again.';
+      buttonLabel = postId ? 'View Restored Post' : 'View Account Standing';
+      buttonUrl = postId ? `${clientUrl}/posts/${postId}` : `${clientUrl}/settings?tab=standing`;
+    } else {
+      subject = '[GLUG Notice] Post Appeal Decision - Content Removed';
+      mainMessage = safeTitle
+        ? `Your appeal regarding your post "${safeTitle}" has been reviewed and denied. The post remains removed in accordance with community guidelines.`
+        : 'Your appeal regarding your flagged post has been reviewed and denied. The post remains removed in accordance with community guidelines.';
+      buttonLabel = 'View Account Standing';
+      buttonUrl = `${clientUrl}/settings?tab=standing`;
+    }
+  } else if (appealType === 'comment') {
+    appealLabel = 'Comment Content Appeal';
+    if (isApproved) {
+      subject = '[GLUG Notice] Comment Appeal Approved - Content Restored';
+      mainMessage = safeTitle
+        ? `Your appeal regarding your comment on "${safeTitle}" has been approved. Your comment has been restored to the discussion.`
+        : 'Your appeal regarding your flagged comment has been approved. Your comment has been unhidden and restored to the discussion.';
+      buttonLabel = postId ? 'View Discussion' : 'View Account Standing';
+      buttonUrl = postId ? `${clientUrl}/posts/${postId}` : `${clientUrl}/settings?tab=standing`;
+    } else {
+      subject = '[GLUG Notice] Comment Appeal Decision - Comment Removed';
+      mainMessage = safeTitle
+        ? `Your appeal regarding your comment on "${safeTitle}" has been reviewed and denied. The comment will remain removed in accordance with community guidelines.`
+        : 'Your appeal regarding your flagged comment has been reviewed and denied. The comment will remain removed in accordance with community guidelines.';
+      buttonLabel = 'View Account Standing';
+      buttonUrl = `${clientUrl}/settings?tab=standing`;
+    }
+  } else {
+    appealLabel = 'Moderation Appeal';
+    if (isApproved) {
+      subject = '[GLUG Notice] Moderation Appeal Approved';
+      mainMessage = 'Your moderation appeal has been reviewed and approved by an administrator. The requested action has been granted and your standing updated.';
+      buttonLabel = 'View Account Standing';
+      buttonUrl = `${clientUrl}/settings?tab=standing`;
+    } else {
+      subject = '[GLUG Notice] Moderation Appeal Decision - Denied';
+      mainMessage = 'Your moderation appeal has been reviewed and denied by an administrator. The moderation decision remains in effect.';
+      buttonLabel = 'View Account Standing';
+      buttonUrl = `${clientUrl}/settings?tab=standing`;
+    }
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <title>${subject}</title>
+      </head>
+      <body style="margin:0;padding:28px 12px;background-color:#07090e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:540px;margin:0 auto;">
+          <tr>
+            <td align="center">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#0f1422;border:1px solid #1a2336;border-radius:24px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.7);">
+                <tr>
+                  <td height="4" style="background:${accentColor};"></td>
+                </tr>
+                <tr>
+                  <td style="padding:32px 28px;">
+                    <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:1px;margin-bottom:2px;">GLUG</div>
+                    <div style="font-size:11px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:22px;">GNU/Linux User Group • Moderation Review</div>
+
+                    <div style="margin-bottom:18px;">
+                      <span style="background:${badgeBg};border:1px solid ${accentColor};border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700;color:${accentColor};text-transform:uppercase;letter-spacing:0.06em;display:inline-block;">
+                        ${badgeText}
+                      </span>
+                    </div>
+
+                    <h1 style="font-size:19px;font-weight:700;color:#f8fafc;margin:0 0 10px 0;">Hello @${username},</h1>
+                    <p style="font-size:14px;color:#94a3b8;line-height:1.6;margin:0 0 20px 0;">
+                      ${mainMessage}
+                    </p>
+
+                    <div style="background:#131929;border:1px solid #1e293b;border-left:3px solid ${accentColor};border-radius:12px;padding:16px 18px;margin-bottom:22px;">
+                      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Appeal Details</div>
+                      <div style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:6px;">
+                        <strong style="color:#94a3b8;">Type:</strong> ${appealLabel}
+                      </div>
+                      ${safeTitle ? `
+                      <div style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:6px;">
+                        <strong style="color:#94a3b8;">Target Item:</strong> "${safeTitle}"
+                      </div>` : ''}
+                      ${safeReason ? `
+                      <div style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:6px;">
+                        <strong style="color:#94a3b8;">Original Reason:</strong> ${safeReason}
+                      </div>` : ''}
+                      ${originalCategory ? `
+                      <div style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:6px;">
+                        <strong style="color:#94a3b8;">Category:</strong> ${originalCategory}
+                      </div>` : ''}
+                      ${currentStrikes !== null && !isBanned ? `
+                      <div style="font-size:13px;color:#cbd5e1;line-height:1.5;">
+                        <strong style="color:#94a3b8;">Active Strikes:</strong> ${currentStrikes} of 3
+                      </div>` : ''}
+                    </div>
+
+                    ${safeAdminNotes ? `
+                    <div style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.22);border-radius:12px;padding:14px 16px;margin-bottom:22px;text-align:left;">
+                      <div style="font-size:10.5px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Administrator Note</div>
+                      <div style="font-size:13.5px;color:#f0f9ff;line-height:1.5;">${safeAdminNotes}</div>
+                    </div>` : ''}
+
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:22px;">
+                      <tr>
+                        <td align="center">
+                          <a href="${buttonUrl}" target="_blank" style="display:inline-block;background:${accentColor};color:#ffffff;text-decoration:none;font-size:13.5px;font-weight:600;padding:12px 26px;border-radius:8px;letter-spacing:0.2px;">
+                            ${buttonLabel}
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <div style="height:1px;background:#1a2336;margin:24px 0 18px 0;"></div>
+
+                    <div style="font-size:11px;color:#64748b;line-height:1.5;text-align:center;">
+                      GLUG Community Moderation • Open minds build brighter tomorrows.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  if (!transporter) {
+    console.log('\n' + '='.repeat(54));
+    console.log('  [GLUG DEV MODE] APPEAL DECISION EMAIL CONSOLE FALLBACK');
+    console.log(`  To: ${to}`);
+    console.log(`  Decision: ${decision.toUpperCase()}`);
+    console.log(`  Type: ${appealType}`);
+    console.log(`  Subject: ${subject}`);
+    if (adminNotes) console.log(`  Admin Note: ${adminNotes}`);
+    console.log('='.repeat(54) + '\n');
+    return { success: true, mode: 'dev-console' };
+  }
+
+  const plainText = `${subject}\n\nHello @${username},\n\n${mainMessage}\n\nType: ${appealLabel}${safeTitle ? `\nItem: "${safeTitle}"` : ''}${safeReason ? `\nReason: ${safeReason}` : ''}${adminNotes ? `\nAdministrator Note: ${adminNotes}` : ''}\n\n${buttonLabel}: ${buttonUrl}`;
+
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject,
+    html,
+    text: plainText,
+  });
+  return { success: true, messageId: info.messageId };
+}
+
