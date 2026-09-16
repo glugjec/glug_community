@@ -159,6 +159,7 @@ export const resourcesApi = {
   list: (params = {}) => client.get('/resources', { params }),
   get: (idOrSlug) => client.get(`/resources/${idOrSlug}`),
   getCategories: () => client.get('/resources/categories'),
+  trackView: (id) => client.post(`/resources/${id}/track-view`),
   trackDownload: (id) => client.post(`/resources/${id}/track-download`),
   bookmark: (id) => client.post(`/resources/${id}/bookmark`),
   create: (data) => client.post('/resources', data),

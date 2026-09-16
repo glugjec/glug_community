@@ -1,6 +1,7 @@
 import { Router } from "express";
 import mongoose from "mongoose";
 import { Resource } from "../models/Resource.js";
+import { User } from "../models/User.js";
 import { requireAuth, requireAdmin, optionalAuth } from "../middleware/auth.js";
 
 const router = Router();
@@ -27,8 +28,20 @@ function formatResource(r, currentUserId = null) {
       ? r.bookmarks.some((b) => String(b) === userIdStr)
       : false;
 
+  let author = null;
+  if (r.createdBy && typeof r.createdBy === "object") {
+    const username = r.createdBy.username || null;
+    const name = r.createdBy.name || username || "Admin";
+    author = {
+      id: r.createdBy._id?.toString() || r.createdBy.id?.toString(),
+      username,
+      name,
+      avatar: r.createdBy.avatar || "",
+    };
+  }
+
   return {
-    id: r._id.toString(),
+    id: r._id ? r._id.toString() : r.id,
     title: r.title,
     slug: r.slug || "",
     description: r.description,
@@ -44,14 +57,7 @@ function formatResource(r, currentUserId = null) {
     downloadCount: r.downloadCount || 0,
     bookmarksCount: Array.isArray(r.bookmarks) ? r.bookmarks.length : 0,
     isBookmarked,
-    author: r.createdBy
-      ? {
-          id: r.createdBy._id?.toString() || r.createdBy.id?.toString(),
-          username: r.createdBy.username,
-          name: r.createdBy.name,
-          avatar: r.createdBy.avatar,
-        }
-      : null,
+    author,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   };
@@ -241,6 +247,30 @@ router.post("/:id/track-download", async (req, res) => {
   }
 });
 
+router.post("/:id/track-view", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid resource ID" });
+    }
+
+    const updated = await Resource.findByIdAndUpdate(
+      id,
+      { $inc: { viewsCount: 1 } },
+      { new: true, select: "viewsCount" }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: "Resource not found" });
+    }
+
+    return res.json({ success: true, viewsCount: updated.viewsCount });
+  } catch (err) {
+    console.error("[Track View Error]", err);
+    return res.status(500).json({ error: "Failed to record view telemetry" });
+  }
+});
+
 router.post("/:id/bookmark", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -402,6 +432,10 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
           size: f.size ? String(f.size).trim() : "",
           description: f.description ? String(f.description).trim() : "",
         }));
+    }
+
+    if (!resource.createdBy) {
+      resource.createdBy = req.user.id;
     }
 
     await resource.save();

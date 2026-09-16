@@ -15,6 +15,7 @@ import {
   Sparkles,
   ChevronRight,
 } from 'lucide-react'
+import { resourcesApi } from '../../api.js'
 
 function getLinkIcon(type) {
   switch (type) {
@@ -71,13 +72,22 @@ export default function ResourceCard({
     isBookmarked,
   } = resource
 
-  const authorName = author?.username ? `@${author.username}` : '@glug_jec'
+  const authorName = author?.username
+    ? `@${author.username}`
+    : author?.name
+    ? `@${author.name}`
+    : 'Admin'
   const visibleItems = items.slice(0, 3)
   const remainingCount = items.length - visibleItems.length
 
   const handleDownloadClick = (e, fileUrl) => {
     e.stopPropagation()
     if (files.length === 1 && fileUrl) {
+      try {
+        resourcesApi.trackDownload(id)
+      } catch {
+        // ignore
+      }
       window.open(fileUrl, '_blank', 'noopener,noreferrer')
     } else {
       onOpenDetail(resource)
@@ -192,7 +202,14 @@ export default function ResourceCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="res-card-link-pill"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  try {
+                    resourcesApi.trackView(id)
+                  } catch {
+                    // ignore
+                  }
+                }}
               >
                 {getLinkIcon(link.type)}
                 <span>{link.title}</span>

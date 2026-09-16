@@ -127,7 +127,11 @@ export default function ResourceDetailModal({
             <span className="res-meta-item">
               Curated by{' '}
               <strong className="res-author">
-                {resource.author?.username ? `@${resource.author.username}` : '@glug_jec'}
+                {resource.author?.username
+                  ? `@${resource.author.username}`
+                  : resource.author?.name
+                  ? `@${resource.author.name}`
+                  : 'Admin'}
               </strong>
             </span>
             <span className="res-meta-dot">•</span>

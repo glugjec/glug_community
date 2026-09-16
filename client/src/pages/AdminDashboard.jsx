@@ -3127,6 +3127,7 @@ export default function AdminDashboard() {
                     )}
 
                     <div className="admin-resource-meta-bar">
+                      <span>Curated by: @{r.author?.username || "admin"}</span>
                       <span>Order: #{r.order || 0}</span>
                       <span>{r.viewsCount || 0} views</span>
                       <span>{r.downloadCount || 0} downloads</span>

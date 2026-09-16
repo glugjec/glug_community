@@ -186,6 +186,37 @@ export default function Resources() {
     setSortBy('featured')
   }
 
+  const handleOpenDetail = async (resource) => {
+    setActiveModalResource(resource)
+    setResources((prev) =>
+      prev.map((r) =>
+        r.id === resource.id ? { ...r, viewsCount: (r.viewsCount || 0) + 1 } : r
+      )
+    )
+    setActiveModalResource((prev) =>
+      prev && prev.id === resource.id
+        ? { ...prev, viewsCount: (prev.viewsCount || 0) + 1 }
+        : prev
+    )
+    try {
+      const res = await resourcesApi.trackView(resource.id)
+      if (res && typeof res.viewsCount === 'number') {
+        setResources((prev) =>
+          prev.map((r) =>
+            r.id === resource.id ? { ...r, viewsCount: res.viewsCount } : r
+          )
+        )
+        setActiveModalResource((prev) =>
+          prev && prev.id === resource.id
+            ? { ...prev, viewsCount: res.viewsCount }
+            : prev
+        )
+      }
+    } catch {
+      // Telemetry error
+    }
+  }
+
   return (
     <div className="res-page">
       {/* Hero Header */}
@@ -194,9 +225,6 @@ export default function Resources() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <span className="res-hero-badge">
               <Sparkles size={13} /> Curriculum & Resources Hub
-            </span>
-            <span className="res-hero-curator">
-              Curated by <strong>@glug_jec</strong>
             </span>
           </div>
 
@@ -394,7 +422,7 @@ export default function Resources() {
               key={resource.id}
               resource={resource}
               viewMode={viewMode}
-              onOpenDetail={(r) => setActiveModalResource(r)}
+              onOpenDetail={handleOpenDetail}
               onBookmarkToggle={handleToggleBookmark}
               isLoggedIn={Boolean(user)}
             />
