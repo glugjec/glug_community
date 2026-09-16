@@ -1135,11 +1135,66 @@ async function seedResources() {
 
   console.log(`[Seed Resources] Inserting ${CURATED_RESOURCES.length} curated resources across 10 genres...`);
 
-  const documents = CURATED_RESOURCES.map((res, index) => ({
-    ...res,
-    order: res.order || index + 1,
-    createdBy: author._id,
-  }));
+  const documents = CURATED_RESOURCES.map((res, index) => {
+    const slug = res.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const sampleFiles = [];
+    if (res.category === 'cs-intro' && index === 0) {
+      sampleFiles.push(
+        {
+          name: 'CS50 Lecture Notes & Handouts',
+          url: 'https://github.com/cs50/docs/archive/refs/heads/main.zip',
+          format: 'pdf',
+          size: '18.4 MB',
+          description: 'Official lecture slide summaries and syllabus',
+        },
+        {
+          name: 'Problem Sets & Starter Code',
+          url: 'https://github.com/cs50/problems/archive/refs/heads/main.zip',
+          format: 'zip',
+          size: '24.1 MB',
+          description: 'Weekly C and Python assignment templates',
+        }
+      );
+    } else if (res.category === 'linux-basics' || res.category === 'linux-sysadmin') {
+      sampleFiles.push({
+        name: 'GLUG Linux Command Line Survival Kit',
+        url: 'https://github.com/glugjec/resources-mirror/releases/download/v1.0/linux-cli-handbook.pdf',
+        format: 'pdf',
+        size: '4.8 MB',
+        description: 'Comprehensive bash and sysadmin cheatsheet',
+      });
+    } else if (res.category === 'operating-systems') {
+      sampleFiles.push({
+        name: 'xv6 OS Source Code & Kernel Labs',
+        url: 'https://github.com/mit-pdos/xv6-riscv/archive/refs/heads/riscv.zip',
+        format: 'zip',
+        size: '1.2 MB',
+        description: 'RISC-V teaching operating system repository bundle',
+      });
+    } else if (res.category === 'algorithms-dsa') {
+      sampleFiles.push({
+        name: 'DSA Visual Cheat Sheets & Code Snippets',
+        url: 'https://github.com/glugjec/dsa-notes/archive/refs/heads/main.zip',
+        format: 'pdf',
+        size: '8.2 MB',
+        description: 'Time complexity charts and tree traversal diagrams',
+      });
+    }
+
+    return {
+      ...res,
+      slug,
+      difficulty: res.difficulty || (index % 3 === 0 ? 'beginner' : index % 3 === 1 ? 'intermediate' : 'advanced'),
+      isFeatured: res.isFeatured ?? (index < 5 || index % 10 === 0),
+      files: res.files && res.files.length > 0 ? res.files : sampleFiles,
+      order: res.order || index + 1,
+      createdBy: author._id,
+    };
+  });
 
   const inserted = await Resource.insertMany(documents);
   console.log(`[Seed Resources] Successfully inserted ${inserted.length} resources!`);

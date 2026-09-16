@@ -41,6 +41,10 @@ import {
   RotateCcw,
   XCircle,
   Clock,
+  Download,
+  FileDown,
+  Star,
+  Link as LinkIcon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { adminApi, resourcesApi } from "../api.js";
@@ -132,11 +136,19 @@ export default function AdminDashboard() {
   const [editingResource, setEditingResource] = useState(null);
   const [resourceToDelete, setResourceToDelete] = useState(null);
   const [isDeletingResource, setIsDeletingResource] = useState(false);
+  const [resourceSearch, setResourceSearch] = useState("");
+  const [resourceCategoryFilter, setResourceCategoryFilter] = useState("all");
   const [resourceForm, setResourceForm] = useState({
     title: "",
     description: "",
-    category: "getting-started",
+    details: "",
+    category: "cs-intro",
+    difficulty: "all-levels",
+    isFeatured: false,
+    order: 0,
     items: "",
+    files: [],
+    links: [],
   });
 
   const [posts, setPosts] = useState([]);
@@ -626,32 +638,64 @@ export default function AdminDashboard() {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const cleanFiles = (resourceForm.files || [])
+      .filter((f) => f && f.name?.trim() && f.url?.trim())
+      .map((f) => ({
+        name: f.name.trim(),
+        url: f.url.trim(),
+        format: f.format || "other",
+        size: f.size?.trim() || "",
+        description: f.description?.trim() || "",
+      }));
+
+    const cleanLinks = (resourceForm.links || [])
+      .filter((l) => l && l.title?.trim() && l.url?.trim())
+      .map((l) => ({
+        title: l.title.trim(),
+        url: l.url.trim(),
+        type: l.type || "link",
+      }));
+
+    const payload = {
+      title: resourceForm.title.trim(),
+      description: resourceForm.description.trim(),
+      details: resourceForm.details?.trim() || "",
+      category: resourceForm.category,
+      difficulty: resourceForm.difficulty || "all-levels",
+      isFeatured: Boolean(resourceForm.isFeatured),
+      order: Number(resourceForm.order) || 0,
+      items: itemArray,
+      files: cleanFiles,
+      links: cleanLinks,
+    };
+
     try {
       if (editingResource) {
-        const updated = await resourcesApi.update(editingResource.id, {
-          title: resourceForm.title,
-          description: resourceForm.description,
-          category: resourceForm.category,
-          items: itemArray,
-        });
+        const updated = await resourcesApi.update(editingResource.id, payload);
         setResources((prev) =>
           prev.map((r) => (r.id === editingResource.id ? updated : r))
         );
         showToast("Resource topic updated");
       } else {
-        const created = await resourcesApi.create({
-          title: resourceForm.title,
-          description: resourceForm.description,
-          category: resourceForm.category,
-          items: itemArray,
-        });
+        const created = await resourcesApi.create(payload);
         setResources((prev) => [created, ...prev]);
         showToast("Resource topic published");
         setStats((prev) => ({ ...prev, totalResources: prev.totalResources + 1 }));
       }
       setResourceModalOpen(false);
       setEditingResource(null);
-      setResourceForm({ title: "", description: "", category: "getting-started", items: "" });
+      setResourceForm({
+        title: "",
+        description: "",
+        details: "",
+        category: "cs-intro",
+        difficulty: "all-levels",
+        isFeatured: false,
+        order: 0,
+        items: "",
+        files: [],
+        links: [],
+      });
     } catch (err) {
       showToast(err.message, "error");
     }
@@ -672,6 +716,110 @@ export default function AdminDashboard() {
       setIsDeletingResource(false);
     }
   }
+
+  function handleAddFileLink() {
+    setResourceForm((prev) => ({
+      ...prev,
+      files: [
+        ...prev.files,
+        { name: "", url: "", format: "pdf", size: "", description: "" },
+      ],
+    }));
+  }
+
+  function handleUpdateFileLink(index, field, value) {
+    setResourceForm((prev) => {
+      const updated = [...prev.files];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, files: updated };
+    });
+  }
+
+  function handleRemoveFileLink(index) {
+    setResourceForm((prev) => ({
+      ...prev,
+      files: prev.files.filter((_, i) => i !== index),
+    }));
+  }
+
+  function handleAddWebLink() {
+    setResourceForm((prev) => ({
+      ...prev,
+      links: [...prev.links, { title: "", url: "", type: "course" }],
+    }));
+  }
+
+  function handleUpdateWebLink(index, field, value) {
+    setResourceForm((prev) => {
+      const updated = [...prev.links];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, links: updated };
+    });
+  }
+
+  function handleRemoveWebLink(index) {
+    setResourceForm((prev) => ({
+      ...prev,
+      links: prev.links.filter((_, i) => i !== index),
+    }));
+  }
+
+  function openCreateResourceModal() {
+    setEditingResource(null);
+    setResourceForm({
+      title: "",
+      description: "",
+      details: "",
+      category: "cs-intro",
+      difficulty: "all-levels",
+      isFeatured: false,
+      order: resources.length + 1,
+      items: "",
+      files: [],
+      links: [],
+    });
+    setResourceModalOpen(true);
+  }
+
+  function openEditResourceModal(r) {
+    setEditingResource(r);
+    setResourceForm({
+      title: r.title || "",
+      description: r.description || "",
+      details: r.details || "",
+      category: r.category || "cs-intro",
+      difficulty: r.difficulty || "all-levels",
+      isFeatured: Boolean(r.isFeatured),
+      order: typeof r.order === "number" ? r.order : 0,
+      items: Array.isArray(r.items) ? r.items.join("\n") : "",
+      files: Array.isArray(r.files) ? r.files.map((f) => ({ ...f })) : [],
+      links: Array.isArray(r.links) ? r.links.map((l) => ({ ...l })) : [],
+    });
+    setResourceModalOpen(true);
+  }
+
+  const filteredAdminResources = useMemo(() => {
+    return resources.filter((r) => {
+      const matchCat =
+        resourceCategoryFilter === "all" || r.category === resourceCategoryFilter;
+      if (!matchCat) return false;
+      if (!resourceSearch.trim()) return true;
+      const q = resourceSearch.toLowerCase().trim();
+      const matchTitle = (r.title || "").toLowerCase().includes(q);
+      const matchDesc = (r.description || "").toLowerCase().includes(q);
+      const matchFile =
+        Array.isArray(r.files) &&
+        r.files.some((f) => (f.name || "").toLowerCase().includes(q));
+      return matchTitle || matchDesc || matchFile;
+    });
+  }, [resources, resourceCategoryFilter, resourceSearch]);
+
+  const totalFilesHosted = useMemo(() => {
+    return resources.reduce(
+      (acc, r) => acc + (Array.isArray(r.files) ? r.files.length : 0),
+      0
+    );
+  }, [resources]);
 
   async function handleTogglePin(post) {
     try {
@@ -1055,7 +1203,18 @@ export default function AdminDashboard() {
                   onClick={() => {
                     setSearchParams({ tab: "resources" });
                     setEditingResource(null);
-                    setResourceForm({ title: "", description: "", category: "getting-started", items: "" });
+                    setResourceForm({
+                      title: "",
+                      description: "",
+                      details: "",
+                      category: "cs-intro",
+                      difficulty: "all-levels",
+                      isFeatured: false,
+                      order: 0,
+                      items: "",
+                      files: [],
+                      links: [],
+                    });
                     setResourceModalOpen(true);
                   }}
                 >
@@ -2756,91 +2915,225 @@ export default function AdminDashboard() {
 
       {activeTab === "resources" && (
         <div className="admin-tab-content">
-          <div className="admin-toolbar">
-            <p className="admin-toolbar-desc">
-              Curate and publish curriculum guides that sync live to the public{" "}
-              <Link to="/resources" className="admin-link">
-                /resources
-              </Link>{" "}
-              learning page.
-            </p>
+          <div className="admin-resource-stats-row">
+            <div className="admin-resource-stat-card">
+              <div className="admin-resource-stat-label">Total Curated</div>
+              <div className="admin-resource-stat-value">{resources.length}</div>
+            </div>
+            <div className="admin-resource-stat-card">
+              <div className="admin-resource-stat-label">Downloadable Files</div>
+              <div className="admin-resource-stat-value highlight">{totalFilesHosted}</div>
+            </div>
+            <div className="admin-resource-stat-card">
+              <div className="admin-resource-stat-label">Featured Tracks</div>
+              <div className="admin-resource-stat-value">{resources.filter((r) => r.isFeatured).length}</div>
+            </div>
+            <div className="admin-resource-stat-card">
+              <div className="admin-resource-stat-label">Total Downloads</div>
+              <div className="admin-resource-stat-value">
+                {resources.reduce((acc, r) => acc + (r.downloadCount || 0), 0)}
+              </div>
+            </div>
+          </div>
 
-            <button
-              type="button"
-              className="admin-primary-btn"
-              onClick={() => {
-                setEditingResource(null);
-                setResourceForm({
-                  title: "",
-                  description: "",
-                  category: "getting-started",
-                  items: "",
-                });
-                setResourceModalOpen(true);
-              }}
-            >
-              <Plus size={16} />
-              <span>Add Resource Topic</span>
-            </button>
+          <div className="admin-toolbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", width: "100%", boxSizing: "border-box" }}>
+            <div style={{ display: "flex", flex: 1, minWidth: "280px", maxWidth: "640px", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              <div className="admin-search-wrap" style={{ flex: 1, minWidth: "220px" }}>
+                <Search size={16} className="admin-search-icon" />
+                <input
+                  type="text"
+                  className="admin-search-input"
+                  placeholder="Search resources by title or file..."
+                  value={resourceSearch}
+                  onChange={(e) => setResourceSearch(e.target.value)}
+                />
+                {resourceSearch && (
+                  <button
+                    type="button"
+                    className="admin-clear-btn"
+                    onClick={() => setResourceSearch("")}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <select
+                className="admin-select"
+                style={{ width: "auto", minWidth: "170px", height: "38px" }}
+                value={resourceCategoryFilter}
+                onChange={(e) => setResourceCategoryFilter(e.target.value)}
+              >
+                <option value="all">All Categories ({resources.length})</option>
+                <option value="cs-intro">CS Introduction</option>
+                <option value="algorithms-dsa">Algorithms & DSA</option>
+                <option value="systems-arch">Systems & Architecture</option>
+                <option value="operating-systems">Operating Systems</option>
+                <option value="linux-basics">Linux Basics</option>
+                <option value="linux-sysadmin">Sysadmin & DevOps</option>
+                <option value="git-vcs">Git & VCS</option>
+                <option value="open-source">Open Source</option>
+                <option value="dev-tools">Developer Tools</option>
+                <option value="systems-c-prog">C & Systems</option>
+                <option value="web-dev">Web Development</option>
+                <option value="security-crypto">Security & Networks</option>
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <Link to="/resources" target="_blank" className="admin-outline-btn">
+                <ExternalLink size={14} />
+                <span>View Public Page</span>
+              </Link>
+
+              <button
+                type="button"
+                className="admin-primary-btn"
+                onClick={openCreateResourceModal}
+              >
+                <Plus size={16} />
+                <span>Add Resource Topic</span>
+              </button>
+            </div>
           </div>
 
           <div className="admin-resources-grid">
-            {resources.length === 0 ? (
-              <div className="admin-empty-card">
+            {filteredAdminResources.length === 0 ? (
+              <div className="admin-empty-card" style={{ gridColumn: "1 / -1" }}>
                 <BookOpen size={36} />
-                <h3>No Custom Resources Found</h3>
+                <h3>No Resources Found</h3>
                 <p>
-                  The platform is currently rendering the default curriculum tracks. Click above to add your first database resource.
+                  {resourceSearch || resourceCategoryFilter !== "all"
+                    ? "No resources match your search criteria. Try resetting filters."
+                    : "No curriculum tracks have been created yet. Click above to add your first database resource."}
                 </p>
+                {(resourceSearch || resourceCategoryFilter !== "all") && (
+                  <button
+                    type="button"
+                    className="admin-outline-btn"
+                    style={{ marginTop: "12px" }}
+                    onClick={() => {
+                      setResourceSearch("");
+                      setResourceCategoryFilter("all");
+                    }}
+                  >
+                    Reset Filter
+                  </button>
+                )}
               </div>
             ) : (
-              resources.map((r) => (
-                <article className="admin-resource-card" key={r.id}>
-                  <div className="admin-resource-top">
-                    <span className="admin-category-pill">#{r.category}</span>
-                    <div className="admin-card-actions">
-                      <button
-                        type="button"
-                        className="admin-icon-btn"
-                        onClick={() => {
-                          setEditingResource(r);
-                          setResourceForm({
-                            title: r.title,
-                            description: r.description,
-                            category: r.category,
-                            items: (r.items || []).join("\n"),
-                          });
-                          setResourceModalOpen(true);
-                        }}
-                        title="Edit resource"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="admin-icon-btn danger"
-                        onClick={() => setResourceToDelete(r)}
-                        title="Delete resource"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
+              filteredAdminResources.map((r) => {
+                const filesCount = Array.isArray(r.files) ? r.files.length : 0;
+                const linksCount = Array.isArray(r.links) ? r.links.length : 0;
 
-                  <h3 className="admin-resource-heading">{r.title}</h3>
-                  <p className="admin-resource-summary">{r.description}</p>
+                return (
+                  <article className="admin-resource-card" key={r.id}>
+                    <div className="admin-resource-top">
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                        <span className="admin-category-pill">#{r.category}</span>
+                        {r.difficulty && r.difficulty !== "all-levels" && (
+                          <span className="admin-difficulty-tag">{r.difficulty}</span>
+                        )}
+                        {r.isFeatured && (
+                          <span className="admin-featured-tag" title="Featured Resource">
+                            <Star size={11} /> Featured
+                          </span>
+                        )}
+                      </div>
 
-                  {r.items && r.items.length > 0 && (
-                    <div className="admin-resource-chips">
-                      {r.items.map((item, idx) => (
-                        <span className="admin-item-tag" key={idx}>
-                          {item}
-                        </span>
-                      ))}
+                      <div className="admin-card-actions">
+                        <button
+                          type="button"
+                          className="admin-icon-btn"
+                          onClick={() => openEditResourceModal(r)}
+                          title="Edit resource"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-icon-btn danger"
+                          onClick={() => setResourceToDelete(r)}
+                          title="Delete resource"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </article>
-              ))
+
+                    <h3 className="admin-resource-heading">{r.title}</h3>
+                    <p className="admin-resource-summary">{r.description}</p>
+
+                    {r.items && r.items.length > 0 && (
+                      <div className="admin-resource-chips">
+                        {r.items.map((item, idx) => (
+                          <span className="admin-item-tag" key={idx}>
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {filesCount > 0 && (
+                      <div className="admin-resource-files-summary">
+                        <div className="admin-resource-section-subhead">
+                          <Download size={12} />
+                          <span>Downloadable Files ({filesCount})</span>
+                        </div>
+                        <div className="admin-resource-files-list">
+                          {r.files.map((file, idx) => (
+                            <div className="admin-file-summary-chip" key={idx}>
+                              <span className="admin-file-format-badge">{file.format || "file"}</span>
+                              <span className="admin-file-name" title={file.name}>
+                                {file.name}
+                              </span>
+                              {file.size && <span className="admin-file-size-tag">{file.size}</span>}
+                              <a
+                                href={file.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="admin-file-link-icon"
+                                title="Open Link URL"
+                              >
+                                <ExternalLink size={11} />
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {linksCount > 0 && (
+                      <div className="admin-resource-links-summary">
+                        <div className="admin-resource-section-subhead">
+                          <LinkIcon size={12} />
+                          <span>External Links ({linksCount})</span>
+                        </div>
+                        <div className="admin-resource-links-list">
+                          {r.links.map((link, idx) => (
+                            <a
+                              key={idx}
+                              href={link.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="admin-link-summary-item"
+                            >
+                              <span>{link.title}</span>
+                              <ExternalLink size={10} />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="admin-resource-meta-bar">
+                      <span>Order: #{r.order || 0}</span>
+                      <span>{r.viewsCount || 0} views</span>
+                      <span>{r.downloadCount || 0} downloads</span>
+                    </div>
+                  </article>
+                );
+              })
             )}
           </div>
         </div>
@@ -2905,73 +3198,326 @@ export default function AdminDashboard() {
 
       {resourceModalOpen && (
         <div className="admin-modal-overlay" onClick={() => setResourceModalOpen(false)}>
-          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="admin-modal-header">
-              <h2 className="admin-modal-title">
-                {editingResource ? "Edit Resource Topic" : "Publish Resource Topic"}
-              </h2>
+          <div
+            className="admin-modal-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="admin-modal-sheet-header">
+              <div>
+                <h2 className="admin-modal-title" style={{ margin: 0, fontSize: "18px" }}>
+                  {editingResource ? "Edit Resource Topic" : "Publish Resource Topic"}
+                </h2>
+                <p style={{ margin: "2px 0 0 0", fontSize: "12.5px", color: "#94a3b8" }}>
+                  Curate curriculum content and downloadable file mirrors
+                </p>
+              </div>
               <button
                 type="button"
                 className="admin-modal-close"
                 onClick={() => setResourceModalOpen(false)}
+                aria-label="Close modal"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveResource} className="admin-modal-form">
-              <div className="admin-form-group">
-                <label>Topic Title</label>
-                <input
-                  type="text"
-                  className="admin-form-input"
-                  required
-                  placeholder="e.g. Linux Kernel Architecture"
-                  value={resourceForm.title}
-                  onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })}
-                />
+            <form
+              onSubmit={handleSaveResource}
+              style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}
+            >
+              <div className="admin-modal-sheet-body">
+                <div className="admin-form-group">
+                  <label>Topic Title *</label>
+                  <input
+                    type="text"
+                    className="admin-form-input"
+                    required
+                    placeholder="e.g. Linux Kernel Architecture & Syscalls"
+                    value={resourceForm.title}
+                    onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+                  <div className="admin-form-group">
+                    <label>Category *</label>
+                    <select
+                      className="admin-select"
+                      value={resourceForm.category}
+                      onChange={(e) => setResourceForm({ ...resourceForm, category: e.target.value })}
+                    >
+                      <option value="cs-intro">CS Introduction</option>
+                      <option value="algorithms-dsa">Algorithms & DSA</option>
+                      <option value="systems-arch">Systems & Architecture</option>
+                      <option value="operating-systems">Operating Systems</option>
+                      <option value="linux-basics">Linux Basics</option>
+                      <option value="linux-sysadmin">Sysadmin & DevOps</option>
+                      <option value="git-vcs">Git & VCS</option>
+                      <option value="open-source">Open Source & FOSS</option>
+                      <option value="dev-tools">Developer Tools</option>
+                      <option value="systems-c-prog">C & Systems Programming</option>
+                      <option value="web-dev">Web Development</option>
+                      <option value="security-crypto">Security & Networks</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label>Difficulty Level</label>
+                    <select
+                      className="admin-select"
+                      value={resourceForm.difficulty}
+                      onChange={(e) => setResourceForm({ ...resourceForm, difficulty: e.target.value })}
+                    >
+                      <option value="all-levels">All Levels</option>
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px", alignItems: "flex-end" }}>
+                  <div className="admin-form-group">
+                    <label>Display Sort Order</label>
+                    <input
+                      type="number"
+                      className="admin-form-input"
+                      value={resourceForm.order}
+                      onChange={(e) => setResourceForm({ ...resourceForm, order: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label style={{ visibility: "hidden" }}>Featured</label>
+                    <div className="admin-checkbox-field">
+                      <input
+                        type="checkbox"
+                        id="res-admin-featured-box"
+                        checked={resourceForm.isFeatured}
+                        onChange={(e) => setResourceForm({ ...resourceForm, isFeatured: e.target.checked })}
+                      />
+                      <label htmlFor="res-admin-featured-box">
+                        Mark as Featured Track
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="admin-form-group">
+                  <label>Description *</label>
+                  <textarea
+                    className="admin-form-textarea"
+                    required
+                    rows={2}
+                    placeholder="Summary of what members will learn in this topic..."
+                    value={resourceForm.description}
+                    onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="admin-form-group">
+                  <label>Curriculum Sub-topics (one item per line)</label>
+                  <textarea
+                    className="admin-form-textarea"
+                    rows={3}
+                    placeholder="Virtual File System&#10;Process Scheduling&#10;Memory Pages"
+                    value={resourceForm.items}
+                    onChange={(e) => setResourceForm({ ...resourceForm, items: e.target.value })}
+                  />
+                </div>
+
+                {/* Downloadable Files Manager */}
+                <div className="admin-resource-builder-section">
+                  <div className="admin-builder-header">
+                    <div>
+                      <h4 className="admin-builder-title">
+                        <Download size={15} /> Downloadable Resource Files (Shared via Link)
+                      </h4>
+                      <p className="admin-builder-desc">
+                        Add links to hosted assets (Google Drive, GitHub Releases, Dropbox, Mega, etc.). Multiple files supported.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="admin-outline-btn"
+                      onClick={handleAddFileLink}
+                    >
+                      <Plus size={14} /> Add File Link
+                    </button>
+                  </div>
+
+                  {resourceForm.files.length === 0 ? (
+                    <div className="admin-builder-empty">
+                      No downloadable file links added yet. Click &quot;Add File Link&quot; above to attach course handouts, code packages, ISOs, or lab manuals.
+                    </div>
+                  ) : (
+                    <div className="admin-builder-list">
+                      {resourceForm.files.map((file, idx) => (
+                        <div className="admin-builder-item-card" key={idx}>
+                          <div className="admin-builder-grid-top">
+                            <input
+                              type="text"
+                              className="admin-form-input"
+                              placeholder="File name (e.g. Lab Manual & Handouts PDF)"
+                              value={file.name}
+                              onChange={(e) => handleUpdateFileLink(idx, "name", e.target.value)}
+                              required
+                            />
+                            <select
+                              className="admin-select"
+                              value={file.format}
+                              onChange={(e) => handleUpdateFileLink(idx, "format", e.target.value)}
+                            >
+                              <option value="pdf">PDF Document</option>
+                              <option value="zip">ZIP Archive</option>
+                              <option value="code">Source Code / Repo</option>
+                              <option value="iso">ISO Image</option>
+                              <option value="epub">EPUB Book</option>
+                              <option value="slides">Slides Presentation</option>
+                              <option value="doc">Document</option>
+                              <option value="archive">Archive</option>
+                              <option value="other">Other File</option>
+                            </select>
+                            <input
+                              type="text"
+                              className="admin-form-input"
+                              placeholder="Size (e.g. 14.5 MB)"
+                              style={{ maxWidth: "130px" }}
+                              value={file.size}
+                              onChange={(e) => handleUpdateFileLink(idx, "size", e.target.value)}
+                            />
+                          </div>
+
+                          <div className="admin-builder-grid-bottom">
+                            <input
+                              type="url"
+                              className="admin-form-input"
+                              placeholder="Download Link URL (e.g. https://drive.google.com/file/...)"
+                              value={file.url}
+                              onChange={(e) => handleUpdateFileLink(idx, "url", e.target.value)}
+                              required
+                            />
+                            <input
+                              type="text"
+                              className="admin-form-input"
+                              placeholder="Mirror / Note (e.g. Google Drive Mirror)"
+                              value={file.description}
+                              onChange={(e) => handleUpdateFileLink(idx, "description", e.target.value)}
+                            />
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              {file.url && (
+                                <button
+                                  type="button"
+                                  className="admin-icon-btn"
+                                  onClick={() => window.open(file.url, "_blank")}
+                                  title="Test Link"
+                                >
+                                  <ExternalLink size={14} />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="admin-icon-btn danger"
+                                onClick={() => handleRemoveFileLink(idx)}
+                                title="Remove File"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* External Web Links Manager */}
+                <div className="admin-resource-builder-section">
+                  <div className="admin-builder-header">
+                    <div>
+                      <h4 className="admin-builder-title">
+                        <LinkIcon size={15} /> External Curriculum & Portal Links
+                      </h4>
+                      <p className="admin-builder-desc">
+                        Add authoritative reference portals, official documentation, interactive tracks, or online courses.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="admin-outline-btn"
+                      onClick={handleAddWebLink}
+                    >
+                      <Plus size={14} /> Add Web Link
+                    </button>
+                  </div>
+
+                  {resourceForm.links.length === 0 ? (
+                    <div className="admin-builder-empty">
+                      No external web links added yet. Click &quot;Add Web Link&quot; above to link to course portals, GitHub repos, or documentation.
+                    </div>
+                  ) : (
+                    <div className="admin-builder-list">
+                      {resourceForm.links.map((link, idx) => (
+                        <div className="admin-builder-link-row" key={idx}>
+                          <input
+                            type="text"
+                            className="admin-form-input"
+                            placeholder="Link Title (e.g. Harvard CS50 Portal)"
+                            value={link.title}
+                            onChange={(e) => handleUpdateWebLink(idx, "title", e.target.value)}
+                            required
+                          />
+                          <select
+                            className="admin-select"
+                            value={link.type}
+                            style={{ maxWidth: "150px" }}
+                            onChange={(e) => handleUpdateWebLink(idx, "type", e.target.value)}
+                          >
+                            <option value="course">Course</option>
+                            <option value="book">Book</option>
+                            <option value="repo">Repository</option>
+                            <option value="interactive">Interactive</option>
+                            <option value="doc">Documentation</option>
+                            <option value="video">Video</option>
+                            <option value="tool">Tool</option>
+                            <option value="link">General Link</option>
+                          </select>
+                          <input
+                            type="url"
+                            className="admin-form-input"
+                            placeholder="https://..."
+                            value={link.url}
+                            onChange={(e) => handleUpdateWebLink(idx, "url", e.target.value)}
+                            required
+                          />
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            {link.url && (
+                              <button
+                                type="button"
+                                className="admin-icon-btn"
+                                onClick={() => window.open(link.url, "_blank")}
+                                title="Test Link"
+                              >
+                                <ExternalLink size={14} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="admin-icon-btn danger"
+                              onClick={() => handleRemoveWebLink(idx)}
+                              title="Remove Link"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="admin-form-group">
-                <label>Category</label>
-                <select
-                  className="admin-select"
-                  value={resourceForm.category}
-                  onChange={(e) => setResourceForm({ ...resourceForm, category: e.target.value })}
-                >
-                  <option value="getting-started">Getting Started</option>
-                  <option value="command-line">Command Line</option>
-                  <option value="sysadmin">System Administration</option>
-                  <option value="advanced">Advanced Topics</option>
-                  <option value="tools">Tools & Environment</option>
-                  <option value="tutorials">Tutorials & Guides</option>
-                </select>
-              </div>
-
-              <div className="admin-form-group">
-                <label>Description</label>
-                <textarea
-                  className="admin-form-textarea"
-                  required
-                  rows={3}
-                  placeholder="Summary of what members will learn in this topic..."
-                  value={resourceForm.description}
-                  onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
-                />
-              </div>
-
-              <div className="admin-form-group">
-                <label>Curriculum Sub-topics (one item per line)</label>
-                <textarea
-                  className="admin-form-textarea"
-                  rows={4}
-                  placeholder="Virtual File System&#10;Process Scheduling&#10;Memory Pages"
-                  value={resourceForm.items}
-                  onChange={(e) => setResourceForm({ ...resourceForm, items: e.target.value })}
-                />
-              </div>
-
-              <div className="admin-modal-actions">
+              <div className="admin-modal-sheet-footer">
                 <button
                   type="button"
                   className="admin-cancel-btn"

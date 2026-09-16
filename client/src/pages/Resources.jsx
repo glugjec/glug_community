@@ -1,12 +1,26 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { resourcesApi } from '../api.js'
 import ResourceCard from '../components/resources/ResourceCard.jsx'
-import { Search, X, Sparkles, BookOpen, Terminal, Layers } from 'lucide-react'
+import ResourceDetailModal from '../components/resources/ResourceDetailModal.jsx'
+import {
+  Search,
+  X,
+  Sparkles,
+  BookOpen,
+  Download,
+  LayoutGrid,
+  List,
+  Shield,
+  Bookmark,
+  Filter,
+  Check,
+} from 'lucide-react'
+import './Resources.css'
 
-const GENRE_FILTERS = [
-  { id: 'all', label: 'All Curated' },
+const CATEGORY_LIST = [
+  { id: 'all', label: 'All Resources' },
   { id: 'cs-intro', label: 'CS Introduction' },
   { id: 'algorithms-dsa', label: 'Algorithms & DSA' },
   { id: 'systems-arch', label: 'Computer Systems' },
@@ -17,16 +31,28 @@ const GENRE_FILTERS = [
   { id: 'open-source', label: 'Open Source' },
   { id: 'dev-tools', label: 'Developer Tools' },
   { id: 'systems-c-prog', label: 'C & Systems' },
+  { id: 'web-dev', label: 'Web Development' },
+  { id: 'security-crypto', label: 'Security & Networks' },
 ]
 
 export default function Resources() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchInputRef = useRef(null)
+
   const [resources, setResources] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedGenre, setSelectedGenre] = useState('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all')
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+  const [selectedDifficulty, setSelectedDifficulty] = useState('all')
+  const [onlyWithFiles, setOnlyWithFiles] = useState(false)
+  const [onlyBookmarked, setOnlyBookmarked] = useState(false)
+  const [sortBy, setSortBy] = useState('featured')
+  const [viewMode, setViewMode] = useState('grid')
+  const [activeModalResource, setActiveModalResource] = useState(null)
 
   useEffect(() => {
+    setLoading(true)
     resourcesApi
       .list()
       .then((data) => {
@@ -34,12 +60,26 @@ export default function Resources() {
           setResources(data)
         }
       })
-      .catch((err) => console.warn('Could not load dynamic resources:', err))
+      .catch((err) => console.warn('Could not load resources:', err))
       .finally(() => setLoading(false))
   }, [])
 
-  // Calculate counts per genre
-  const genreCounts = useMemo(() => {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (
+        e.key === '/' &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const categoryCounts = useMemo(() => {
     const counts = { all: resources.length }
     for (const r of resources) {
       if (r.category) {
@@ -49,347 +89,327 @@ export default function Resources() {
     return counts
   }, [resources])
 
-  // Filtered resources based on genre and search query
+  const totalDownloadableFiles = useMemo(() => {
+    return resources.reduce((acc, r) => acc + (Array.isArray(r.files) ? r.files.length : 0), 0)
+  }, [resources])
+
+  const totalCommunityDownloads = useMemo(() => {
+    return resources.reduce((acc, r) => acc + (r.downloadCount || 0), 0)
+  }, [resources])
+
   const filteredResources = useMemo(() => {
-    return resources.filter((r) => {
-      const matchesGenre = selectedGenre === 'all' || r.category === selectedGenre
+    return resources
+      .filter((r) => {
+        if (selectedCategory !== 'all' && r.category !== selectedCategory) {
+          return false
+        }
 
-      if (!matchesGenre) return false
+        if (selectedDifficulty !== 'all' && r.difficulty !== selectedDifficulty) {
+          return false
+        }
 
-      if (!searchQuery.trim()) return true
+        if (onlyWithFiles && (!r.files || r.files.length === 0)) {
+          return false
+        }
 
-      const q = searchQuery.toLowerCase().trim()
-      const titleMatch = (r.title || '').toLowerCase().includes(q)
-      const descMatch = (r.description || '').toLowerCase().includes(q)
-      const itemsMatch = Array.isArray(r.items) && r.items.some((i) => i.toLowerCase().includes(q))
-      const authorMatch = r.author?.username?.toLowerCase().includes(q)
+        if (onlyBookmarked && !r.isBookmarked) {
+          return false
+        }
 
-      return titleMatch || descMatch || itemsMatch || authorMatch
-    })
-  }, [resources, selectedGenre, searchQuery])
+        if (!searchQuery.trim()) return true
+
+        const q = searchQuery.toLowerCase().trim()
+        const titleMatch = (r.title || '').toLowerCase().includes(q)
+        const descMatch = (r.description || '').toLowerCase().includes(q)
+        const detailsMatch = (r.details || '').toLowerCase().includes(q)
+        const itemsMatch =
+          Array.isArray(r.items) && r.items.some((i) => i.toLowerCase().includes(q))
+        const fileMatch =
+          Array.isArray(r.files) && r.files.some((f) => (f.name || '').toLowerCase().includes(q))
+        const authorMatch = r.author?.username?.toLowerCase().includes(q)
+
+        return titleMatch || descMatch || detailsMatch || itemsMatch || fileMatch || authorMatch
+      })
+      .sort((a, b) => {
+        if (sortBy === 'featured') {
+          if (a.isFeatured !== b.isFeatured) return b.isFeatured ? 1 : -1
+          return (a.order || 0) - (b.order || 0)
+        }
+        if (sortBy === 'downloads') {
+          return (b.downloadCount || 0) - (a.downloadCount || 0)
+        }
+        if (sortBy === 'views') {
+          return (b.viewsCount || 0) - (a.viewsCount || 0)
+        }
+        if (sortBy === 'newest') {
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+        }
+        if (sortBy === 'alpha') {
+          return (a.title || '').localeCompare(b.title || '')
+        }
+        return (a.order || 0) - (b.order || 0)
+      })
+  }, [
+    resources,
+    selectedCategory,
+    selectedDifficulty,
+    onlyWithFiles,
+    onlyBookmarked,
+    searchQuery,
+    sortBy,
+  ])
+
+  const handleToggleBookmark = async (id) => {
+    try {
+      const res = await resourcesApi.bookmark(id)
+      setResources((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, isBookmarked: res.isBookmarked } : r
+        )
+      )
+      if (activeModalResource?.id === id) {
+        setActiveModalResource((prev) =>
+          prev ? { ...prev, isBookmarked: res.isBookmarked } : null
+        )
+      }
+    } catch (err) {
+      console.error('Bookmark error:', err)
+    }
+  }
+
+  const handleResetFilters = () => {
+    setSelectedCategory('all')
+    setSearchQuery('')
+    setSelectedDifficulty('all')
+    setOnlyWithFiles(false)
+    setOnlyBookmarked(false)
+    setSortBy('featured')
+  }
 
   return (
-    <section className="page" style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 20px' }}>
-      {/* Header Section */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '20px',
-          marginBottom: '24px',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                background: 'rgba(56, 139, 253, 0.15)',
-                color: '#58a6ff',
-                padding: '3px 10px',
-                borderRadius: '20px',
-                fontSize: '12px',
-                fontWeight: 600,
-                border: '1px solid rgba(56, 139, 253, 0.3)',
-              }}
-            >
-              <Sparkles size={13} /> Curriculum & Knowledge Hub
+    <div className="res-page">
+      {/* Hero Header */}
+      <header className="res-hero">
+        <div className="res-hero-top">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span className="res-hero-badge">
+              <Sparkles size={13} /> Curriculum & Resources Hub
             </span>
-            <span
-              style={{
-                fontSize: '12px',
-                color: '#8b949e',
-              }}
-            >
-              Maintained by <strong style={{ color: '#58a6ff' }}>@glug_jec</strong>
+            <span className="res-hero-curator">
+              Curated by <strong>@glug_jec</strong>
             </span>
           </div>
 
-          <h1 className="page-title" style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 6px 0' }}>
-            CS, Linux & Open Source Resources
-          </h1>
-          <p className="page-subtitle" style={{ color: '#8b949e', fontSize: '14.5px', margin: 0, maxWidth: '750px' }}>
-            A battle-tested, student-friendly collection of 100+ authoritative courses, books, interactive simulators,
-            and developer tooling for computer science and open-source mastery.
-          </p>
-        </div>
-
-        {user?.role === 'admin' && (
-          <Link
-            to="/admin?tab=resources"
-            style={{
-              background: '#238636',
-              color: '#ffffff',
-              padding: '9px 18px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 600,
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
-              transition: 'background 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#2ea043')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#238636')}
-          >
-            🛡️ Manage Resources
-          </Link>
-        )}
-      </div>
-
-      {/* Admin Quick Banner */}
-      {user?.role === 'admin' && (
-        <div
-          style={{
-            background: 'rgba(88, 166, 255, 0.08)',
-            border: '1px solid rgba(88, 166, 255, 0.25)',
-            borderRadius: '10px',
-            padding: '12px 18px',
-            marginBottom: '24px',
-            fontSize: '13px',
-            color: '#8b949e',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
-        >
-          <span>
-            💡 <strong>Administrator Access:</strong> You can publish, modify, or reorder curriculum resources from the Admin Console.
-          </span>
-          <Link to="/admin?tab=resources" style={{ color: '#58a6ff', fontWeight: 600, textDecoration: 'none' }}>
-            Open Resource Publisher &rarr;
-          </Link>
-        </div>
-      )}
-
-      {/* Search & Stats Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '14px',
-          marginBottom: '18px',
-        }}
-      >
-        {/* Search Input */}
-        <div
-          style={{
-            position: 'relative',
-            flex: '1',
-            minWidth: '280px',
-            maxWidth: '480px',
-          }}
-        >
-          <Search
-            size={16}
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#8b949e',
-              pointerEvents: 'none',
-            }}
-          />
-          <input
-            type="text"
-            placeholder="Search 100+ resources by title, topic, or keyword..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 36px 10px 38px',
-              background: '#0d1117',
-              border: '1px solid #30363d',
-              borderRadius: '8px',
-              color: '#f0f6fc',
-              fontSize: '13.5px',
-              outline: 'none',
-              boxSizing: 'border-box',
-              transition: 'border-color 0.15s ease',
-            }}
-            onFocus={(e) => (e.target.style.borderColor = '#58a6ff')}
-            onBlur={(e) => (e.target.style.borderColor = '#30363d')}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              style={{
-                position: 'absolute',
-                right: '10px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'transparent',
-                border: 'none',
-                color: '#8b949e',
-                cursor: 'pointer',
-                padding: '4px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-              title="Clear search"
-            >
-              <X size={14} />
-            </button>
+          {user?.role === 'admin' && (
+            <Link to="/admin?tab=resources" className="res-hero-admin-link">
+              <Shield size={14} />
+              <span>Admin Console</span>
+            </Link>
           )}
         </div>
 
-        {/* Counter readout */}
-        <div style={{ fontSize: '13px', color: '#8b949e', fontWeight: 500 }}>
-          Showing <strong style={{ color: '#f0f6fc' }}>{filteredResources.length}</strong> of{' '}
-          <strong style={{ color: '#f0f6fc' }}>{resources.length}</strong> resources
+        <h1 className="res-hero-title">
+          Computer Science, Linux & Open Source Resources
+        </h1>
+        <p className="res-hero-subtitle">
+          An authoritative, battle-tested collection of university curriculums, offline lecture notes,
+          lab code bundles, Linux distribution guides, and developer tooling shared directly via high-speed mirrors.
+        </p>
+
+        <div className="res-hero-stats">
+          <div className="res-stat-item">
+            <span className="res-stat-value">{resources.length}</span>
+            <span className="res-stat-label">Curated Tracks</span>
+          </div>
+          <div className="res-stat-item">
+            <span className="res-stat-value accent">{totalDownloadableFiles}</span>
+            <span className="res-stat-label">Downloadable Files via Link</span>
+          </div>
+          <div className="res-stat-item">
+            <span className="res-stat-value">{CATEGORY_LIST.length - 1}</span>
+            <span className="res-stat-label">Subject Areas</span>
+          </div>
+          <div className="res-stat-item">
+            <span className="res-stat-value">{totalCommunityDownloads}</span>
+            <span className="res-stat-label">Total Downloads</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Controls Bar */}
+      <div className="res-controls-bar">
+        {/* Search Bar */}
+        <div className="res-search-row">
+          <div className="res-search-box">
+            <Search size={18} className="res-search-icon" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="res-search-input"
+              placeholder="Search resources, subtopics, textbooks, code packages, or files..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                className="res-search-clear-btn"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                <X size={15} />
+              </button>
+            ) : (
+              <span className="res-search-shortcut">/</span>
+            )}
+          </div>
+        </div>
+
+        {/* Category Horizontal Scroll Pills */}
+        <div className="res-category-scroll">
+          {CATEGORY_LIST.map((cat) => {
+            const count = categoryCounts[cat.id] || 0
+            const isActive = selectedCategory === cat.id
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                className={`res-category-pill ${isActive ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(cat.id)}
+              >
+                <span>{cat.label}</span>
+                <span className="res-category-count">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Secondary Filter Sub-bar */}
+        <div className="res-filter-subbar">
+          <div className="res-filter-group-left">
+            <select
+              className="res-filter-select"
+              value={selectedDifficulty}
+              onChange={(e) => setSelectedDifficulty(e.target.value)}
+              title="Filter by difficulty"
+            >
+              <option value="all">All Difficulty Levels</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+
+            <button
+              type="button"
+              className={`res-filter-toggle-btn ${onlyWithFiles ? 'active' : ''}`}
+              onClick={() => setOnlyWithFiles((prev) => !prev)}
+            >
+              <Download size={14} />
+              <span>Downloadable Files Only</span>
+            </button>
+
+            {user && (
+              <button
+                type="button"
+                className={`res-filter-toggle-btn ${onlyBookmarked ? 'active' : ''}`}
+                onClick={() => setOnlyBookmarked((prev) => !prev)}
+              >
+                <Bookmark size={14} />
+                <span>Saved Tracks</span>
+              </button>
+            )}
+          </div>
+
+          <div className="res-filter-group-right">
+            <div className="res-results-count">
+              Showing <strong>{filteredResources.length}</strong> of <strong>{resources.length}</strong>
+            </div>
+
+            <select
+              className="res-filter-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="featured">Featured First</option>
+              <option value="downloads">Most Downloaded</option>
+              <option value="views">Most Viewed</option>
+              <option value="newest">Newest</option>
+              <option value="alpha">Alphabetical (A-Z)</option>
+            </select>
+
+            <div className="res-view-toggle">
+              <button
+                type="button"
+                className={`res-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => setViewMode('grid')}
+                title="Grid layout"
+              >
+                <LayoutGrid size={15} />
+              </button>
+              <button
+                type="button"
+                className={`res-view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setViewMode('list')}
+                title="Compact list layout"
+              >
+                <List size={15} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Genre Filter Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          overflowX: 'auto',
-          paddingBottom: '12px',
-          marginBottom: '20px',
-          scrollbarWidth: 'thin',
-        }}
-      >
-        {GENRE_FILTERS.map((genre) => {
-          const count = genreCounts[genre.id] || 0
-          const isActive = selectedGenre === genre.id
-
-          return (
-            <button
-              key={genre.id}
-              onClick={() => setSelectedGenre(genre.id)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '20px',
-                fontSize: '12.5px',
-                fontWeight: isActive ? 600 : 500,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                background: isActive ? '#58a6ff' : '#161b22',
-                color: isActive ? '#0d1117' : '#c9d1d9',
-                border: isActive ? '1px solid #58a6ff' : '1px solid #30363d',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.borderColor = '#58a6ff'
-                  e.currentTarget.style.color = '#f0f6fc'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.borderColor = '#30363d'
-                  e.currentTarget.style.color = '#c9d1d9'
-                }
-              }}
-            >
-              <span>{genre.label}</span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  padding: '1px 6px',
-                  borderRadius: '10px',
-                  background: isActive ? 'rgba(0, 0, 0, 0.25)' : '#21262d',
-                  color: isActive ? '#0d1117' : '#8b949e',
-                  fontWeight: 700,
-                }}
-              >
-                {count}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Loading Skeleton */}
+      {/* Loading Skeletons */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#8b949e' }}>
-          <div style={{ fontSize: '15px', fontWeight: 600, color: '#c9d1d9', marginBottom: '8px' }}>
-            Loading curated resources...
-          </div>
-          <p style={{ fontSize: '13px', margin: 0 }}>Fetching 100+ verified courses, books, and tools.</p>
+        <div className="res-skeleton-grid">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <div className="res-skeleton-card" key={n} />
+          ))}
         </div>
       )}
 
       {/* Empty State */}
       {!loading && filteredResources.length === 0 && (
-        <div
-          style={{
-            background: '#161b22',
-            border: '1px solid #30363d',
-            borderRadius: '12px',
-            padding: '48px 24px',
-            textAlign: 'center',
-            color: '#8b949e',
-            margin: '20px 0',
-          }}
-        >
-          <BookOpen size={36} style={{ color: '#58a6ff', opacity: 0.8, marginBottom: '12px' }} />
-          <h3 style={{ color: '#f0f6fc', fontSize: '17px', margin: '0 0 8px 0' }}>
-            No resources match your criteria
-          </h3>
-          <p style={{ fontSize: '13.5px', maxWidth: '400px', margin: '0 auto 16px auto' }}>
-            We couldn't find any resources matching your search query. Try searching for different keywords or clear your filters.
+        <div className="res-empty-state">
+          <BookOpen size={40} className="res-empty-icon" />
+          <h3 className="res-empty-title">No resources match your filters</h3>
+          <p className="res-empty-desc">
+            Try searching for a different keyword or resetting your category and difficulty filters.
           </p>
           <button
-            onClick={() => {
-              setSelectedGenre('all')
-              setSearchQuery('')
-            }}
-            style={{
-              background: '#21262d',
-              color: '#58a6ff',
-              border: '1px solid #30363d',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            type="button"
+            className="res-reset-btn"
+            onClick={handleResetFilters}
           >
             Reset All Filters
           </button>
         </div>
       )}
 
-      {/* Resources Cards Grid */}
+      {/* Resource Cards Grid */}
       {!loading && filteredResources.length > 0 && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: '20px',
-            alignItems: 'stretch',
-          }}
-        >
-          {filteredResources.map((topic) => (
+        <main className={`res-cards-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
+          {filteredResources.map((resource) => (
             <ResourceCard
-              key={topic.id || topic._id || topic.title}
-              title={topic.title}
-              description={topic.description}
-              category={topic.category}
-              items={topic.items || []}
-              links={topic.links || []}
-              author={topic.author}
+              key={resource.id}
+              resource={resource}
+              viewMode={viewMode}
+              onOpenDetail={(r) => setActiveModalResource(r)}
+              onBookmarkToggle={handleToggleBookmark}
+              isLoggedIn={Boolean(user)}
             />
           ))}
-        </div>
+        </main>
       )}
-    </section>
+
+      {/* Detail / Download Center Modal */}
+      {activeModalResource && (
+        <ResourceDetailModal
+          resource={activeModalResource}
+          onClose={() => setActiveModalResource(null)}
+          onBookmarkToggle={handleToggleBookmark}
+        />
+      )}
+    </div>
   )
 }

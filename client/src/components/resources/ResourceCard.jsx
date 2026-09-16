@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   ExternalLink,
   BookOpen,
@@ -6,236 +5,228 @@ import {
   Terminal,
   Code2,
   FolderGit2,
-  Cpu,
-  Layers,
+  Bookmark,
+  Download,
+  FileText,
+  FileArchive,
+  Disc,
+  File,
+  Eye,
   Sparkles,
-  Link as LinkIcon
+  ChevronRight,
 } from 'lucide-react'
-
-const CATEGORY_LABELS = {
-  'cs-intro': { label: 'CS Introduction', color: '#58a6ff', bg: 'rgba(56, 139, 253, 0.12)' },
-  'algorithms-dsa': { label: 'Algorithms & DSA', color: '#bc8cff', bg: 'rgba(188, 140, 255, 0.12)' },
-  'systems-arch': { label: 'Systems & Architecture', color: '#f0883e', bg: 'rgba(240, 136, 62, 0.12)' },
-  'operating-systems': { label: 'Operating Systems', color: '#e3b341', bg: 'rgba(227, 179, 65, 0.12)' },
-  'linux-basics': { label: 'Linux Basics', color: '#3fb950', bg: 'rgba(63, 185, 80, 0.12)' },
-  'linux-sysadmin': { label: 'Sysadmin & DevOps', color: '#39c5bb', bg: 'rgba(57, 197, 187, 0.12)' },
-  'git-vcs': { label: 'Git & Version Control', color: '#f78166', bg: 'rgba(247, 129, 102, 0.12)' },
-  'open-source': { label: 'Open Source & FOSS', color: '#56d364', bg: 'rgba(86, 211, 100, 0.12)' },
-  'dev-tools': { label: 'Developer Tooling', color: '#d29922', bg: 'rgba(210, 153, 34, 0.12)' },
-  'systems-c-prog': { label: 'C & Systems Programming', color: '#79c0ff', bg: 'rgba(121, 192, 255, 0.12)' },
-}
 
 function getLinkIcon(type) {
   switch (type) {
     case 'course':
-      return <GraduationCap size={14} />
+      return <GraduationCap size={13} />
     case 'book':
-      return <BookOpen size={14} />
+      return <BookOpen size={13} />
     case 'interactive':
-      return <Terminal size={14} />
+      return <Terminal size={13} />
     case 'repo':
-      return <FolderGit2 size={14} />
+      return <FolderGit2 size={13} />
     case 'tool':
-      return <Code2 size={14} />
+      return <Code2 size={13} />
     default:
-      return <ExternalLink size={14} />
+      return <ExternalLink size={13} />
+  }
+}
+
+function getFileFormatBadge(format) {
+  switch (format) {
+    case 'pdf':
+      return { icon: <FileText size={12} />, label: 'PDF' }
+    case 'zip':
+      return { icon: <FileArchive size={12} />, label: 'ZIP' }
+    case 'iso':
+      return { icon: <Disc size={12} />, label: 'ISO' }
+    case 'code':
+      return { icon: <Code2 size={12} />, label: 'CODE' }
+    default:
+      return { icon: <File size={12} />, label: (format || 'FILE').toUpperCase() }
   }
 }
 
 export default function ResourceCard({
-  title,
-  description,
-  category,
-  items = [],
-  links = [],
-  author,
+  resource,
+  viewMode = 'grid',
+  onOpenDetail,
+  onBookmarkToggle,
+  isLoggedIn = false,
 }) {
-  const catMeta = CATEGORY_LABELS[category] || {
-    label: category || 'Resource',
-    color: '#8b949e',
-    bg: 'rgba(139, 148, 158, 0.12)',
-  }
+  const {
+    id,
+    title,
+    description,
+    category,
+    difficulty,
+    items = [],
+    links = [],
+    files = [],
+    author,
+    viewsCount = 0,
+    downloadCount = 0,
+    isFeatured,
+    isBookmarked,
+  } = resource
 
   const authorName = author?.username ? `@${author.username}` : '@glug_jec'
+  const visibleItems = items.slice(0, 3)
+  const remainingCount = items.length - visibleItems.length
+
+  const handleDownloadClick = (e, fileUrl) => {
+    e.stopPropagation()
+    if (files.length === 1 && fileUrl) {
+      window.open(fileUrl, '_blank', 'noopener,noreferrer')
+    } else {
+      onOpenDetail(resource)
+    }
+  }
 
   return (
-    <div
-      style={{
-        background: '#161b22',
-        border: '1px solid #30363d',
-        borderRadius: '12px',
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        gap: '16px',
-        transition: 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#58a6ff'
-        e.currentTarget.style.transform = 'translateY(-2px)'
-        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.35)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '#30363d'
-        e.currentTarget.style.transform = 'none'
-        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)'
-      }}
+    <article
+      className={`res-card ${viewMode === 'list' ? 'list-mode' : ''}`}
+      onClick={() => onOpenDetail(resource)}
     >
-      <div>
-        {/* Top bar: Category Badge & Author */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '8px',
-            marginBottom: '12px',
-          }}
-        >
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '3px 10px',
-              borderRadius: '20px',
-              fontSize: '11px',
-              fontWeight: 600,
-              letterSpacing: '0.3px',
-              textTransform: 'uppercase',
-              color: catMeta.color,
-              background: catMeta.bg,
-              border: `1px solid ${catMeta.color}33`,
-            }}
-          >
-            {catMeta.label}
-          </span>
-
-          <span
-            style={{
-              fontSize: '11px',
-              color: '#8b949e',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-            title={`Curated by ${authorName}`}
-          >
-            Curator: <strong style={{ color: '#58a6ff', fontWeight: 600 }}>{authorName}</strong>
-          </span>
+      <div className="res-card-top">
+        <div className="res-card-badges">
+          <span className="res-pill category">#{category}</span>
+          {difficulty && difficulty !== 'all-levels' && (
+            <span className={`res-pill difficulty ${difficulty}`}>{difficulty}</span>
+          )}
+          {isFeatured && (
+            <span className="res-pill featured">
+              <Sparkles size={11} /> Featured
+            </span>
+          )}
         </div>
 
-        {/* Title */}
-        <h3
-          style={{
-            fontSize: '17px',
-            fontWeight: 700,
-            color: '#f0f6fc',
-            margin: '0 0 8px 0',
-            lineHeight: 1.35,
-          }}
-        >
-          {title}
-        </h3>
-
-        {/* Description */}
-        <p
-          style={{
-            fontSize: '13.5px',
-            lineHeight: 1.55,
-            color: '#8b949e',
-            margin: '0 0 16px 0',
-          }}
-        >
-          {description}
-        </p>
-
-        {/* Topic Pills */}
-        {items && items.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '6px',
-              marginBottom: '16px',
+        {isLoggedIn && (
+          <button
+            type="button"
+            className={`res-card-bookmark-btn ${isBookmarked ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onBookmarkToggle && onBookmarkToggle(id)
             }}
+            title={isBookmarked ? 'Remove Bookmark' : 'Save Resource'}
+            aria-label="Toggle bookmark"
           >
-            {items.map((item, idx) => (
-              <span
-                key={idx}
-                style={{
-                  fontSize: '11px',
-                  background: '#21262d',
-                  color: '#c9d1d9',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #30363d',
-                }}
-              >
+            <Bookmark size={15} fill={isBookmarked ? '#38bdf8' : 'none'} />
+          </button>
+        )}
+      </div>
+
+      <div className="res-card-content">
+        <h3 className="res-card-title">{title}</h3>
+        <p className="res-card-description">{description}</p>
+
+        {/* Curriculum Topics */}
+        {visibleItems.length > 0 && (
+          <div className="res-topic-pills">
+            {visibleItems.map((item, idx) => (
+              <span className="res-topic-pill" key={idx}>
                 {item}
               </span>
             ))}
+            {remainingCount > 0 && (
+              <span className="res-topic-pill more">+{remainingCount} more</span>
+            )}
+          </div>
+        )}
+
+        {/* Downloadable Files Showcase */}
+        {files.length > 0 && (
+          <div
+            className="res-card-download-box"
+            onClick={(e) => handleDownloadClick(e, files[0]?.url)}
+            title="View or download files"
+          >
+            <div className="res-download-box-left">
+              <div className="res-download-icon-circle">
+                <Download size={14} />
+              </div>
+              <div className="res-download-box-info">
+                <div className="res-download-box-title">
+                  <span>{files.length === 1 ? files[0].name : `${files.length} Downloadable Files`}</span>
+                </div>
+                <div className="res-download-box-sub">
+                  {files.slice(0, 2).map((f, i) => {
+                    const badge = getFileFormatBadge(f.format)
+                    return (
+                      <span className="res-download-file-chip" key={i}>
+                        {badge.icon}
+                        <span>{badge.label}</span>
+                        {f.size && <span className="dim">({f.size})</span>}
+                      </span>
+                    )
+                  })}
+                  {files.length > 2 && (
+                    <span className="res-download-file-chip dim">
+                      +{files.length - 2} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="res-download-trigger-btn"
+              onClick={(e) => handleDownloadClick(e, files[0]?.url)}
+            >
+              <span>{files.length === 1 ? 'Download' : 'View Files'}</span>
+              <ChevronRight size={13} />
+            </button>
+          </div>
+        )}
+
+        {/* Web Links */}
+        {links.length > 0 && (
+          <div className="res-card-links-row">
+            {links.slice(0, 2).map((link, idx) => (
+              <a
+                key={idx}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="res-card-link-pill"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {getLinkIcon(link.type)}
+                <span>{link.title}</span>
+                <ExternalLink size={10} className="res-card-ext-icon" />
+              </a>
+            ))}
+            {links.length > 2 && (
+              <span className="res-card-link-pill extra">
+                +{links.length - 2} portals
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      {/* Action Links */}
-      {links && links.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '8px',
-            paddingTop: '12px',
-            borderTop: '1px solid #21262d',
-          }}
-        >
-          {links.map((link, idx) => (
-            <a
-              key={idx}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 12px',
-                borderRadius: '6px',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                textDecoration: 'none',
-                color: idx === 0 ? '#ffffff' : '#58a6ff',
-                background: idx === 0 ? '#238636' : 'rgba(56, 139, 253, 0.1)',
-                border: idx === 0 ? '1px solid #2ea043' : '1px solid rgba(56, 139, 253, 0.3)',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (idx === 0) {
-                  e.currentTarget.style.background = '#2ea043'
-                } else {
-                  e.currentTarget.style.background = 'rgba(56, 139, 253, 0.2)'
-                  e.currentTarget.style.borderColor = '#58a6ff'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (idx === 0) {
-                  e.currentTarget.style.background = '#238636'
-                } else {
-                  e.currentTarget.style.background = 'rgba(56, 139, 253, 0.1)'
-                  e.currentTarget.style.borderColor = 'rgba(56, 139, 253, 0.3)'
-                }
-              }}
-            >
-              {getLinkIcon(link.type)}
-              <span>{link.title || 'Open Resource'}</span>
-              <ExternalLink size={11} style={{ opacity: 0.7, marginLeft: '2px' }} />
-            </a>
-          ))}
+      <div className="res-card-footer">
+        <div className="res-card-curator">
+          <span>Curator:</span>
+          <strong>{authorName}</strong>
         </div>
-      )}
-    </div>
+
+        <div className="res-card-metrics">
+          <span className="res-card-metric" title="Views">
+            <Eye size={12} />
+            <span>{viewsCount}</span>
+          </span>
+          {downloadCount > 0 && (
+            <span className="res-card-metric" title="Downloads">
+              <Download size={12} />
+              <span>{downloadCount}</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </article>
   )
 }

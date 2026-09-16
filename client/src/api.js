@@ -156,7 +156,11 @@ export const usersApi = {
 };
 
 export const resourcesApi = {
-  list: () => client.get('/resources'),
+  list: (params = {}) => client.get('/resources', { params }),
+  get: (idOrSlug) => client.get(`/resources/${idOrSlug}`),
+  getCategories: () => client.get('/resources/categories'),
+  trackDownload: (id) => client.post(`/resources/${id}/track-download`),
+  bookmark: (id) => client.post(`/resources/${id}/bookmark`),
   create: (data) => client.post('/resources', data),
   update: (id, data) => client.put(`/resources/${id}`, data),
   delete: (id) => client.delete(`/resources/${id}`),
