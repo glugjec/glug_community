@@ -113,10 +113,15 @@ export function isMissingInputError(stderr = '', stdout = '') {
   return (
     combined.includes('eoferror') ||
     combined.includes('nosuchelementexception') ||
+    combined.includes('inputmismatchexception') ||
+    combined.includes('no line found') ||
+    combined.includes('no such line') ||
     combined.includes('end of file') ||
     combined.includes('eof when reading') ||
     combined.includes('input past end') ||
-    combined.includes('unexpected end of stream')
+    combined.includes('unexpected end of stream') ||
+    combined.includes('scan error') ||
+    combined.includes('unexpected eof')
   );
 }
 
@@ -128,8 +133,13 @@ function parseResponse(data, languageId, sourceCode = '', stdin = '') {
     statusId === STATUS.TLE ||
     statusId === STATUS.INTERNAL_ERROR;
 
-  const stderr = data.stderr || data.compile_output || '';
+  let stderr = data.stderr || data.compile_output || '';
   const stdout = data.stdout || '';
+
+  if (languageId === 'java' && stderr.includes('is public, should be declared in a file named')) {
+    stderr += '\n💡 Tip: Online compilers like Judge0 require the main class to be named "Main" (e.g. `public class Main { ... }`). Please change your class name to `Main`.\n';
+  }
+
   const errorLines = isError ? extractAllErrorLines(languageId, stderr) : [];
 
   const inputMissing = (isError && isMissingInputError(stderr, stdout)) ||

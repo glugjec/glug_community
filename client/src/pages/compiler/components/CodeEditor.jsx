@@ -9,7 +9,8 @@ import {
   Upload,
   Sparkles,
   Plus,
-  X
+  X,
+  Pencil
 } from 'lucide-react';
 import { LANGUAGES } from '../utils/languageConfig';
 
@@ -24,6 +25,7 @@ export default function CodeEditor({
   onActiveFileChange,
   onAddFile,
   onCloseFile,
+  onRenameFile,
   fontSize = 14,
   onResetCode,
   onDownloadCode,
@@ -31,6 +33,8 @@ export default function CodeEditor({
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [newFileName, setNewFileName] = useState('');
+  const [editingFileName, setEditingFileName] = useState(null);
+  const [editingValue, setEditingValue] = useState('');
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef(null);
   const editorRef = useRef(null);
@@ -163,6 +167,26 @@ export default function CodeEditor({
     e.target.value = '';
   };
 
+  const handleStartRename = (fileName) => {
+    setEditingFileName(fileName);
+    setEditingValue(fileName);
+  };
+
+  const handleCommitRename = () => {
+    if (editingFileName && editingValue.trim() && editingValue.trim() !== editingFileName) {
+      if (onRenameFile) {
+        onRenameFile(editingFileName, editingValue.trim());
+      }
+    }
+    setEditingFileName(null);
+    setEditingValue('');
+  };
+
+  const handleCancelRename = () => {
+    setEditingFileName(null);
+    setEditingValue('');
+  };
+
   return (
     <div className="editor-panel">
       <div className="editor-panel-header">
@@ -170,11 +194,67 @@ export default function CodeEditor({
           {files.map((file) => {
             const fileLangConfig = LANGUAGES[file.language] || { name: 'Plain Text', logo: '' };
             const isActive = file.name === activeFileName;
+            const isEditingThis = editingFileName === file.name;
+
+            if (isEditingThis) {
+              return (
+                <div
+                  key={file.name}
+                  className="editor-tab active editor-tab-editing"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {fileLangConfig.logo ? (
+                    <img src={fileLangConfig.logo} alt={fileLangConfig.name} className="tab-logo-img" />
+                  ) : (
+                    <FileCode size={13} className="tab-file-icon" />
+                  )}
+                  <input
+                    type="text"
+                    className="editor-tab-rename-input"
+                    value={editingValue}
+                    onChange={(e) => setEditingValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCommitRename();
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        handleCancelRename();
+                      }
+                    }}
+                    onBlur={handleCommitRename}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="tab-action-btn confirm"
+                    onClick={handleCommitRename}
+                    title="Save filename"
+                  >
+                    <Check size={11} />
+                  </button>
+                  <button
+                    type="button"
+                    className="tab-action-btn cancel"
+                    onClick={handleCancelRename}
+                    title="Cancel rename"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={file.name}
                 className={`editor-tab ${isActive ? 'active' : ''}`}
                 onClick={() => onActiveFileChange && onActiveFileChange(file.name)}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  handleStartRename(file.name);
+                }}
+                title="Double-click to rename file"
               >
                 {fileLangConfig.logo ? (
                   <img src={fileLangConfig.logo} alt={fileLangConfig.name} className="tab-logo-img" />
@@ -182,6 +262,17 @@ export default function CodeEditor({
                   <FileCode size={13} className="tab-file-icon" />
                 )}
                 <span className="tab-name-text">{file.name}</span>
+                <button
+                  type="button"
+                  className="tab-rename-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartRename(file.name);
+                  }}
+                  title="Rename file"
+                >
+                  <Pencil size={11} />
+                </button>
                 {files.length > 1 && (
                   <button
                     type="button"

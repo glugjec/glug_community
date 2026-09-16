@@ -622,6 +622,71 @@
   color: var(--comp-danger);
 }
 
+.tab-rename-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  margin-left: 1px;
+  color: var(--comp-text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0;
+  transition: all 0.12s ease;
+}
+
+.editor-tab:hover .tab-rename-btn,
+.editor-tab.active .tab-rename-btn {
+  opacity: 0.65;
+}
+
+.tab-rename-btn:hover {
+  opacity: 1 !important;
+  background: var(--comp-bg-hover);
+  color: #60a5fa;
+}
+
+.editor-tab-editing {
+  border-color: var(--comp-border-focus) !important;
+  background: var(--comp-bg-card) !important;
+}
+
+.editor-tab-rename-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--comp-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  width: 95px;
+  padding: 0 2px;
+}
+
+.tab-action-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--comp-text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.1s ease;
+}
+
+.tab-action-btn:hover.confirm {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.15);
+}
+
+.tab-action-btn:hover.cancel {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
+}
+
 .editor-add-tab-btn {
   background: transparent;
   border: none;

@@ -21,6 +21,10 @@ export default function Compiler() {
   const [terminalLogs, setTerminalLogs] = useState([]);
   const [activeTab, setActiveTab] = useState('terminal');
 
+  const [interactiveStdinBuffer, setInteractiveStdinBuffer] = useState('');
+  const [previousOutput, setPreviousOutput] = useState('');
+  const [isInteractiveMode, setIsInteractiveMode] = useState(false);
+
   const [editorWidth, setEditorWidth] = useState(58);
   const [isResizingWidth, setIsResizingWidth] = useState(false);
   const [mobileView, setMobileView] = useState(() => (window.innerWidth < 900 ? 'editor' : 'split'));
@@ -116,9 +120,46 @@ export default function Compiler() {
     });
   }, [files, activeFileName]);
 
+  const handleRenameFile = useCallback((oldFileName, newFileName) => {
+    const trimmed = newFileName.trim();
+    if (!trimmed || trimmed === oldFileName) return;
+
+    if (files.some(f => f.name !== oldFileName && f.name.toLowerCase() === trimmed.toLowerCase())) {
+      alert(`File "${trimmed}" already exists.`);
+      return;
+    }
+
+    const ext = trimmed.includes('.') ? trimmed.split('.').pop().toLowerCase() : '';
+    let detectedLang = null;
+    if (ext) {
+      Object.keys(LANGUAGES).forEach((key) => {
+        if (LANGUAGES[key].extension === `.${ext}`) {
+          detectedLang = key;
+        }
+      });
+    }
+
+    setFiles(prev =>
+      prev.map(f => {
+        if (f.name === oldFileName) {
+          return {
+            ...f,
+            name: trimmed,
+            language: detectedLang || f.language
+          };
+        }
+        return f;
+      })
+    );
+
+    if (activeFileName === oldFileName) {
+      setActiveFileName(trimmed);
+    }
+  }, [files, activeFileName]);
+
   const handleLanguageChange = useCallback((newLang) => {
     const defaultExt = LANGUAGES[newLang].extension;
-    const defaultName = `main${defaultExt}`;
+    const defaultName = newLang === 'java' ? 'Main.java' : `main${defaultExt}`;
 
     const existingFile = files.find(f => f.name === defaultName);
     if (existingFile) {
@@ -190,6 +231,9 @@ export default function Compiler() {
     setTerminalLogs([]);
     setResult(null);
     setErrorLines([]);
+    setIsInteractiveMode(false);
+    setInteractiveStdinBuffer('');
+    setPreviousOutput('');
   }, []);
 
   const handleStop = useCallback(() => {
@@ -202,10 +246,13 @@ export default function Compiler() {
     }
     setIsWaitingForInput(false);
     setIsRunning(false);
+    setIsInteractiveMode(false);
+    setInteractiveStdinBuffer('');
+    setPreviousOutput('');
     addTerminalLog('system', '\n[Execution cancelled by user]\n');
   }, [language, addTerminalLog]);
 
-  const runCode = async (fileToRun) => {
+  const runCode = async (fileToRun, interactiveRerun = false) => {
     if (mobileView === 'editor') {
       setMobileView(window.innerWidth < 900 ? 'output' : 'split');
     }
@@ -213,16 +260,22 @@ export default function Compiler() {
     setIsRunning(true);
     setIsWaitingForInput(false);
     setInputPrompt('');
-    setResult(null);
-    setErrorLines([]);
     setActiveTab('terminal');
 
-    const langConfig = LANGUAGES[fileToRun.language];
-    const timestamp = new Date().toLocaleTimeString();
-    addTerminalLog(
-      'system',
-      `> [${timestamp}] Running ${langConfig?.name || fileToRun.language}...\n`
-    );
+    if (!interactiveRerun) {
+      setResult(null);
+      setErrorLines([]);
+      setIsInteractiveMode(false);
+      setInteractiveStdinBuffer('');
+      setPreviousOutput('');
+
+      const langConfig = LANGUAGES[fileToRun.language];
+      const timestamp = new Date().toLocaleTimeString();
+      addTerminalLog(
+        'system',
+        `> [${timestamp}] Running ${langConfig?.name || fileToRun.language}...\n`
+      );
+    }
 
     abortControllerRef.current = new AbortController();
 
@@ -348,6 +401,23 @@ export default function Compiler() {
     await runCode(activeFile);
   }, [isRunning, activeFile, stdin]);
 
+  // Auto re-execute when interactive stdin buffer grows (user submitted input)
+  const prevStdinBufferRef = useRef('');
+  useEffect(() => {
+    if (
+      isInteractiveMode &&
+      interactiveStdinBuffer &&
+      interactiveStdinBuffer !== prevStdinBufferRef.current &&
+      !isRunning
+    ) {
+      prevStdinBufferRef.current = interactiveStdinBuffer;
+      runCode(activeFile, true);
+    }
+    if (!isInteractiveMode) {
+      prevStdinBufferRef.current = '';
+    }
+  }, [interactiveStdinBuffer, isInteractiveMode]);
+
   const handleSendInput = useCallback(async (inputValue) => {
     const textToSend = inputValue;
 
@@ -361,6 +431,8 @@ export default function Compiler() {
         if (!sent) {
           setStdin((prev) => (prev ? `${prev}\n${textToSend}` : textToSend));
         }
+      } else if (isInteractiveMode) {
+        setInteractiveStdinBuffer((prev) => prev + textToSend + '\n');
       }
       return;
     }
@@ -437,7 +509,7 @@ export default function Compiler() {
         `[Input buffered for stdin: "${textToSend}". Click "Run" to execute with input]\n`
       );
     }
-  }, [isWaitingForInput, language, addTerminalLog, handleClearTerminal, files, activeFile]);
+  }, [isWaitingForInput, isInteractiveMode, language, addTerminalLog, handleClearTerminal, files, activeFile]);
 
   const handleSelectErrorLine = useCallback((line) => {
     setErrorLines([line]);
@@ -509,6 +581,7 @@ export default function Compiler() {
             onActiveFileChange={handleActiveFileChange}
             onAddFile={handleAddFile}
             onCloseFile={handleCloseFile}
+            onRenameFile={handleRenameFile}
             fontSize={fontSize}
             onResetCode={handleResetCode}
             onDownloadCode={handleDownloadCode}
