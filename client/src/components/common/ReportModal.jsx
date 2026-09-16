@@ -89,12 +89,6 @@ export default function ReportModal({
               <span className="report-modal-char-count">{reason.length}/500</span>
             </div>
 
-            <div className="report-modal-info">
-              <p>
-                All reports are checked by our automated moderation system. If abuse or NSFW content is confirmed, the content is immediately hidden and strikes are applied.
-              </p>
-            </div>
-
             <div className="report-modal-actions">
               <button
                 type="button"
