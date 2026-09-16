@@ -7,6 +7,7 @@ import { Appeal } from '../models/Appeal.js';
 import { EmailOtp } from '../models/EmailOtp.js';
 import { sendOtpMail } from '../config/mail.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
+import { notifyAllAdmins } from '../utils/notificationService.js';
 
 const router = Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -333,6 +334,11 @@ router.post('/banned-appeal', async (req, res) => {
       existingPending.originalReason = user.banReason || existingPending.originalReason || 'Account suspended by administrator';
       appeal = await existingPending.save();
 
+      notifyAllAdmins({
+        message: `${user.username || 'A banned member'} updated their account ban appeal for review.`,
+        senderId: user._id,
+      }).catch(() => {});
+
       return res.status(200).json({
         success: true,
         message: 'Your appeal has been updated successfully. Our moderation team will review your request.',
@@ -349,6 +355,11 @@ router.post('/banned-appeal', async (req, res) => {
       statement: statement.trim().slice(0, 1500),
       status: 'pending',
     });
+
+    notifyAllAdmins({
+      message: `${user.username || 'A banned member'} submitted a new account ban appeal for review.`,
+      senderId: user._id,
+    }).catch(() => {});
 
     return res.status(201).json({
       success: true,

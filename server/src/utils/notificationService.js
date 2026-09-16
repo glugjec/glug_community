@@ -100,3 +100,38 @@ export async function createSystemNotification({
     return null;
   }
 }
+
+export async function notifyAllAdmins({
+  message,
+  senderId = null,
+  postId = null,
+  commentId = null,
+}) {
+  try {
+    const admins = await User.find({ role: "admin" }).select("_id").lean();
+    if (!admins || admins.length === 0) return [];
+
+    const notifications = await Promise.all(
+      admins
+        .filter((a) => !senderId || a._id.toString() !== senderId.toString())
+        .map((admin) =>
+          Notification.create({
+            recipient: admin._id,
+            sender: senderId || null,
+            type: "admin_alert",
+            post: postId || null,
+            comment: commentId || null,
+            message: String(message).trim(),
+          }).catch((err) => {
+            console.error("[Admin Notify Error]", err.message);
+            return null;
+          })
+        )
+    );
+
+    return notifications.filter(Boolean);
+  } catch (err) {
+    console.error("[Notify All Admins Error]", err.message);
+    return [];
+  }
+}

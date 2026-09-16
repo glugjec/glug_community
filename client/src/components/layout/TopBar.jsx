@@ -71,6 +71,15 @@ function getNotificationBadge(notif) {
   if (/appeal.*denied/i.test(notif.message)) {
     return <span className="notif-category-pill pill-strike">Appeal Denied</span>
   }
+  if (notif.type === 'admin_alert') {
+    if (/appeal/i.test(notif.message)) {
+      return <span className="notif-category-pill pill-warning">New Appeal</span>
+    }
+    if (/report/i.test(notif.message)) {
+      return <span className="notif-category-pill pill-warning">New Report</span>
+    }
+    return <span className="notif-category-pill pill-warning">Admin Alert</span>
+  }
   return null
 }
 
@@ -440,6 +449,10 @@ export default function TopBar() {
       if (uid) setStoredNotifications(uid, updated)
     }
     setNotifOpen(false)
+    if (notif.type === 'admin_alert') {
+      navigate('/admin?tab=moderation')
+      return
+    }
     if (
       notif.type === 'moderation_strike' ||
       notif.type === 'moderation_review' ||

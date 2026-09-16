@@ -8,7 +8,7 @@ import { User } from '../models/User.js';
 import { Resource } from '../models/Resource.js';
 import { requireAuth, optionalAuth, requireAdmin } from '../middleware/auth.js';
 import { calculateNextVoteScore } from '../utils/voteCalculator.js';
-import { createNotification, createSystemNotification } from '../utils/notificationService.js';
+import { createNotification, createSystemNotification, notifyAllAdmins } from '../utils/notificationService.js';
 import { Report } from '../models/Report.js';
 import { ModerationLog } from '../models/ModerationLog.js';
 import { moderateContent, applyStrikePipeline } from '../utils/contentModerator.js';
@@ -1291,6 +1291,15 @@ router.post('/:id/report', requireAuth, async (req, res) => {
       });
     }
 
+    const reporter = await User.findById(req.user.id).select("username").lean();
+    const reporterName = reporter?.username || req.user.username || "A member";
+    const truncTitle = post.title && post.title.length > 60 ? post.title.slice(0, 60) + "..." : post.title;
+    notifyAllAdmins({
+      message: `${reporterName} reported a post "${truncTitle}" - ${isViolation ? 'AI confirmed violation, content hidden' : 'AI found safe'}.`,
+      senderId: req.user.id,
+      postId: post._id,
+    }).catch(() => {});
+
     return res.status(201).json({
       success: true,
       reportId: report._id,
@@ -1396,6 +1405,16 @@ router.post('/:id/comments/:commentId/report', requireAuth, async (req, res) => 
         message: `A report on your comment was confirmed for violating community guidelines. The comment has been hidden.`,
       });
     }
+
+    const cReporter = await User.findById(req.user.id).select("username").lean();
+    const cReporterName = cReporter?.username || req.user.username || "A member";
+    const cTruncTitle = post.title && post.title.length > 60 ? post.title.slice(0, 60) + "..." : post.title;
+    notifyAllAdmins({
+      message: `${cReporterName} reported a comment on "${cTruncTitle}" - ${isViolation ? 'AI confirmed violation, comment hidden' : 'AI found safe'}.`,
+      senderId: req.user.id,
+      postId: post._id,
+      commentId: comment._id,
+    }).catch(() => {});
 
     return res.status(201).json({
       success: true,

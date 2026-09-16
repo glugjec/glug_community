@@ -5,6 +5,7 @@ import { Comment } from '../models/Comment.js';
 import { Appeal } from '../models/Appeal.js';
 import { ModerationLog } from '../models/ModerationLog.js';
 import { requireAuth } from '../middleware/auth.js';
+import { notifyAllAdmins } from '../utils/notificationService.js';
 
 const router = Router();
 
@@ -418,6 +419,16 @@ router.post("/me/appeals", requireAuth, async (req, res) => {
       statement: statement.trim().slice(0, 1500),
       status: "pending",
     });
+
+    const appellant = await User.findById(userId).select("username").lean();
+    const appellantName = appellant?.username || "A member";
+    const typeLabel = itemType === "account_ban" ? "account ban" : itemType === "post" ? "post" : itemType === "comment" ? "comment" : `strike ${strikeIndex}`;
+    notifyAllAdmins({
+      message: `${appellantName} submitted a new ${typeLabel} appeal for review.`,
+      senderId: userId,
+      postId: (itemType === "post" ? targetPostId : null) || null,
+      commentId: targetCommentId || null,
+    }).catch(() => {});
 
     return res.status(201).json({
       success: true,
