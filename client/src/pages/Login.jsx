@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -9,18 +9,17 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, ShieldAlert, CheckCir
 import './Auth.css';
 
 export default function Login() {
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
+  const [error, setError] = useState('');
   const [oauthData, setOauthData] = useState(null);
   const [chosenUsername, setChosenUsername] = useState('');
 
-  const [bannedModalData, setBannedModalData] = useState(() => {
+  const initialBannedNotice = useMemo(() => {
     try {
       const stored = sessionStorage.getItem('glug_banned_notice');
       if (stored) {
@@ -29,14 +28,10 @@ export default function Login() {
       }
     } catch {}
     return null;
-  });
-  const [showAppealModal, setShowAppealModal] = useState(() => {
-    try {
-      return Boolean(sessionStorage.getItem('glug_banned_notice'));
-    } catch {
-      return false;
-    }
-  });
+  }, []);
+
+  const [bannedModalData, setBannedModalData] = useState(initialBannedNotice);
+  const [showAppealModal, setShowAppealModal] = useState(Boolean(initialBannedNotice));
   const [appealStep, setAppealStep] = useState('notice');
   const [bannedBannerDismissed, setBannedBannerDismissed] = useState(false);
   const [appealStatement, setAppealStatement] = useState('');

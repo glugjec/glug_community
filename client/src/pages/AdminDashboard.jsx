@@ -202,6 +202,7 @@ export default function AdminDashboard() {
   const [isOverriding, setIsOverriding] = useState(false);
 
   const [itemToRestore, setItemToRestore] = useState(null);
+  const [decrementStrikeOnRestore, setDecrementStrikeOnRestore] = useState(true);
   const [isRestoringItem, setIsRestoringItem] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [isDeletingFlaggedItem, setIsDeletingFlaggedItem] = useState(false);
@@ -480,9 +481,9 @@ export default function AdminDashboard() {
     setIsRestoringItem(true);
     try {
       if (itemToRestore.itemType === "post") {
-        await adminApi.restoreFlaggedPost(itemToRestore.id);
+        await adminApi.restoreFlaggedPost(itemToRestore.id, { decrementStrike: decrementStrikeOnRestore });
       } else {
-        await adminApi.restoreFlaggedComment(itemToRestore.id);
+        await adminApi.restoreFlaggedComment(itemToRestore.id, { decrementStrike: decrementStrikeOnRestore });
       }
       showToast(`Restored ${itemToRestore.itemType} to public view`);
       setItemToRestore(null);
@@ -4096,6 +4097,47 @@ export default function AdminDashboard() {
                 )}
               </div>
             )}
+            <div
+              onClick={() => setDecrementStrikeOnRestore((prev) => !prev)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                background: "rgba(16, 185, 129, 0.08)",
+                border: "1px solid rgba(16, 185, 129, 0.28)",
+                padding: "10px 14px",
+                borderRadius: "10px",
+                cursor: "pointer",
+                margin: "14px 0",
+                userSelect: "none",
+              }}
+            >
+              <div
+                style={{
+                  width: "18px",
+                  height: "18px",
+                  borderRadius: "5px",
+                  background: decrementStrikeOnRestore ? "#10b981" : "transparent",
+                  border: "2px solid #10b981",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#ffffff",
+                  flexShrink: 0,
+                  transition: "background 0.15s ease",
+                }}
+              >
+                {decrementStrikeOnRestore && <Check size={13} strokeWidth={3} />}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#f8fafc" }}>
+                  Revoke / decrement 1 moderation strike
+                </span>
+                <span style={{ fontSize: "0.76rem", color: "#94a3b8" }}>
+                  Reduces author's strike count and lifts any associated 24h posting suspension.
+                </span>
+              </div>
+            </div>
             <div className="admin-modal-actions">
               <button
                 type="button"

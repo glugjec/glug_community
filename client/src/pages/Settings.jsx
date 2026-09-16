@@ -298,6 +298,12 @@ function stripHtml(html) {
         date: p.hiddenAt || p.createdAt,
       })
     })
+
+    allFlaggedAndStrikes.sort((a, b) => {
+      const timeA = a.date ? new Date(a.date).getTime() : 0
+      const timeB = b.date ? new Date(b.date).getTime() : 0
+      return timeB - timeA
+    })
   }
 
   const getAppealForItem = (item) => {

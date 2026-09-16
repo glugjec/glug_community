@@ -192,8 +192,8 @@ export const adminApi = {
   deleteComment: (id) => client.delete(`/admin/comments/${id}`),
   // Moderation Hub
   getFlaggedContent: (params = {}) => client.get('/admin/moderation/flagged', { params }),
-  restoreFlaggedPost: (id) => client.put(`/admin/moderation/posts/${id}/restore`),
-  restoreFlaggedComment: (id) => client.put(`/admin/moderation/comments/${id}/restore`),
+  restoreFlaggedPost: (id, data = {}) => client.put(`/admin/moderation/posts/${id}/restore`, data),
+  restoreFlaggedComment: (id, data = {}) => client.put(`/admin/moderation/comments/${id}/restore`, data),
   deleteFlaggedPost: (id) => client.delete(`/admin/moderation/posts/${id}`),
   deleteFlaggedComment: (id) => client.delete(`/admin/moderation/comments/${id}`),
   getReports: (params = {}) => client.get('/admin/moderation/reports', { params }),

@@ -576,8 +576,10 @@ router.put("/users/:id/unban", async (req, res) => {
     targetUser.isBanned = false;
     targetUser.banReason = "";
     targetUser.banExpiresAt = null;
+    targetUser.postingRestrictedUntil = null;
     if (resetStrikes) {
       targetUser.moderationStrikes = 0;
+      targetUser.strikeExpiresAt = null;
     }
     await targetUser.save();
 
@@ -707,6 +709,7 @@ router.get("/moderation/flagged", async (req, res) => {
 // @route   PUT /api/admin/moderation/posts/:id/restore
 // @desc    Restore (unhide) a flagged post
 router.put("/moderation/posts/:id/restore", async (req, res) => {
+  const { decrementStrike = true } = req.body || {};
   try {
     const post = await Post.findById(req.params.id);
     if (!post) {
@@ -719,15 +722,43 @@ router.put("/moderation/posts/:id/restore", async (req, res) => {
     post.hiddenAt = null;
     await post.save();
 
+    let authorUpdated = null;
+    if (decrementStrike && post.author) {
+      const author = await User.findById(post.author);
+      if (author) {
+        author.moderationStrikes = Math.max(0, (author.moderationStrikes || 0) - 1);
+        if ((author.moderationStrikes || 0) < 2) {
+          author.postingRestrictedUntil = null;
+        }
+        if ((author.moderationStrikes || 0) === 0) {
+          author.strikeExpiresAt = null;
+        }
+        if (author.isBanned && (author.moderationStrikes || 0) < 3) {
+          author.isBanned = false;
+          author.banExpiresAt = null;
+          author.banReason = "";
+        }
+        await author.save();
+        authorUpdated = {
+          id: author._id,
+          moderationStrikes: author.moderationStrikes,
+        };
+      }
+    }
+
     await ModerationLog.create({
       action: "restore_post",
       performedBy: req.user.id,
       targetUser: post.author,
       targetPost: post._id,
-      details: `Restored post: "${post.title}"`,
+      details: `Restored post: "${post.title}". Strike decremented: ${decrementStrike}`,
     });
 
-    return res.json({ success: true, message: "Discussion topic restored successfully" });
+    return res.json({
+      success: true,
+      message: "Discussion topic restored successfully",
+      author: authorUpdated,
+    });
   } catch (err) {
     console.error("[Admin Restore Post Error]", err);
     return res.status(500).json({ error: "Failed to restore post" });
@@ -737,6 +768,7 @@ router.put("/moderation/posts/:id/restore", async (req, res) => {
 // @route   PUT /api/admin/moderation/comments/:id/restore
 // @desc    Restore (unhide) a flagged comment
 router.put("/moderation/comments/:id/restore", async (req, res) => {
+  const { decrementStrike = true } = req.body || {};
   try {
     const comment = await Comment.findById(req.params.id);
     if (!comment) {
@@ -749,12 +781,35 @@ router.put("/moderation/comments/:id/restore", async (req, res) => {
     comment.hiddenAt = null;
     await comment.save();
 
-    // Recalculate post commentCount
     const visibleCount = await Comment.countDocuments({
       post: comment.post,
       isHidden: { $ne: true },
     });
     await Post.findByIdAndUpdate(comment.post, { commentCount: visibleCount });
+
+    let authorUpdated = null;
+    if (decrementStrike && comment.author) {
+      const author = await User.findById(comment.author);
+      if (author) {
+        author.moderationStrikes = Math.max(0, (author.moderationStrikes || 0) - 1);
+        if ((author.moderationStrikes || 0) < 2) {
+          author.postingRestrictedUntil = null;
+        }
+        if ((author.moderationStrikes || 0) === 0) {
+          author.strikeExpiresAt = null;
+        }
+        if (author.isBanned && (author.moderationStrikes || 0) < 3) {
+          author.isBanned = false;
+          author.banExpiresAt = null;
+          author.banReason = "";
+        }
+        await author.save();
+        authorUpdated = {
+          id: author._id,
+          moderationStrikes: author.moderationStrikes,
+        };
+      }
+    }
 
     await ModerationLog.create({
       action: "restore_comment",
@@ -762,10 +817,14 @@ router.put("/moderation/comments/:id/restore", async (req, res) => {
       targetUser: comment.author,
       targetComment: comment._id,
       targetPost: comment.post,
-      details: "Restored comment",
+      details: `Restored comment. Strike decremented: ${decrementStrike}`,
     });
 
-    return res.json({ success: true, message: "Comment restored successfully" });
+    return res.json({
+      success: true,
+      message: "Comment restored successfully",
+      author: authorUpdated,
+    });
   } catch (err) {
     console.error("[Admin Restore Comment Error]", err);
     return res.status(500).json({ error: "Failed to restore comment" });
@@ -1253,6 +1312,7 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
           appellant.isBanned = false;
           appellant.banExpiresAt = null;
           appellant.banReason = "";
+          appellant.postingRestrictedUntil = null;
           if (decrementStrike) {
             appellant.moderationStrikes = Math.max(0, (appellant.moderationStrikes || 0) - 1);
           }
@@ -1263,6 +1323,12 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
             appellant.banExpiresAt = null;
             appellant.banReason = "";
           }
+        }
+        if (decrementStrike || (appellant.moderationStrikes || 0) < 2) {
+          appellant.postingRestrictedUntil = null;
+        }
+        if ((appellant.moderationStrikes || 0) === 0) {
+          appellant.strikeExpiresAt = null;
         }
         await appellant.save();
       }
