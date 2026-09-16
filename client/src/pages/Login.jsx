@@ -20,7 +20,17 @@ export default function Login() {
   const [oauthData, setOauthData] = useState(null);
   const [chosenUsername, setChosenUsername] = useState('');
 
-  const [bannedModalData, setBannedModalData] = useState(null);
+  const [bannedModalData, setBannedModalData] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('glug_banned_notice');
+      if (stored) {
+        sessionStorage.removeItem('glug_banned_notice');
+        return JSON.parse(stored);
+      }
+    } catch {}
+    return null;
+  });
+  const [bannedBannerDismissed, setBannedBannerDismissed] = useState(false);
   const [appealStatement, setAppealStatement] = useState('');
   const [appealSubmitting, setAppealSubmitting] = useState(false);
   const [appealSuccess, setAppealSuccess] = useState('');
@@ -29,6 +39,7 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    setBannedBannerDismissed(false);
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail) {
@@ -110,6 +121,67 @@ export default function Login() {
             Create Account
           </Link>
         </div>
+
+        {bannedModalData && !bannedBannerDismissed && (
+          <div
+            className="auth-error-banner"
+            style={{
+              background: 'rgba(239, 68, 68, 0.15)',
+              borderColor: 'rgba(239, 68, 68, 0.4)',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: '6px',
+              padding: '12px 14px',
+              borderRadius: '12px',
+            }}
+            role="alert"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldAlert size={18} className="text-red" />
+                <strong style={{ fontSize: '0.9rem', color: '#f87171' }}>
+                  {bannedModalData.banExpiresAt ? 'Account Temporarily Suspended' : 'Account Suspended by Admin'}
+                </strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBannedBannerDismissed(true)}
+                style={{ background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer', padding: 0 }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.84rem', color: '#fca5a5', lineHeight: 1.45 }}>
+              {bannedModalData.banReason
+                ? `Reason: ${bannedModalData.banReason}`
+                : 'Your account was suspended by an administrator.'}
+            </p>
+            {bannedModalData.banExpiresAt && (
+              <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                Expires: {new Date(bannedModalData.banExpiresAt).toLocaleString()}
+              </span>
+            )}
+            {bannedModalData.appealToken && (
+              <button
+                type="button"
+                onClick={() => setBannedBannerDismissed(false)}
+                style={{
+                  marginTop: '4px',
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  color: '#ffffff',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                Submit Appeal
+              </button>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="auth-error-banner" role="alert">
@@ -268,7 +340,9 @@ export default function Login() {
             </div>
 
             <p style={{ fontSize: '0.88rem', color: '#c9d1d9', lineHeight: 1.5, margin: '0 0 14px' }}>
-              Your account has been permanently suspended due to repeated community policy violations (3 of 3 strikes).
+              {bannedModalData.banExpiresAt
+                ? `Your account has been temporarily suspended until ${new Date(bannedModalData.banExpiresAt).toLocaleString()}.`
+                : 'Your account has been suspended by an administrator.'}
             </p>
 
             <div style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px' }}>
@@ -278,6 +352,11 @@ export default function Login() {
               <div style={{ fontSize: '0.86rem', color: '#fca5a5' }}>
                 {bannedModalData.banReason || 'Violation of community safety standards'}
               </div>
+              {bannedModalData.banExpiresAt && (
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px' }}>
+                  Suspension Lift Time: {new Date(bannedModalData.banExpiresAt).toLocaleString()}
+                </div>
+              )}
             </div>
 
             {appealSuccess ? (

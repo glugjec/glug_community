@@ -39,6 +39,7 @@ import {
   UserX,
   RotateCcw,
   XCircle,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { adminApi, resourcesApi } from "../api.js";
@@ -3091,17 +3092,53 @@ export default function AdminDashboard() {
       {/* MODERATION MODAL 1: BAN USER */}
       {banUserModalTarget && (
         <div className="admin-modal-overlay" onClick={() => !isBanning && setBanUserModalTarget(null)}>
-          <div className="admin-modal-box alert" onClick={(e) => e.stopPropagation()}>
-            <div className="admin-modal-icon-alert">
-              <UserX size={32} />
+          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
+            <div className="admin-modal-header">
+              <h2 className="admin-modal-title">
+                <UserX size={20} className="text-red" />
+                <span>Suspend Member Account</span>
+              </h2>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setBanUserModalTarget(null)}
+                disabled={isBanning}
+              >
+                <X size={18} />
+              </button>
             </div>
-            <h2 className="admin-modal-title">Ban User Account</h2>
+
+            <div className="admin-user-summary-box" style={{ margin: "4px 0 10px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <AdminUserAvatar src={banUserModalTarget.avatar} username={banUserModalTarget.username} />
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#f8fafc", fontSize: "0.95rem" }}>
+                      @{banUserModalTarget.username}
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "#94a3b8" }}>
+                      {banUserModalTarget.email}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <span className="admin-badge neutral" style={{ fontSize: "0.74rem" }}>
+                    Strikes: {banUserModalTarget.strikes || banUserModalTarget.moderationStrikes || 0}
+                  </span>
+                  <span className="admin-badge locked" style={{ fontSize: "0.74rem" }}>
+                    {banUserModalTarget.role || "student"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <p className="admin-modal-desc">
-              Suspend <strong>@{banUserModalTarget.username}</strong> ({banUserModalTarget.email}) from posting, replying to discussions, and sending messages.
+              Suspension immediately blocks this account from active sessions, posting, replying, and chatting.
             </p>
-            <form onSubmit={handleConfirmBanUser} className="admin-modal-form">
+
+            <form onSubmit={handleConfirmBanUser} className="admin-modal-form" style={{ marginTop: "10px" }}>
               <div className="admin-form-group">
-                <label>Ban Reason *</label>
+                <label className="admin-form-label">Ban Reason *</label>
                 <input
                   type="text"
                   className="admin-form-input"
@@ -3110,20 +3147,72 @@ export default function AdminDashboard() {
                   onChange={(e) => setBanForm({ ...banForm, reason: e.target.value })}
                   required
                 />
+                <div className="admin-quick-reasons">
+                  {[
+                    "Harassment & Hate Speech",
+                    "Spam / Commercial Ads",
+                    "NSFW or Inappropriate Content",
+                    "Repeated Rule Violations",
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className="admin-reason-chip"
+                      onClick={() => setBanForm({ ...banForm, reason: preset })}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="admin-form-group">
-                <label>Ban Duration (Hours)</label>
-                <input
-                  type="number"
-                  className="admin-form-input"
-                  placeholder="Leave empty for permanent ban"
-                  value={banForm.hours}
-                  onChange={(e) => setBanForm({ ...banForm, hours: e.target.value })}
-                  min={1}
-                />
-                <span className="admin-field-hint">Leave blank for permanent suspension, or specify hours (e.g. 24, 72).</span>
+
+              <div className="admin-form-group" style={{ marginTop: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <label className="admin-form-label" style={{ margin: 0 }}>Suspension Duration</label>
+                  <span style={{ fontSize: "0.76rem", color: "#94a3b8" }}>
+                    {banForm.hours ? `${banForm.hours} hours` : "Permanent"}
+                  </span>
+                </div>
+
+                <div className="admin-duration-grid">
+                  {[
+                    { label: "24 Hours", value: "24", sub: "1 Day" },
+                    { label: "72 Hours", value: "72", sub: "3 Days" },
+                    { label: "1 Week", value: "168", sub: "7 Days" },
+                    { label: "Permanent", value: "", sub: "Indefinite" },
+                  ].map((opt) => {
+                    const isSelected = String(banForm.hours || "") === opt.value;
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        className={`admin-duration-pill ${isSelected ? "is-active" : ""}`}
+                        onClick={() => setBanForm({ ...banForm, hours: opt.value })}
+                      >
+                        <span>{opt.label}</span>
+                        <span style={{ fontSize: "0.7rem", opacity: 0.75, fontWeight: 400 }}>{opt.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
+                  <input
+                    type="number"
+                    className="admin-form-input"
+                    placeholder="Custom hours (e.g. 12, 48)..."
+                    value={banForm.hours}
+                    onChange={(e) => setBanForm({ ...banForm, hours: e.target.value })}
+                    min={1}
+                    style={{ padding: "7px 12px", fontSize: "0.82rem" }}
+                  />
+                </div>
+                <span className="admin-field-hint" style={{ marginTop: "4px" }}>
+                  Select a duration option above or type custom hours. Leave blank for permanent suspension.
+                </span>
               </div>
-              <div className="admin-modal-actions">
+
+              <div className="admin-modal-actions" style={{ marginTop: "16px" }}>
                 <button
                   type="button"
                   className="admin-cancel-btn"
@@ -3134,11 +3223,12 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   type="submit"
-                  className="admin-action-btn danger"
-                  style={{ padding: "9px 18px", borderRadius: "8px" }}
+                  className="admin-primary-btn"
+                  style={{ background: "#ef4444", borderColor: "#ef4444" }}
                   disabled={isBanning}
                 >
-                  {isBanning ? "Suspending..." : "Confirm Suspension"}
+                  <UserX size={15} />
+                  <span>{isBanning ? "Suspending..." : "Confirm Suspension"}</span>
                 </button>
               </div>
             </form>

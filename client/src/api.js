@@ -34,6 +34,15 @@ client.interceptors.response.use(
     err.response = error.response;
     err.data = error.response?.data;
     err.status = error.response?.status;
+
+    if (error.response?.status === 403 && error.response?.data?.isBanned) {
+      localStorage.removeItem('glug_token');
+      localStorage.removeItem('glug_user');
+      window.dispatchEvent(
+        new CustomEvent('glug:banned', { detail: error.response.data })
+      );
+    }
+
     return Promise.reject(err);
   }
 );

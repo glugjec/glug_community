@@ -44,6 +44,22 @@ export function AuthProvider({ children }) {
     }
 
     checkAuth()
+
+    const handleBannedEvent = (e) => {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+      setUser(null)
+      setToken(null)
+      if (e?.detail) {
+        sessionStorage.setItem('glug_banned_notice', JSON.stringify(e.detail))
+      }
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
+      }
+    }
+
+    window.addEventListener('glug:banned', handleBannedEvent)
+    return () => window.removeEventListener('glug:banned', handleBannedEvent)
   }, [])
 
   const login = (userData, tokenValue) => {

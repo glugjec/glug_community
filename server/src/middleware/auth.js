@@ -54,8 +54,7 @@ export async function requireAuth(req, res, next) {
       } else {
         const isAppealOrStandingRoute =
           req.originalUrl?.includes('/moderation-history') ||
-          req.originalUrl?.includes('/appeals') ||
-          req.originalUrl?.includes('/auth/me');
+          req.originalUrl?.includes('/appeals');
         if (isAppealOrStandingRoute) {
           req.user.isBanned = true;
           req.user.banReason = dbUser.banReason;
@@ -64,7 +63,9 @@ export async function requireAuth(req, res, next) {
         }
 
         return res.status(403).json({
-          error: "Your account has been permanently suspended.",
+          error: dbUser.banExpiresAt
+            ? `Your account has been temporarily suspended until ${new Date(dbUser.banExpiresAt).toLocaleString()}.`
+            : "Your account has been suspended by an administrator.",
           isBanned: true,
           banReason: dbUser.banReason || "Violation of community guidelines",
           banExpiresAt: dbUser.banExpiresAt,

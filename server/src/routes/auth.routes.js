@@ -253,19 +253,29 @@ router.post(
       }
 
       if (user.isBanned) {
-        const appealToken = jwt.sign(
-          { id: user._id.toString(), email: user.email, role: user.role, isBanned: true },
-          process.env.JWT_SECRET || 'glug-secret-key-development',
-          { expiresIn: '24h' }
-        );
-        return res.status(403).json({
-          error: 'Your account has been permanently suspended for repeated community violations.',
-          isBanned: true,
-          banReason: user.banReason || 'Accumulated moderation strikes',
-          moderationStrikes: user.moderationStrikes || 3,
-          bannedAt: user.bannedAt,
-          appealToken,
-        });
+        if (user.banExpiresAt && new Date(user.banExpiresAt) <= new Date()) {
+          user.isBanned = false;
+          user.banReason = '';
+          user.banExpiresAt = null;
+          await user.save();
+        } else {
+          const appealToken = jwt.sign(
+            { id: user._id.toString(), email: user.email, role: user.role, isBanned: true },
+            process.env.JWT_SECRET || 'glug-secret-key-development',
+            { expiresIn: '24h' }
+          );
+          return res.status(403).json({
+            error: user.banExpiresAt
+              ? `Your account has been temporarily suspended until ${new Date(user.banExpiresAt).toLocaleString()}.`
+              : 'Your account has been suspended by an administrator.',
+            isBanned: true,
+            banReason: user.banReason || 'Suspended by administrator',
+            moderationStrikes: user.moderationStrikes || 0,
+            bannedAt: user.bannedAt,
+            banExpiresAt: user.banExpiresAt || null,
+            appealToken,
+          });
+        }
       }
 
       const token = signToken(user);
@@ -484,6 +494,32 @@ router.post('/google', async (req, res) => {
       }
       if (modified) await user.save();
 
+      if (user.isBanned) {
+        if (user.banExpiresAt && new Date(user.banExpiresAt) <= new Date()) {
+          user.isBanned = false;
+          user.banReason = '';
+          user.banExpiresAt = null;
+          await user.save();
+        } else {
+          const appealToken = jwt.sign(
+            { id: user._id.toString(), email: user.email, role: user.role, isBanned: true },
+            process.env.JWT_SECRET || 'glug-secret-key-development',
+            { expiresIn: '24h' }
+          );
+          return res.status(403).json({
+            error: user.banExpiresAt
+              ? `Your account has been temporarily suspended until ${new Date(user.banExpiresAt).toLocaleString()}.`
+              : 'Your account has been suspended by an administrator.',
+            isBanned: true,
+            banReason: user.banReason || 'Suspended by administrator',
+            moderationStrikes: user.moderationStrikes || 0,
+            bannedAt: user.bannedAt,
+            banExpiresAt: user.banExpiresAt || null,
+            appealToken,
+          });
+        }
+      }
+
       const token = signToken(user);
       return res.json({ user: user.toJSON(), token });
     }
@@ -585,6 +621,23 @@ router.get('/me', requireAuth, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+
+    if (user.isBanned) {
+      if (user.banExpiresAt && new Date(user.banExpiresAt) <= new Date()) {
+        user.isBanned = false;
+        user.banReason = '';
+        user.banExpiresAt = null;
+        await user.save();
+      } else {
+        return res.status(403).json({
+          error: 'Your account has been suspended by an administrator.',
+          isBanned: true,
+          banReason: user.banReason || 'Suspended by administrator',
+          banExpiresAt: user.banExpiresAt || null,
+        });
+      }
+    }
+
     return res.json({ user: user.toJSON() });
   } catch (err) {
     console.error('[Auth /me Error]', err);
