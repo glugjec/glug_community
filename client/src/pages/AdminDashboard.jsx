@@ -3153,14 +3153,18 @@ export default function AdminDashboard() {
             <p className="admin-modal-desc" style={{ marginTop: "4px" }}>
               Are you sure you want to lift the suspension for <strong>@{unbanTarget.username}</strong>? Their posting and chatting privileges will be restored immediately.
             </p>
-            <div className="admin-checkbox-card" style={{ margin: "14px 0" }}>
+            <div className={`admin-checkbox-card ${unbanResetStrikes ? "is-checked" : ""}`} style={{ margin: "14px 0" }}>
               <label className="admin-checkbox-label">
                 <input
                   type="checkbox"
+                  className="admin-native-checkbox"
                   checked={unbanResetStrikes}
                   onChange={(e) => setUnbanResetStrikes(e.target.checked)}
                 />
-                <span>Reset moderation strikes to 0 (Fresh start)</span>
+                <span className="admin-custom-checkbox">
+                  <Check size={13} strokeWidth={3} />
+                </span>
+                <span className="admin-checkbox-text">Reset moderation strikes to 0 (Fresh start)</span>
               </label>
             </div>
             <div className="admin-modal-actions">
@@ -3248,14 +3252,18 @@ export default function AdminDashboard() {
                   </select>
                 </div>
               )}
-              <div className="admin-checkbox-card" style={{ margin: "4px 0" }}>
+              <div className={`admin-checkbox-card ${overrideForm.applyStrike ? "is-checked" : ""}`} style={{ margin: "4px 0" }}>
                 <label className="admin-checkbox-label">
                   <input
                     type="checkbox"
+                    className="admin-native-checkbox"
                     checked={overrideForm.applyStrike}
                     onChange={(e) => setOverrideForm({ ...overrideForm, applyStrike: e.target.checked })}
                   />
-                  <span>Apply strike penalty to author (enforces strike pipeline)</span>
+                  <span className="admin-custom-checkbox">
+                    <Check size={13} strokeWidth={3} />
+                  </span>
+                  <span className="admin-checkbox-text">Apply strike penalty to author (enforces strike pipeline)</span>
                 </label>
               </div>
               <div className="admin-form-group">
@@ -3354,24 +3362,32 @@ export default function AdminDashboard() {
 
               {appealResolveForm.status === "approved" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "14px 0" }}>
-                  <div className="admin-checkbox-card success">
+                  <div className={`admin-checkbox-card success ${appealResolveForm.decrementStrike ? "is-checked" : ""}`}>
                     <label className="admin-checkbox-label">
                       <input
                         type="checkbox"
+                        className="admin-native-checkbox"
                         checked={appealResolveForm.decrementStrike}
                         onChange={(e) => setAppealResolveForm({ ...appealResolveForm, decrementStrike: e.target.checked })}
                       />
-                      <span>Revoke / decrement 1 moderation strike</span>
+                      <span className="admin-custom-checkbox">
+                        <Check size={13} strokeWidth={3} />
+                      </span>
+                      <span className="admin-checkbox-text">Revoke / decrement 1 moderation strike</span>
                     </label>
                   </div>
-                  <div className="admin-checkbox-card success">
+                  <div className={`admin-checkbox-card success ${appealResolveForm.restoreContent ? "is-checked" : ""}`}>
                     <label className="admin-checkbox-label">
                       <input
                         type="checkbox"
+                        className="admin-native-checkbox"
                         checked={appealResolveForm.restoreContent}
                         onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
                       />
-                      <span>Restore flagged content to public view (unhide)</span>
+                      <span className="admin-custom-checkbox">
+                        <Check size={13} strokeWidth={3} />
+                      </span>
+                      <span className="admin-checkbox-text">Restore flagged content to public view (unhide)</span>
                     </label>
                   </div>
                 </div>

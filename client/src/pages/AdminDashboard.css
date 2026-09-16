@@ -1268,26 +1268,40 @@ select.admin-form-input {
 }
 
 .admin-checkbox-card {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.65);
   border: 1px solid rgba(51, 65, 85, 0.5);
   border-radius: 10px;
   padding: 10px 14px;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
 }
 
 .admin-checkbox-card:hover {
-  background: rgba(30, 41, 59, 0.5);
-  border-color: rgba(100, 116, 139, 0.6);
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(100, 116, 139, 0.7);
+  transform: translateY(-1px);
+}
+
+.admin-checkbox-card.is-checked {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.15);
 }
 
 .admin-checkbox-card.success {
-  background: rgba(16, 185, 129, 0.08);
+  background: rgba(16, 185, 129, 0.06);
   border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .admin-checkbox-card.success:hover {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.admin-checkbox-card.success.is-checked {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
 }
 
 .admin-checkbox-label {
@@ -1295,7 +1309,7 @@ select.admin-form-input {
   flex-direction: row !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 10px !important;
+  gap: 12px !important;
   cursor: pointer;
   user-select: none;
   font-size: 0.88rem;
@@ -1303,20 +1317,63 @@ select.admin-form-input {
   color: #f1f5f9;
   margin: 0 !important;
   text-align: left !important;
+  width: 100%;
 }
 
-.admin-checkbox-label input[type="checkbox"] {
-  width: 17px !important;
-  height: 17px !important;
-  accent-color: #3b82f6;
-  cursor: pointer;
-  flex-shrink: 0;
-  margin: 0 !important;
+.admin-native-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
-.admin-checkbox-label span {
+.admin-custom-checkbox {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #ffffff;
+}
+
+.admin-checkbox-card:hover .admin-custom-checkbox {
+  border-color: rgba(148, 163, 184, 0.7);
+}
+
+.admin-checkbox-card.is-checked .admin-custom-checkbox {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+.admin-checkbox-card.success.is-checked .admin-custom-checkbox {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.admin-custom-checkbox svg {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-checkbox-card.is-checked .admin-custom-checkbox svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.admin-checkbox-label span.admin-checkbox-text {
   line-height: 1.4;
   color: #f1f5f9;
+  font-weight: 500;
+  flex: 1;
 }
 
 .admin-user-summary-box {
