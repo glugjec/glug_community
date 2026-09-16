@@ -1473,6 +1473,13 @@ select.admin-form-input {
   border-color: rgba(148, 163, 184, 0.6);
 }
 
+.admin-decision-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
 .admin-decision-btn {
   display: flex;
   align-items: center;
@@ -1487,6 +1494,8 @@ select.admin-form-input {
   border: 1px solid #334155;
   color: #94a3b8;
   transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-decision-btn:hover {

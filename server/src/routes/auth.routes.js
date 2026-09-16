@@ -264,6 +264,13 @@ router.post(
             process.env.JWT_SECRET || 'glug-secret-key-development',
             { expiresIn: '24h' }
           );
+
+          const pendingAppeal = await Appeal.findOne({
+            appellant: user._id,
+            $or: [{ itemType: 'account_ban' }, { originalCategory: 'account_ban' }],
+            status: 'pending',
+          }).select('statement createdAt status').lean();
+
           return res.status(403).json({
             error: user.banExpiresAt
               ? `Your account has been temporarily suspended until ${new Date(user.banExpiresAt).toLocaleString()}.`
@@ -274,6 +281,11 @@ router.post(
             bannedAt: user.bannedAt,
             banExpiresAt: user.banExpiresAt || null,
             appealToken,
+            pendingAppeal: pendingAppeal ? {
+              statement: pendingAppeal.statement,
+              createdAt: pendingAppeal.createdAt,
+              status: pendingAppeal.status,
+            } : null,
           });
         }
       }
@@ -309,18 +321,30 @@ router.post('/banned-appeal', async (req, res) => {
 
     const existingPending = await Appeal.findOne({
       appellant: user._id,
+      $or: [{ itemType: 'account_ban' }, { originalCategory: 'account_ban' }],
       status: 'pending',
     });
 
+    let appeal;
     if (existingPending) {
-      return res.status(400).json({ error: 'You already have a pending appeal under review.' });
+      existingPending.itemType = 'account_ban';
+      existingPending.originalCategory = 'account_ban';
+      existingPending.statement = statement.trim().slice(0, 1500);
+      existingPending.originalReason = user.banReason || existingPending.originalReason || 'Account suspended by administrator';
+      appeal = await existingPending.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Your appeal has been updated successfully. Our moderation team will review your request.',
+        appeal: appeal.toJSON(),
+      });
     }
 
-    const appeal = await Appeal.create({
+    appeal = await Appeal.create({
       appellant: user._id,
-      itemType: 'strike',
-      strikeIndex: user.moderationStrikes || 3,
-      originalReason: user.banReason || 'Permanent ban from 3 moderation strikes',
+      itemType: 'account_ban',
+      strikeIndex: user.moderationStrikes || 0,
+      originalReason: user.banReason || 'Account suspended by administrator',
       originalCategory: 'account_ban',
       statement: statement.trim().slice(0, 1500),
       status: 'pending',
@@ -328,7 +352,7 @@ router.post('/banned-appeal', async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Your appeal has been submitted and queued for administrator review.',
+      message: 'Your appeal has been submitted successfully. Our moderation team will review your request.',
       appeal: appeal.toJSON(),
     });
   } catch (err) {
@@ -506,6 +530,13 @@ router.post('/google', async (req, res) => {
             process.env.JWT_SECRET || 'glug-secret-key-development',
             { expiresIn: '24h' }
           );
+
+          const pendingAppeal = await Appeal.findOne({
+            appellant: user._id,
+            $or: [{ itemType: 'account_ban' }, { originalCategory: 'account_ban' }],
+            status: 'pending',
+          }).select('statement createdAt status').lean();
+
           return res.status(403).json({
             error: user.banExpiresAt
               ? `Your account has been temporarily suspended until ${new Date(user.banExpiresAt).toLocaleString()}.`
@@ -516,6 +547,11 @@ router.post('/google', async (req, res) => {
             bannedAt: user.bannedAt,
             banExpiresAt: user.banExpiresAt || null,
             appealToken,
+            pendingAppeal: pendingAppeal ? {
+              statement: pendingAppeal.statement,
+              createdAt: pendingAppeal.createdAt,
+              status: pendingAppeal.status,
+            } : null,
           });
         }
       }

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import AuthLayout from '../components/auth/AuthLayout.jsx';
 import GoogleAuthButton from '../components/auth/GoogleAuthButton.jsx';
 import UsernameStep from '../components/auth/UsernameStep.jsx';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, ShieldAlert, CheckCircle2, X } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, ShieldAlert, CheckCircle2, X, Clock, Calendar, ChevronLeft } from 'lucide-react';
 import './Auth.css';
 
 export default function Login() {
@@ -30,6 +30,14 @@ export default function Login() {
     } catch {}
     return null;
   });
+  const [showAppealModal, setShowAppealModal] = useState(() => {
+    try {
+      return Boolean(sessionStorage.getItem('glug_banned_notice'));
+    } catch {
+      return false;
+    }
+  });
+  const [appealStep, setAppealStep] = useState('notice');
   const [bannedBannerDismissed, setBannedBannerDismissed] = useState(false);
   const [appealStatement, setAppealStatement] = useState('');
   const [appealSubmitting, setAppealSubmitting] = useState(false);
@@ -59,6 +67,8 @@ export default function Login() {
     } catch (err) {
       if (err.data?.isBanned) {
         setBannedModalData(err.data);
+        setAppealStep('notice');
+        setShowAppealModal(true);
       } else {
         setError(err.message || 'Invalid email or password');
       }
@@ -80,6 +90,14 @@ export default function Login() {
         statement: appealStatement.trim(),
       });
       setAppealSuccess(res.message || 'Your appeal has been submitted and queued for review.');
+      setBannedModalData((prev) => ({
+        ...prev,
+        pendingAppeal: {
+          statement: appealStatement.trim(),
+          createdAt: new Date().toISOString(),
+          status: 'pending',
+        },
+      }));
     } catch (aErr) {
       setAppealError(aErr.message || 'Failed to submit appeal. Please try logging in again.');
     } finally {
@@ -164,7 +182,10 @@ export default function Login() {
             {bannedModalData.appealToken && (
               <button
                 type="button"
-                onClick={() => setBannedBannerDismissed(false)}
+                onClick={() => {
+                  setAppealStep('notice');
+                  setShowAppealModal(true);
+                }}
                 style={{
                   marginTop: '4px',
                   background: 'rgba(239, 68, 68, 0.2)',
@@ -177,7 +198,7 @@ export default function Login() {
                   cursor: 'pointer',
                 }}
               >
-                Submit Appeal
+                View Suspension & Appeal
               </button>
             )}
           </div>
@@ -283,7 +304,15 @@ export default function Login() {
             </div>
 
             <GoogleAuthButton
-              onError={(msg) => setError(msg)}
+              onError={(msg, errData) => {
+                if (errData?.isBanned) {
+                  setBannedModalData(errData);
+                  setAppealStep('notice');
+                  setShowAppealModal(true);
+                } else {
+                  setError(msg);
+                }
+              }}
               onRequiresUsername={handleGoogleRequiresUsername}
             />
 
@@ -295,85 +324,216 @@ export default function Login() {
         )}
       </div>
 
-      {bannedModalData && (
+      {bannedModalData && showAppealModal && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            backdropFilter: 'blur(6px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
             padding: '16px',
           }}
+          onClick={() => {
+            setShowAppealModal(false);
+            setAppealStep('notice');
+          }}
         >
           <div
             style={{
               backgroundColor: '#161b22',
-              border: '1px solid #ef4444',
+              border: '1px solid rgba(239, 68, 68, 0.45)',
               borderRadius: '16px',
-              maxWidth: '500px',
+              maxWidth: '520px',
               width: '100%',
               padding: '24px',
-              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(239, 68, 68, 0.15)',
               color: '#f0f6fc',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '8px', borderRadius: '10px', display: 'flex' }}>
-                  <ShieldAlert size={22} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ background: 'rgba(239, 68, 68, 0.16)', color: '#ef4444', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+                  <ShieldAlert size={24} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#f87171', fontWeight: 700 }}>Account Suspended</h3>
-                  <span style={{ fontSize: '0.78rem', color: '#8b949e' }}>Community Policy Enforcement</span>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#f87171', fontWeight: 700 }}>
+                    {appealStep === 'form' ? 'Submit Appeal' : bannedModalData.banExpiresAt ? 'Account Temporarily Suspended' : 'Account Suspended'}
+                  </h3>
+                  <span style={{ fontSize: '0.78rem', color: '#8b949e' }}>
+                    {appealStep === 'form' ? 'Explain your situation to administrators' : 'Community Moderation Notice'}
+                  </span>
                 </div>
               </div>
               <button
-                onClick={() => setBannedModalData(null)}
+                onClick={() => {
+                  setShowAppealModal(false);
+                  setAppealStep('notice');
+                }}
                 style={{ background: 'transparent', border: 'none', color: '#8b949e', cursor: 'pointer', padding: '4px' }}
+                title="Dismiss popup"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <p style={{ fontSize: '0.88rem', color: '#c9d1d9', lineHeight: 1.5, margin: '0 0 14px' }}>
-              {bannedModalData.banExpiresAt
-                ? `Your account has been temporarily suspended until ${new Date(bannedModalData.banExpiresAt).toLocaleString()}.`
-                : 'Your account has been suspended by an administrator.'}
-            </p>
-
-            <div style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '0.74rem', color: '#8b949e', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>
-                Violation Details
-              </div>
-              <div style={{ fontSize: '0.86rem', color: '#fca5a5' }}>
-                {bannedModalData.banReason || 'Violation of community safety standards'}
-              </div>
-              {bannedModalData.banExpiresAt && (
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px' }}>
-                  Suspension Lift Time: {new Date(bannedModalData.banExpiresAt).toLocaleString()}
-                </div>
-              )}
-            </div>
-
             {appealSuccess ? (
-              <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '14px', color: '#34d399', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle2 size={18} />
-                <span>{appealSuccess}</span>
+              <div>
+                <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '16px', color: '#34d399', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                  <CheckCircle2 size={20} />
+                  <span>{appealSuccess}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAppealModal(false);
+                      setAppealStep('notice');
+                    }}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      color: '#f0f6fc',
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : appealStep === 'notice' ? (
+              /* STEP 1: BAN NOTICE WITH BAN TIME AND APPEAL BUTTON */
+              <div>
+                <p style={{ fontSize: '0.88rem', color: '#c9d1d9', lineHeight: 1.5, margin: '0 0 14px' }}>
+                  {bannedModalData.banExpiresAt
+                    ? 'Your access has been temporarily restricted by an administrator. You can review the details below or submit an appeal.'
+                    : 'Your account has been suspended by an administrator. You can submit an appeal for moderation review.'}
+                </p>
+
+                <div style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: '12px', padding: '14px 16px', marginBottom: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: '#8b949e', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em', marginBottom: '3px' }}>
+                      Violation Reason
+                    </div>
+                    <div style={{ fontSize: '0.88rem', color: '#fca5a5', fontWeight: 500 }}>
+                      {bannedModalData.banReason || 'Violation of community guidelines'}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: bannedModalData.banExpiresAt ? '1fr 1fr' : '1fr', gap: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', color: '#8b949e', textTransform: 'uppercase', fontWeight: 700 }}>
+                        <Calendar size={12} />
+                        <span>Suspension Date</span>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#e2e8f0', marginTop: '2px' }}>
+                        {bannedModalData.bannedAt ? new Date(bannedModalData.bannedAt).toLocaleString() : 'Recently'}
+                      </div>
+                    </div>
+
+                    {bannedModalData.banExpiresAt ? (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', color: '#fbbf24', textTransform: 'uppercase', fontWeight: 700 }}>
+                          <Clock size={12} />
+                          <span>Expires / Lift Time</span>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: '#fbbf24', fontWeight: 600, marginTop: '2px' }}>
+                          {new Date(bannedModalData.banExpiresAt).toLocaleString()}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', color: '#f87171', textTransform: 'uppercase', fontWeight: 700 }}>
+                          <Clock size={12} />
+                          <span>Duration</span>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: '#f87171', fontWeight: 600, marginTop: '2px' }}>
+                          Permanent / Indefinite
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {bannedModalData.pendingAppeal && (
+                  <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.28)', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', fontSize: '0.82rem', color: '#fbbf24' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, marginBottom: '4px' }}>
+                      <Clock size={13} />
+                      <span>Appeal Currently Under Review</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#f1f5f9', fontStyle: 'italic', wordBreak: 'break-word' }}>
+                      "{bannedModalData.pendingAppeal.statement}"
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAppealModal(false)}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #30363d',
+                      color: '#8b949e',
+                      padding: '9px 18px',
+                      borderRadius: '8px',
+                      fontSize: '0.86rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Close
+                  </button>
+                  {bannedModalData.appealToken && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!appealStatement && bannedModalData.pendingAppeal?.statement) {
+                          setAppealStatement(bannedModalData.pendingAppeal.statement);
+                        }
+                        setAppealStep('form');
+                      }}
+                      style={{
+                        background: '#ef4444',
+                        border: 'none',
+                        color: '#ffffff',
+                        padding: '9px 20px',
+                        borderRadius: '8px',
+                        fontSize: '0.86rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {bannedModalData.pendingAppeal ? 'Update Appeal' : 'Appeal Suspension'}
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
+              /* STEP 2: APPEAL FORM */
               <form onSubmit={handleBannedAppealSubmit}>
+                <div style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span>Appealing suspension for: <strong style={{ color: '#fca5a5' }}>{bannedModalData.banReason || 'Community Guidelines'}</strong></span>
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.35)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, textTransform: 'uppercase', flexShrink: 0 }}>
+                    Account Suspension
+                  </span>
+                </div>
+
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#c9d1d9', marginBottom: '6px' }}>
-                  Submit an Appeal
+                  Appeal Statement
                 </label>
                 <textarea
                   value={appealStatement}
                   onChange={(e) => setAppealStatement(e.target.value)}
-                  placeholder="Explain why you believe this suspension should be reviewed by administrators..."
+                  placeholder="Explain why you believe this suspension should be reconsidered or reviewed..."
                   rows={4}
+                  autoFocus
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',
@@ -395,38 +555,66 @@ export default function Login() {
                   </div>
                 )}
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <button
                     type="button"
-                    onClick={() => setBannedModalData(null)}
+                    onClick={() => setAppealStep('notice')}
                     style={{
                       background: 'transparent',
-                      border: '1px solid #30363d',
-                      color: '#8b949e',
-                      padding: '8px 16px',
-                      borderRadius: '6px',
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={appealSubmitting}
-                    style={{
-                      background: '#ef4444',
                       border: 'none',
-                      color: '#ffffff',
-                      padding: '8px 18px',
-                      borderRadius: '6px',
+                      color: '#8b949e',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
                       fontSize: '0.85rem',
-                      fontWeight: 600,
                       cursor: 'pointer',
+                      padding: 0,
                     }}
                   >
-                    {appealSubmitting ? 'Submitting...' : 'Submit Appeal'}
+                    <ChevronLeft size={16} />
+                    <span>Back to Notice</span>
                   </button>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAppealModal(false);
+                        setAppealStep('notice');
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid #30363d',
+                        color: '#8b949e',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={appealSubmitting}
+                      style={{
+                        background: '#ef4444',
+                        border: 'none',
+                        color: '#ffffff',
+                        padding: '8px 18px',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {appealSubmitting
+                        ? 'Saving...'
+                        : bannedModalData.pendingAppeal
+                        ? 'Update Appeal'
+                        : 'Submit Appeal'}
+                    </button>
+                  </div>
                 </div>
               </form>
             )}

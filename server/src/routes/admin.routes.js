@@ -1244,15 +1244,25 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
     await appeal.save();
 
     const appellant = await User.findById(appeal.appellant);
+    const isAccountBanAppeal = appeal.itemType === "account_ban" || appeal.originalCategory === "account_ban";
 
     if (status === "approved") {
-      // 1. Decrement strike if requested
-      if (decrementStrike && appellant) {
-        appellant.moderationStrikes = Math.max(0, (appellant.moderationStrikes || 1) - 1);
-        if (appellant.isBanned && appellant.moderationStrikes < 3) {
+      // 1. Unban and/or decrement strike if requested
+      if (appellant) {
+        if (isAccountBanAppeal) {
           appellant.isBanned = false;
           appellant.banExpiresAt = null;
           appellant.banReason = "";
+          if (decrementStrike) {
+            appellant.moderationStrikes = Math.max(0, (appellant.moderationStrikes || 0) - 1);
+          }
+        } else if (decrementStrike) {
+          appellant.moderationStrikes = Math.max(0, (appellant.moderationStrikes || 1) - 1);
+          if (appellant.isBanned && appellant.moderationStrikes < 3) {
+            appellant.isBanned = false;
+            appellant.banExpiresAt = null;
+            appellant.banReason = "";
+          }
         }
         await appellant.save();
       }
@@ -1281,15 +1291,19 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
         targetUser: appeal.appellant,
         targetPost: appeal.targetPost || null,
         targetComment: appeal.targetComment || null,
-        reason: adminNotes || "Appeal reviewed and approved by administrator",
-        details: `Strike decremented: ${decrementStrike}. Content restored: ${restoreContent}.`,
+        reason: adminNotes || (isAccountBanAppeal ? "Account ban appeal approved by administrator" : "Appeal reviewed and approved by administrator"),
+        details: isAccountBanAppeal
+          ? `Account unbanned. Strike decremented: ${decrementStrike}.`
+          : `Strike decremented: ${decrementStrike}. Content restored: ${restoreContent}.`,
       });
 
       // 4. Notify user
       await createSystemNotification({
         recipientId: appeal.appellant,
         type: "report_accepted",
-        message: "Your moderation appeal has been APPROVED by an administrator. Your strike has been revoked and standing updated.",
+        message: isAccountBanAppeal
+          ? "Your account ban appeal has been APPROVED by an administrator. Your suspension has been lifted."
+          : "Your moderation appeal has been APPROVED by an administrator. Your strike has been revoked and standing updated.",
       });
     } else {
       // Rejected
@@ -1299,20 +1313,24 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
         targetUser: appeal.appellant,
         targetPost: appeal.targetPost || null,
         targetComment: appeal.targetComment || null,
-        reason: adminNotes || "Appeal denied by administrator",
+        reason: adminNotes || (isAccountBanAppeal ? "Account ban appeal denied by administrator" : "Appeal denied by administrator"),
         details: `Admin notes: ${adminNotes}`,
       });
 
       await createSystemNotification({
         recipientId: appeal.appellant,
         type: "system",
-        message: `Your moderation appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`,
+        message: isAccountBanAppeal
+          ? `Your account ban appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`
+          : `Your moderation appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`,
       });
     }
 
     return res.json({
       success: true,
-      message: status === "approved" ? "Appeal approved and strike penalty revoked" : "Appeal rejected",
+      message: status === "approved"
+        ? (isAccountBanAppeal ? "Appeal approved and account ban lifted" : "Appeal approved and strike penalty revoked")
+        : "Appeal rejected",
       appeal: appeal.toJSON(),
       updatedStrikes: appellant?.moderationStrikes ?? 0,
       isBanned: appellant?.isBanned ?? false,

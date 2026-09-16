@@ -22,7 +22,7 @@ export default function GoogleAuthButton({ onError, onRequiresUsername }) {
       login(data.user, data.token)
       navigate('/')
     } catch (err) {
-      if (onError) onError(err.message)
+      if (onError) onError(err.message, err.data)
     } finally {
       setLoading(false)
     }

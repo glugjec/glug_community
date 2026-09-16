@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { User } from "../models/User.js";
+import { Appeal } from "../models/Appeal.js";
 
 export function signToken(user) {
   const secret = process.env.JWT_SECRET || "glug-secret-key-development";
@@ -62,13 +63,32 @@ export async function requireAuth(req, res, next) {
           return next();
         }
 
+        const appealToken = jwt.sign(
+          { id: dbUser._id.toString(), email: dbUser.email, role: dbUser.role, isBanned: true },
+          process.env.JWT_SECRET || "glug-secret-key-development",
+          { expiresIn: "24h" }
+        );
+
+        const pendingAppeal = await Appeal.findOne({
+          appellant: dbUser._id,
+          $or: [{ itemType: "account_ban" }, { originalCategory: "account_ban" }],
+          status: "pending",
+        }).select("statement createdAt status").lean();
+
         return res.status(403).json({
           error: dbUser.banExpiresAt
             ? `Your account has been temporarily suspended until ${new Date(dbUser.banExpiresAt).toLocaleString()}.`
             : "Your account has been suspended by an administrator.",
           isBanned: true,
           banReason: dbUser.banReason || "Violation of community guidelines",
-          banExpiresAt: dbUser.banExpiresAt,
+          bannedAt: dbUser.bannedAt,
+          banExpiresAt: dbUser.banExpiresAt || null,
+          appealToken,
+          pendingAppeal: pendingAppeal ? {
+            statement: pendingAppeal.statement,
+            createdAt: pendingAppeal.createdAt,
+            status: pendingAppeal.status,
+          } : null,
         });
       }
     }

@@ -10,7 +10,7 @@ const appealSchema = new mongoose.Schema(
     },
     itemType: {
       type: String,
-      enum: ["post", "comment", "message", "strike"],
+      enum: ["post", "comment", "message", "strike", "account_ban"],
       default: "strike",
       required: true,
     },

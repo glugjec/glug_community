@@ -169,6 +169,7 @@ export default function AdminDashboard() {
   const [appeals, setAppeals] = useState([]);
   const [loadingAppeals, setLoadingAppeals] = useState(false);
   const [appealStatusFilter, setAppealStatusFilter] = useState("pending");
+  const [appealCategoryFilter, setAppealCategoryFilter] = useState("all");
   const [appealToResolve, setAppealToResolve] = useState(null);
   const [appealResolveForm, setAppealResolveForm] = useState({
     status: "approved",
@@ -1840,10 +1841,19 @@ export default function AdminDashboard() {
                       loadAppeals(val);
                     }}
                   >
-                    <option value="all">All Appeals</option>
+                    <option value="all">All Statuses</option>
                     <option value="pending">Pending Appeals</option>
                     <option value="approved">Approved Appeals</option>
                     <option value="rejected">Rejected Appeals</option>
+                  </select>
+                  <select
+                    className="admin-select"
+                    value={appealCategoryFilter}
+                    onChange={(e) => setAppealCategoryFilter(e.target.value)}
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="account_ban">Account Bans</option>
+                    <option value="content_strike">Strikes & Content</option>
                   </select>
                   <button
                     type="button"
@@ -1863,7 +1873,7 @@ export default function AdminDashboard() {
                   <thead>
                     <tr>
                       <th>Appellant</th>
-                      <th>Item / Strike</th>
+                      <th>Item / Category</th>
                       <th>Original Reason</th>
                       <th>User Statement</th>
                       <th>Status</th>
@@ -1878,7 +1888,15 @@ export default function AdminDashboard() {
                           <span>Loading appeals...</span>
                         </td>
                       </tr>
-                    ) : appeals.length === 0 ? (
+                    ) : appeals.filter((a) => {
+                        if (appealCategoryFilter === "account_ban") {
+                          return a.itemType === "account_ban" || a.originalCategory === "account_ban";
+                        }
+                        if (appealCategoryFilter === "content_strike") {
+                          return a.itemType !== "account_ban" && a.originalCategory !== "account_ban";
+                        }
+                        return true;
+                      }).length === 0 ? (
                       <tr>
                         <td colSpan="6" className="admin-table-empty">
                           <CheckCircle2 size={26} className="text-emerald" />
@@ -1886,7 +1904,17 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
                     ) : (
-                      appeals.map((a) => (
+                      appeals
+                        .filter((a) => {
+                          if (appealCategoryFilter === "account_ban") {
+                            return a.itemType === "account_ban" || a.originalCategory === "account_ban";
+                          }
+                          if (appealCategoryFilter === "content_strike") {
+                            return a.itemType !== "account_ban" && a.originalCategory !== "account_ban";
+                          }
+                          return true;
+                        })
+                        .map((a) => (
                         <tr key={a.id || a._id}>
                           <td>
                             <div className="admin-user-cell">
@@ -1906,20 +1934,40 @@ export default function AdminDashboard() {
                           <td>
                             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                                {a.itemType !== "strike" && (
-                                  <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
-                                    {a.itemType}
+                                {a.itemType === "account_ban" || a.originalCategory === "account_ban" ? (
+                                  <span
+                                    className="admin-badge danger"
+                                    style={{
+                                      background: "rgba(239, 68, 68, 0.2)",
+                                      color: "#f87171",
+                                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                                      fontWeight: 700,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                  >
+                                    <ShieldAlert size={12} />
+                                    <span>Account Ban</span>
                                   </span>
+                                ) : (
+                                  <>
+                                    {a.itemType !== "strike" && (
+                                      <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
+                                        {a.itemType}
+                                      </span>
+                                    )}
+                                    {a.strikeIndex ? (
+                                      <span className="admin-badge warning">
+                                        Strike #{a.strikeIndex}
+                                      </span>
+                                    ) : a.itemType === "strike" ? (
+                                      <span className="admin-badge warning">
+                                        Strike
+                                      </span>
+                                    ) : null}
+                                  </>
                                 )}
-                                {a.strikeIndex ? (
-                                  <span className="admin-badge warning">
-                                    Strike #{a.strikeIndex}
-                                  </span>
-                                ) : a.itemType === "strike" ? (
-                                  <span className="admin-badge warning">
-                                    Strike
-                                  </span>
-                                ) : null}
                               </div>
                               {a.targetPost?.title && (
                                 <Link
@@ -1974,7 +2022,7 @@ export default function AdminDashboard() {
                               </span>
                               {a.originalCategory && (
                                 <span className="admin-date-subtext" style={{ textTransform: "capitalize" }}>
-                                  Category: {a.originalCategory}
+                                  Category: {a.originalCategory === "account_ban" ? "Account Ban" : a.originalCategory}
                                 </span>
                               )}
                             </div>
@@ -3403,136 +3451,166 @@ export default function AdminDashboard() {
       )}
 
       {/* MODERATION MODAL: RESOLVE APPEAL */}
-      {appealToResolve && (
-        <div className="admin-modal-overlay" onClick={() => setAppealToResolve(null)}>
-          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
-            <div className="admin-modal-header">
-              <h2 className="admin-modal-title">
-                <FileText size={20} className="text-yellow" />
-                <span>Resolve Strike Appeal</span>
-              </h2>
-              <button
-                type="button"
-                className="admin-modal-close"
-                onClick={() => setAppealToResolve(null)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleResolveAppealSubmit}>
-              <div className="admin-user-summary-box" style={{ marginBottom: "14px" }}>
-                <div className="admin-user-summary-top">
-                  <span className="admin-username" style={{ fontSize: "0.95rem" }}>
-                    @{appealToResolve.appellant?.username || "unknown"}
-                  </span>
-                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                    <span className="admin-badge warning">
-                      {appealToResolve.appellant?.moderationStrikes || 0} Strikes
-                    </span>
-                    {appealToResolve.appellant?.isBanned && (
-                      <span className="admin-badge danger">Suspended</span>
-                    )}
-                  </div>
-                </div>
-                {appealToResolve.statement && (
-                  <p className="admin-user-summary-quote">
-                    "{appealToResolve.statement}"
-                  </p>
-                )}
-              </div>
-
-              <div className="admin-form-group">
-                <label className="admin-form-label">Decision *</label>
-                <div className="admin-decision-toggles">
-                  <button
-                    type="button"
-                    className={`admin-decision-btn ${appealResolveForm.status === "approved" ? "approve-active" : ""}`}
-                    onClick={() => setAppealResolveForm({ ...appealResolveForm, status: "approved" })}
-                  >
-                    <CheckCircle2 size={16} />
-                    <span>Approve Appeal</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`admin-decision-btn ${appealResolveForm.status === "rejected" ? "deny-active" : ""}`}
-                    onClick={() => setAppealResolveForm({ ...appealResolveForm, status: "rejected" })}
-                  >
-                    <XCircle size={16} />
-                    <span>Deny Appeal</span>
-                  </button>
-                </div>
-              </div>
-
-              {appealResolveForm.status === "approved" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "14px 0" }}>
-                  <div className={`admin-checkbox-card success ${appealResolveForm.decrementStrike ? "is-checked" : ""}`}>
-                    <label className="admin-checkbox-label">
-                      <input
-                        type="checkbox"
-                        className="admin-native-checkbox"
-                        checked={appealResolveForm.decrementStrike}
-                        onChange={(e) => setAppealResolveForm({ ...appealResolveForm, decrementStrike: e.target.checked })}
-                      />
-                      <span className="admin-custom-checkbox">
-                        <Check size={13} strokeWidth={3} />
-                      </span>
-                      <span className="admin-checkbox-text">Revoke / decrement 1 moderation strike</span>
-                    </label>
-                  </div>
-                  <div className={`admin-checkbox-card success ${appealResolveForm.restoreContent ? "is-checked" : ""}`}>
-                    <label className="admin-checkbox-label">
-                      <input
-                        type="checkbox"
-                        className="admin-native-checkbox"
-                        checked={appealResolveForm.restoreContent}
-                        onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
-                      />
-                      <span className="admin-custom-checkbox">
-                        <Check size={13} strokeWidth={3} />
-                      </span>
-                      <span className="admin-checkbox-text">Restore flagged content to public view (unhide)</span>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              <div className="admin-form-group" style={{ marginTop: "12px" }}>
-                <label className="admin-form-label">Administrator Response Note</label>
-                <textarea
-                  className="admin-form-textarea"
-                  rows={3}
-                  placeholder={appealResolveForm.status === "approved" ? "Optional message to user..." : "Reason for denying appeal (sent to user)..."}
-                  value={appealResolveForm.adminNotes}
-                  onChange={(e) => setAppealResolveForm({ ...appealResolveForm, adminNotes: e.target.value })}
-                />
-              </div>
-
-              <div className="admin-modal-actions">
+      {appealToResolve && (() => {
+        const isAccountBanAppeal = appealToResolve.itemType === "account_ban" || appealToResolve.originalCategory === "account_ban";
+        return (
+          <div className="admin-modal-overlay" onClick={() => setAppealToResolve(null)}>
+            <div className="admin-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
+              <div className="admin-modal-header">
+                <h2 className="admin-modal-title">
+                  {isAccountBanAppeal ? (
+                    <ShieldAlert size={20} className="text-red" />
+                  ) : (
+                    <FileText size={20} className="text-yellow" />
+                  )}
+                  <span>{isAccountBanAppeal ? "Resolve Account Ban Appeal" : "Resolve Strike Appeal"}</span>
+                </h2>
                 <button
                   type="button"
-                  className="admin-cancel-btn"
-                  disabled={isResolvingAppeal}
+                  className="admin-modal-close"
                   onClick={() => setAppealToResolve(null)}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="admin-primary-btn"
-                  disabled={isResolvingAppeal}
-                  style={{
-                    background: appealResolveForm.status === "approved" ? "#10b981" : "#ef4444",
-                    borderColor: appealResolveForm.status === "approved" ? "#10b981" : "#ef4444",
-                  }}
-                >
-                  {isResolvingAppeal ? "Saving..." : appealResolveForm.status === "approved" ? "Approve & Revoke Strike" : "Deny Appeal"}
+                  <X size={18} />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleResolveAppealSubmit}>
+                <div className="admin-user-summary-box" style={{ marginBottom: "14px" }}>
+                  <div className="admin-user-summary-top">
+                    <span className="admin-username" style={{ fontSize: "0.95rem" }}>
+                      @{appealToResolve.appellant?.username || "unknown"}
+                    </span>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                      {isAccountBanAppeal && (
+                        <span
+                          className="admin-badge danger"
+                          style={{
+                            background: "rgba(239, 68, 68, 0.2)",
+                            color: "#f87171",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Account Ban
+                        </span>
+                      )}
+                      <span className="admin-badge warning">
+                        {appealToResolve.appellant?.moderationStrikes || 0} Strikes
+                      </span>
+                      {appealToResolve.appellant?.isBanned && (
+                        <span className="admin-badge danger">Suspended</span>
+                      )}
+                    </div>
+                  </div>
+                  {appealToResolve.statement && (
+                    <p className="admin-user-summary-quote">
+                      "{appealToResolve.statement}"
+                    </p>
+                  )}
+                </div>
+
+                <div className="admin-form-group">
+                  <label className="admin-form-label">Decision *</label>
+                  <div className="admin-decision-toggles">
+                    <button
+                      type="button"
+                      className={`admin-decision-btn ${appealResolveForm.status === "approved" ? "approve-active" : ""}`}
+                      onClick={() => setAppealResolveForm({ ...appealResolveForm, status: "approved" })}
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>{isAccountBanAppeal ? "Approve & Unban" : "Approve Appeal"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-decision-btn ${appealResolveForm.status === "rejected" ? "deny-active" : ""}`}
+                      onClick={() => setAppealResolveForm({ ...appealResolveForm, status: "rejected" })}
+                    >
+                      <XCircle size={16} />
+                      <span>Deny Appeal</span>
+                    </button>
+                  </div>
+                </div>
+
+                {appealResolveForm.status === "approved" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "14px 0" }}>
+                    <div className={`admin-checkbox-card success ${appealResolveForm.decrementStrike ? "is-checked" : ""}`}>
+                      <label className="admin-checkbox-label">
+                        <input
+                          type="checkbox"
+                          className="admin-native-checkbox"
+                          checked={appealResolveForm.decrementStrike}
+                          onChange={(e) => setAppealResolveForm({ ...appealResolveForm, decrementStrike: e.target.checked })}
+                        />
+                        <span className="admin-custom-checkbox">
+                          <Check size={13} strokeWidth={3} />
+                        </span>
+                        <span className="admin-checkbox-text">
+                          {isAccountBanAppeal
+                            ? "Lift account suspension and restore access"
+                            : "Revoke / decrement 1 moderation strike"}
+                        </span>
+                      </label>
+                    </div>
+                    {!isAccountBanAppeal && (
+                      <div className={`admin-checkbox-card success ${appealResolveForm.restoreContent ? "is-checked" : ""}`}>
+                        <label className="admin-checkbox-label">
+                          <input
+                            type="checkbox"
+                            className="admin-native-checkbox"
+                            checked={appealResolveForm.restoreContent}
+                            onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
+                          />
+                          <span className="admin-custom-checkbox">
+                            <Check size={13} strokeWidth={3} />
+                          </span>
+                          <span className="admin-checkbox-text">Restore flagged content to public view (unhide)</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="admin-form-group" style={{ marginTop: "12px" }}>
+                  <label className="admin-form-label">Administrator Response Note</label>
+                  <textarea
+                    className="admin-form-textarea"
+                    rows={3}
+                    placeholder={appealResolveForm.status === "approved" ? "Optional message to user..." : "Reason for denying appeal (sent to user)..."}
+                    value={appealResolveForm.adminNotes}
+                    onChange={(e) => setAppealResolveForm({ ...appealResolveForm, adminNotes: e.target.value })}
+                  />
+                </div>
+
+                <div className="admin-modal-actions">
+                  <button
+                    type="button"
+                    className="admin-cancel-btn"
+                    disabled={isResolvingAppeal}
+                    onClick={() => setAppealToResolve(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="admin-primary-btn"
+                    disabled={isResolvingAppeal}
+                    style={{
+                      background: appealResolveForm.status === "approved" ? "#10b981" : "#ef4444",
+                      borderColor: appealResolveForm.status === "approved" ? "#10b981" : "#ef4444",
+                    }}
+                  >
+                    {isResolvingAppeal
+                      ? "Saving..."
+                      : appealResolveForm.status === "approved"
+                      ? (isAccountBanAppeal ? "Approve & Unban User" : "Approve & Revoke Strike")
+                      : "Deny Appeal"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODERATION MODAL 4: VIEW FLAGGED CONTENT */}
       {viewItemModal && (
