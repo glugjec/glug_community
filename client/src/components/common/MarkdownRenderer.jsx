@@ -29,11 +29,13 @@ export default function MarkdownRenderer({ content = '', className = '' }) {
   const cleanHtml = useMemo(() => {
     if (!content || typeof content !== 'string') return ''
     try {
-      const hasHtmlTags = /<\/?(?:p|div|span|h[1-6]|ul|ol|li|strong|em|b|i|u|s|blockquote|pre|code|a|img|table|tr|td|th|br|hr)\b/i.test(content)
-      const rawHtml = hasHtmlTags ? content : marked.parse(content)
+      const isPureHtml =
+        /^\s*<(?:p|div|h[1-6]|ul|ol|blockquote|pre)\b/i.test(content) &&
+        !/(?:^|\n)#{1,6}\s|(?:^|\n)\s*[-*+]\s|(?:^|\n)\s*\d+\.\s|\*\*|```/m.test(content)
+      const rawHtml = isPureHtml ? content : marked.parse(content)
       return DOMPurify.sanitize(rawHtml, {
-        ADD_ATTR: ['target', 'rel', 'loading'],
-        ADD_TAGS: ['img']
+        ADD_ATTR: ['target', 'rel', 'loading', 'class', 'style'],
+        ADD_TAGS: ['img', 'code', 'pre']
       })
     } catch {
       return DOMPurify.sanitize(content)
