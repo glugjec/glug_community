@@ -220,6 +220,26 @@ export const uploadApi = {
     formData.append('image', file);
     return client.post('/upload', formData);
   },
+  uploadMultiple: (files) => {
+    const formData = new FormData();
+    Array.from(files).forEach((file) => {
+      formData.append('images', file);
+    });
+    return client.post('/upload/multiple', formData);
+  },
+};
+
+export const eventsApi = {
+  list: (params = {}) => client.get('/events', { params }),
+  getUpcoming: (limit = 5) => client.get('/events/upcoming', { params: { limit } }),
+  getStats: () => client.get('/events/stats'),
+  get: (idOrSlug) => client.get(`/events/${idOrSlug}`),
+  create: (data) => client.post('/events', data),
+  update: (id, data) => client.put(`/events/${id}`, data),
+  delete: (id) => client.delete(`/events/${id}`),
+  addGalleryPhotos: (id, images) => client.post(`/events/${id}/gallery`, { images }),
+  deleteGalleryPhoto: (id, imageId) => client.delete(`/events/${id}/gallery/${imageId}`),
+  updateStatus: (id, status) => client.patch(`/events/${id}/status`, { status }),
 };
 
 export const notificationsApi = {
@@ -230,5 +250,6 @@ export const notificationsApi = {
 };
 
 export default api;
+
 
 

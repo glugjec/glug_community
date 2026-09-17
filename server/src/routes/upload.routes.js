@@ -104,4 +104,45 @@ router.post('/', requireAuth, upload.single('image'), async (req, res) => {
   }
 });
 
+router.post('/multiple', requireAuth, upload.array('images', 15), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No image files provided' });
+    }
+
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      return res.status(500).json({ error: 'Cloudinary credentials are not configured on server' });
+    }
+
+    const uploadPromises = req.files.map((file) => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'glug/events',
+            resource_type: 'image',
+            transformation: [{ quality: 'auto:good', fetch_format: 'auto' }],
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve({
+              url: result.secure_url,
+              publicId: result.public_id,
+              bytes: result.bytes,
+              format: result.format,
+            });
+          }
+        );
+        stream.end(file.buffer);
+      });
+    });
+
+    const results = await Promise.all(uploadPromises);
+    res.json({ images: results });
+  } catch (err) {
+    console.error('[Upload Multiple Error]', err);
+    res.status(500).json({ error: err.message || 'Failed to upload images' });
+  }
+});
+
 export default router;
+

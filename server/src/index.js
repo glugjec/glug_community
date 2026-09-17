@@ -14,6 +14,7 @@ import compileRoutes from './routes/compile.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
+import eventRoutes from './routes/events.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -79,6 +80,7 @@ app.use('/api', compileRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/events', eventRoutes);
 
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
@@ -229,6 +231,14 @@ async function autoSeedIfEmpty() {
       await Vote.create({ user: studentPriya._id, post: p1._id, value: 1 });
 
       console.log('[Database] Demo GLUG content seeded successfully.');
+    }
+
+    const { Event } = await import('./models/Event.js');
+    const eventCount = await Event.countDocuments();
+    if (eventCount === 0) {
+      const { seedEvents } = await import('./scripts/seedEvents.js');
+      await seedEvents();
+      console.log('[Database] Demo events seeded successfully.');
     }
   } catch (err) {
     console.warn('[Database] Auto-seed check skipped or failed:', err.message);

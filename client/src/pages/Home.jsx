@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { postsApi } from '../api.js'
+import { postsApi, eventsApi } from '../api.js'
 import { discussionsCache } from '../utils/discussionsCache.js'
 import { avatarInitials, avatarColor } from '../components/common/avatar.js'
 import { formatRelativeTime } from '../utils/timeAgo.js'
@@ -284,6 +284,7 @@ export default function Home() {
   const [loadingDiscussions, setLoadingDiscussions] = useState(() => !cachedRecent?.data?.length)
   const cachedStats = discussionsCache.get('community_stats')
   const [stats, setStats] = useState(() => cachedStats?.data || null)
+  const [upcomingEvents, setUpcomingEvents] = useState([])
 
   useEffect(() => {
     let isMounted = true
@@ -292,6 +293,13 @@ export default function Home() {
       discussionsCache.set('community_stats', data, 60000)
       setStats(data)
     }).catch(() => {})
+
+    eventsApi.getUpcoming(3).then((res) => {
+      if (isMounted && res?.events) {
+        setUpcomingEvents(res.events)
+      }
+    }).catch(() => {})
+
     return () => {
       isMounted = false
     }
@@ -559,33 +567,65 @@ export default function Home() {
         <div className="home-widget-card events-card">
           <div className="events-card-header">
             <h3 className="widget-card-title">Upcoming Events</h3>
-            <Link to="/forum?category=events" className="events-view-all">
+            <Link to="/events" className="events-view-all">
               View all <ArrowRight size={13} />
             </Link>
           </div>
 
           <div className="events-list">
-            {UPCOMING_EVENTS.map((evt) => (
-              <div key={evt.id} className="event-item">
-                <div
-                  className="event-icon-box"
-                  style={{ background: evt.iconBg, color: evt.iconColor }}
+            {(upcomingEvents.length > 0 ? upcomingEvents : UPCOMING_EVENTS).map((evt) => {
+              const isReal = Boolean(evt._id)
+              const eventDate = isReal
+                ? new Date(evt.startDate).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  }) + (evt.time ? ` · ${evt.time}` : '')
+                : evt.date
+              const eventLoc = isReal
+                ? evt.locationType === 'virtual'
+                  ? 'Online Virtual'
+                  : evt.venue || 'Campus'
+                : evt.location
+
+              return (
+                <Link
+                  key={evt._id || evt.id}
+                  to={isReal ? `/events/${evt.slug || evt._id}` : '/events'}
+                  className="event-item"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
                 >
-                  <Calendar size={17} />
-                </div>
-                <div className="event-info">
-                  <h4 className="event-title">{evt.title}</h4>
-                  <div className="event-sub">
-                    <span>{evt.date}</span>
+                  <div
+                    className="event-icon-box"
+                    style={{
+                      background: evt.bannerUrl ? '#0f172a' : evt.iconBg || '#172554',
+                      color: evt.iconColor || '#38bdf8',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {evt.bannerUrl ? (
+                      <img
+                        src={evt.bannerUrl}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <Calendar size={17} />
+                    )}
                   </div>
-                  <div className="event-location">
-                    <MapPin size={11} />
-                    <span>{evt.location}</span>
+                  <div className="event-info">
+                    <h4 className="event-title">{evt.title}</h4>
+                    <div className="event-sub">
+                      <span>{eventDate}</span>
+                    </div>
+                    <div className="event-location">
+                      <MapPin size={11} />
+                      <span>{eventLoc}</span>
+                    </div>
                   </div>
-                </div>
-                <ChevronRight size={16} className="event-arrow" />
-              </div>
-            ))}
+                  <ChevronRight size={16} className="event-arrow" />
+                </Link>
+              )
+            })}
           </div>
         </div>
 

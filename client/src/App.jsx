@@ -19,6 +19,8 @@ import Register from './pages/Register.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import PlaceholderPage from './pages/PlaceholderPage.jsx'
 import About from './pages/About.jsx'
+import Events from './pages/Events.jsx'
+import EventDetail from './pages/EventDetail.jsx'
 import { Users, Calendar, Info, FileText } from 'lucide-react'
 
 export default function App() {
@@ -65,16 +67,8 @@ export default function App() {
             <Route path="/chat" element={<Chat />} />
             <Route path="/chat/:userId" element={<Chat />} />
             <Route path="/messages" element={<Chat />} />
-            <Route
-              path="/events"
-              element={
-                <PlaceholderPage
-                  title="GLUG Events & Workshops"
-                  subtitle="Discover upcoming installation drives, hackathons, guest lectures, and student meetups."
-                  icon={Calendar}
-                />
-              }
-            />
+            <Route path="/events" element={<Events />} />
+            <Route path="/events/:idOrSlug" element={<EventDetail />} />
             <Route path="/about" element={<About />} />
             <Route path="*" element={<Home />} />
           </Route>

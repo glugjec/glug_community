@@ -51,6 +51,7 @@ import { adminApi, resourcesApi } from "../api.js";
 import ConfirmDeleteModal from "../components/common/ConfirmDeleteModal.jsx";
 import { avatarInitials, avatarColor } from "../components/common/avatar.js";
 import MarkdownRenderer from "../components/common/MarkdownRenderer.jsx";
+import AdminEvents from "../components/admin/AdminEvents.jsx";
 import "./AdminDashboard.css";
 
 function stripHtml(str = "") {
@@ -1084,6 +1085,14 @@ export default function AdminDashboard() {
                 {stats.flaggedCount}
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeTab === "events" ? "active" : ""}`}
+            onClick={() => setSearchParams({ tab: "events" })}
+          >
+            <Calendar size={16} />
+            <span>Events</span>
           </button>
           <button
             type="button"
@@ -3195,6 +3204,12 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === "events" && (
+        <div className="admin-tab-content">
+          <AdminEvents />
         </div>
       )}
 
