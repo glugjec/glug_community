@@ -22,104 +22,6 @@ import {
 } from 'lucide-react'
 import './Home.css'
 
-const DEFAULT_DISCUSSIONS = [
-  {
-    id: 'distro-2025',
-    title: 'Best Linux distro for beginners in 2025?',
-    author: 'ananya',
-    timeAgo: '2 hours ago',
-    tags: [
-      { label: 'Linux', color: '#3b82f6' },
-      { label: 'Beginner', color: '#64748b' }
-    ],
-    replies: 12,
-    views: 245,
-    lastReply: {
-      time: '5 min ago',
-      user: 'kevin',
-      avatarColor: '#10b981'
-    },
-    avatarType: 'tux',
-    avatarBg: '#0f172a'
-  },
-  {
-    id: 'dual-boot-win11',
-    title: 'How to dual boot Ubuntu with Windows 11?',
-    author: 'rishabh',
-    timeAgo: '5 hours ago',
-    tags: [
-      { label: 'Installation', color: '#3b82f6' },
-      { label: 'Support', color: '#6366f1' }
-    ],
-    replies: 8,
-    views: 160,
-    lastReply: {
-      time: '1 hour ago',
-      user: 'arjun',
-      avatarColor: '#f59e0b'
-    },
-    avatarType: 'letter',
-    avatarLetter: 'R',
-    avatarBg: '#ea580c'
-  },
-  {
-    id: 'useful-terminal-commands',
-    title: 'Useful terminal commands everyone should know',
-    author: 'kaustubh',
-    timeAgo: '1 day ago',
-    tags: [
-      { label: 'Tips & Tricks', color: '#8b5cf6' },
-      { label: 'Command Line', color: '#64748b' }
-    ],
-    replies: 24,
-    views: 398,
-    lastReply: {
-      time: '3 hours ago',
-      user: 'devansh',
-      avatarColor: '#06b6d4'
-    },
-    avatarType: 'icon-terminal',
-    avatarBg: '#059669'
-  },
-  {
-    id: 'sys-programming-resources',
-    title: 'Resources to learn system programming',
-    author: 'kaustubh',
-    timeAgo: '1 day ago',
-    tags: [
-      { label: 'Programming', color: '#3b82f6' },
-      { label: 'Resources', color: '#6366f1' }
-    ],
-    replies: 15,
-    views: 312,
-    lastReply: {
-      time: '4 hours ago',
-      user: 'isha',
-      avatarColor: '#ec4899'
-    },
-    avatarType: 'icon-code',
-    avatarBg: '#9333ea'
-  },
-  {
-    id: 'gluginit-planning',
-    title: 'Planning GLUGINIT – Linux Installation Drive',
-    author: 'team-glug',
-    timeAgo: '2 days ago',
-    tags: [
-      { label: 'Events', color: '#3b82f6' },
-      { label: 'GLUG', color: '#64748b' }
-    ],
-    replies: 18,
-    views: 521,
-    lastReply: {
-      time: '6 hours ago',
-      user: 'tarun',
-      avatarColor: '#3b82f6'
-    },
-    avatarType: 'icon-users',
-    avatarBg: '#2563eb'
-  }
-]
 
 function UserAvatar({ src, username, size = 24, className = '' }) {
   const [error, setError] = useState(false)
@@ -357,11 +259,11 @@ export default function Home() {
           discussionsCache.set('home_recent_5', formatted, 60000)
           setDiscussions(formatted)
         } else {
-          setDiscussions(DEFAULT_DISCUSSIONS)
+          setDiscussions([])
         }
       } catch {
         if (!cachedRecent?.data?.length) {
-          setDiscussions(DEFAULT_DISCUSSIONS)
+          setDiscussions([])
         }
       } finally {
         if (isMounted) {
@@ -427,6 +329,14 @@ export default function Home() {
                   </div>
                 </div>
               ))
+            ) : discussions.length === 0 ? (
+              <div className="events-empty-inline">
+                <MessageSquare size={22} className="events-empty-icon" />
+                <p>No discussions found</p>
+                <Link to="/forum" className="events-browse-link">
+                  Start a discussion in the forum <ArrowRight size={12} />
+                </Link>
+              </div>
             ) : (
               discussions.map((item) => (
                 <div

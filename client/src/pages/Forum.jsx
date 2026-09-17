@@ -52,13 +52,6 @@ const CATEGORIES_LIST = [
   { id: 'help', name: 'Help & Support', icon: 'help', color: '#22c55e' },
 ]
 
-const TRENDING_TOPICS = [
-  { id: 'distro-2025', rank: 1, title: 'Best Linux distro for beginners?', replies: 32 },
-  { id: 'useful-cmds', rank: 2, title: 'Useful terminal commands', replies: 24 },
-  { id: 'gluginit-plan', rank: 3, title: 'Planning GLUGINIT', replies: 18 },
-  { id: 'dual-boot', rank: 4, title: 'Dual boot Ubuntu with Windows 11', replies: 8 },
-  { id: 'os-alts', rank: 5, title: 'Open source alternatives', replies: 9 },
-]
 
 function renderPostIcon(type) {
   if (type === 'pin') return <Pin size={17} />
@@ -191,6 +184,34 @@ export default function Forum() {
       discussionsCache.set('community_stats', data, 60000)
       setStats(data)
     }).catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const [trendingPosts, setTrendingPosts] = useState([])
+  const [loadingTrending, setLoadingTrending] = useState(true)
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchTrending = async () => {
+      try {
+        setLoadingTrending(true)
+        const res = await postsApi.list({ sort: 'top', limit: 5 })
+        const list = Array.isArray(res) ? res : (res?.posts || [])
+        if (isMounted) {
+          setTrendingPosts(list.slice(0, 5))
+          setLoadingTrending(false)
+        }
+      } catch {
+        if (isMounted) {
+          setTrendingPosts([])
+          setLoadingTrending(false)
+        }
+      }
+    }
+
+    fetchTrending()
     return () => {
       isMounted = false
     }
@@ -957,29 +978,61 @@ export default function Forum() {
 
         <div className="forum-widget-card trending-widget">
           <div className="widget-header-row">
-            <h4 className="widget-card-title">🔥 Trending This Week</h4>
-            <span className="widget-view-all">View all <ArrowRight size={13} /></span>
+            <h4 className="widget-card-title">
+              <Flame size={16} color="#f97316" className="trending-flame-icon" />
+              <span>Trending This Week</span>
+            </h4>
+            <button
+              type="button"
+              className="widget-view-all"
+              onClick={() => {
+                setActiveTab('trending')
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            >
+              View all <ArrowRight size={13} />
+            </button>
           </div>
 
           <div className="trending-list">
-            {TRENDING_TOPICS.map((t) => (
-              <div
-                key={t.id}
-                className="trending-item"
-                onClick={() => navigate(`/forum/posts/${t.id}`)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') navigate(`/forum/posts/${t.id}`)
-                }}
-              >
-                <div className="trending-rank-badge">{t.rank}</div>
-                <div className="trending-info">
-                  <h5 className="trending-title">{t.title}</h5>
-                  <span className="trending-replies">{t.replies} replies</span>
-                </div>
+            {loadingTrending ? (
+              <div className="trending-skeleton-wrap">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <div key={n} className="trending-skeleton-item">
+                    <div className="trending-skeleton-badge" />
+                    <div className="trending-skeleton-info">
+                      <div className="trending-skeleton-line title" />
+                      <div className="trending-skeleton-line replies" />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : trendingPosts.length === 0 ? (
+              <div className="trending-empty">No trending discussions yet</div>
+            ) : (
+              trendingPosts.map((t, idx) => {
+                const postId = t._id || t.id
+                const replyCount = t.commentCount ?? (t.comments ? t.comments.length : 0)
+                return (
+                  <div
+                    key={postId}
+                    className="trending-item"
+                    onClick={() => navigate(`/forum/posts/${postId}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') navigate(`/forum/posts/${postId}`)
+                    }}
+                  >
+                    <div className="trending-rank-badge">{idx + 1}</div>
+                    <div className="trending-info">
+                      <h5 className="trending-title">{t.title}</h5>
+                      <span className="trending-replies">{replyCount} replies</span>
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         </div>
 

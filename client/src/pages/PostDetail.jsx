@@ -536,87 +536,14 @@ function CommentThreadItem({
   )
 }
 
-const DEMO_DISCUSSION = {
-  id: 'distro-2025',
-  title: 'Best Linux distro for beginners in 2025?',
-  body: `Hi everyone!\n\nI'm new to Linux and planning to switch from Windows. Which Linux distribution would you recommend for a beginner in 2025? I'm looking for something stable, user-friendly, and with good community support. Also, any tips for a smooth transition would be really helpful!\n\nThanks in advance!`,
-  category: 'Linux',
-  tags: ['Linux', 'Beginner'],
-  allTags: ['Linux', 'Beginner', 'Help', 'Installation', 'Distribution'],
-  voteScore: 24,
-  userVote: 0,
-  views: '1.2K',
-  createdAt: '2 hours ago',
-  author: {
-    username: 'ananya',
-    role: 'Original Poster'
-  },
-  comments: [
-    {
-      id: 'c1',
-      author: {
-        username: 'devansh',
-        role: 'Core Member'
-      },
-      createdAt: '2 hours ago',
-      body: `For beginners, I'd recommend Linux Mint. It's user-friendly, stable, and has a familiar desktop environment. If you like a more modern look, Ubuntu is also a great choice.`,
-      voteScore: 18,
-      userVote: 0,
-      isAccepted: false
-    },
-    {
-      id: 'c2',
-      author: {
-        username: 'isha',
-        role: 'Community Moderator'
-      },
-      createdAt: '1 hour ago',
-      body: `Here are some beginner-friendly distros in 2025:\n1. Linux Mint – simple, stable, great community\n2. Ubuntu – beginner friendly, lots of documentation\n3. Fedora – modern and up-to-date\n4. Zorin OS – clean and Windows-like interface\n5. Pop!_OS – great for students and developers\n\nNo matter which one you choose, here are a few tips:\n• Don't worry about breaking things — you'll learn!\n• Keep backups of important files\n• Explore and be part of the community (like GLUG! 😊)`,
-      voteScore: 32,
-      userVote: 0,
-      isAccepted: true
-    }
-  ]
+function getCategoryIcon(cat) {
+  const c = (cat || '').toLowerCase()
+  if (c.includes('terminal') || c.includes('command')) return { icon: Terminal, bg: '#1e293b', color: '#94a3b8' }
+  if (c.includes('program') || c.includes('code')) return { icon: Code, bg: '#3b0764', color: '#c084fc' }
+  if (c.includes('game') || c.includes('app') || c.includes('open-source')) return { icon: Gamepad2, bg: '#064e3b', color: '#34d399' }
+  if (c.includes('install') || c.includes('linux') || c.includes('os')) return { icon: Monitor, bg: '#1e3a8a', color: '#60a5fa' }
+  return { icon: MessageSquare, bg: '#1e293b', color: '#38bdf8' }
 }
-
-const RELATED_DISCUSSIONS = [
-  {
-    id: 'dual-boot',
-    title: 'How to dual boot Ubuntu with Windows 11?',
-    replies: 8,
-    timeAgo: '2 days ago',
-    icon: Terminal,
-    iconBg: '#1e293b',
-    iconColor: '#94a3b8'
-  },
-  {
-    id: 'useful-cmds',
-    title: 'Useful terminal commands everyone should know',
-    replies: 24,
-    timeAgo: '3 days ago',
-    icon: Code,
-    iconBg: '#3b0764',
-    iconColor: '#c084fc'
-  },
-  {
-    id: 'open-source-alt',
-    title: 'Best open source alternatives for popular apps',
-    replies: 9,
-    timeAgo: '4 days ago',
-    icon: Gamepad2,
-    iconBg: '#064e3b',
-    iconColor: '#34d399'
-  },
-  {
-    id: 'dev-env',
-    title: 'Setting up a development environment on Linux',
-    replies: 11,
-    timeAgo: '6 days ago',
-    icon: Monitor,
-    iconBg: '#1e3a8a',
-    iconColor: '#60a5fa'
-  }
-]
 
 export default function PostDetail() {
   const { id } = useParams()
@@ -641,6 +568,8 @@ export default function PostDetail() {
   const [commentToDelete, setCommentToDelete] = useState(null)
   const [isDeletingComment, setIsDeletingComment] = useState(false)
   const [reportModalData, setReportModalData] = useState({ isOpen: false, type: 'post', id: null, commentId: null })
+  const [relatedPosts, setRelatedPosts] = useState([])
+  const [loadingRelated, setLoadingRelated] = useState(true)
   const pendingPostVoteRef = useRef(null)
   const isPostVotingRef = useRef(false)
   const pendingCommentVotesRef = useRef(new Map())
@@ -744,6 +673,82 @@ export default function PostDetail() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchRelated = async () => {
+      try {
+        setLoadingRelated(true)
+        const params = { limit: 8, sort: 'top' }
+        if (post?.category && post.category !== 'all') {
+          params.category = post.category
+        }
+        const res = await postsApi.list(params)
+        const list = Array.isArray(res) ? res : (res?.posts || [])
+
+        const excludeIds = new Set(
+          [id, post?._id, post?.id]
+            .filter(Boolean)
+            .map((val) => String(val).toLowerCase().trim())
+        )
+        const excludeTitle = (post?.title || '').trim().toLowerCase()
+
+        const isMatch = (p) => {
+          const pId = p?._id ? String(p._id).toLowerCase().trim() : ''
+          const pCustomId = p?.id ? String(p.id).toLowerCase().trim() : ''
+          const pTitle = (p?.title || '').trim().toLowerCase()
+
+          if (pId && excludeIds.has(pId)) return true
+          if (pCustomId && excludeIds.has(pCustomId)) return true
+          if (excludeTitle && pTitle && pTitle === excludeTitle) return true
+          return false
+        }
+
+        let filtered = list.filter((p) => !isMatch(p))
+
+        if (filtered.length === 0 && params.category) {
+          const fallbackRes = await postsApi.list({ limit: 8, sort: 'top' })
+          const fallbackList = Array.isArray(fallbackRes) ? fallbackRes : (fallbackRes?.posts || [])
+          filtered = fallbackList.filter((p) => !isMatch(p))
+        }
+
+        if (isMounted) {
+          setRelatedPosts(filtered.slice(0, 4))
+          setLoadingRelated(false)
+        }
+      } catch {
+        if (isMounted) {
+          setRelatedPosts([])
+          setLoadingRelated(false)
+        }
+      }
+    }
+
+    fetchRelated()
+    return () => {
+      isMounted = false
+    }
+  }, [id, post?._id, post?.id, post?.category, post?.title])
+
+  const displayRelated = useMemo(() => {
+    const excludeIds = new Set(
+      [id, post?._id, post?.id]
+        .filter(Boolean)
+        .map((val) => String(val).toLowerCase().trim())
+    )
+    const excludeTitle = (post?.title || '').trim().toLowerCase()
+
+    return relatedPosts.filter((item) => {
+      const iId = item?._id ? String(item._id).toLowerCase().trim() : ''
+      const iCustomId = item?.id ? String(item.id).toLowerCase().trim() : ''
+      const iTitle = (item?.title || '').trim().toLowerCase()
+
+      if (iId && excludeIds.has(iId)) return false
+      if (iCustomId && excludeIds.has(iCustomId)) return false
+      if (excludeTitle && iTitle && iTitle === excludeTitle) return false
+      return true
+    })
+  }, [relatedPosts, id, post?._id, post?.id, post?.title])
 
   const commentTree = useMemo(() => {
     if (!Array.isArray(comments) || comments.length === 0) return []
@@ -854,7 +859,7 @@ export default function PostDetail() {
       voteScore: nextScore
     }))
 
-    if (!post.id || post.id.startsWith('distro-')) return
+    if (!post || (!post.id && !post._id)) return
 
     pendingPostVoteRef.current = nextVote
     if (isPostVotingRef.current) return
@@ -1015,7 +1020,7 @@ export default function PostDetail() {
     }
 
     try {
-      if (post && post._id && !post.id?.startsWith('distro-')) {
+      if (post && (post._id || post.id)) {
         await postsApi.addComment(post._id || post.id, { body: text.trim(), parentComment: parentId })
         await load()
       } else {
@@ -1044,7 +1049,7 @@ export default function PostDetail() {
     const postId = post?._id || post?.id || id
     setIsDeletingComment(true)
     try {
-      if (postId && !String(postId).startsWith('distro-') && !String(commentId).startsWith('c_')) {
+      if (postId && commentId) {
         await postsApi.deleteComment(postId, commentId)
       }
 
@@ -1084,7 +1089,7 @@ export default function PostDetail() {
     setIsDeletingPost(true)
     try {
       const postId = post?._id || post?.id || id
-      if (postId && !String(postId).startsWith('distro-')) {
+      if (postId) {
         await postsApi.delete(postId)
       }
       showToast('Discussion deleted')
@@ -1596,34 +1601,53 @@ export default function PostDetail() {
           <div className="sidebar-widget-card">
             <div className="widget-header-row">
               <h4 className="widget-heading">Related Discussions</h4>
-              <Link to="/forum" className="widget-view-all">
+              <Link to={post?.category ? `/forum?category=${post.category}` : '/forum'} className="widget-view-all">
                 View all <ArrowRight size={13} />
               </Link>
             </div>
             <div className="related-discussions-list">
-              {RELATED_DISCUSSIONS.map((item) => {
-                const ItemIcon = item.icon
-                return (
-                  <Link
-                    key={item.id}
-                    to={`/forum/posts/${item.id}`}
-                    className="related-item-link"
-                  >
-                    <div
-                      className="related-icon-box"
-                      style={{ background: item.iconBg, color: item.iconColor }}
+              {loadingRelated ? (
+                <div className="related-skeleton-wrap">
+                  {[1, 2, 3, 4].map((n) => (
+                    <div key={n} className="related-skeleton-item">
+                      <div className="related-skeleton-icon" />
+                      <div className="related-skeleton-content">
+                        <div className="related-skeleton-line title-line" />
+                        <div className="related-skeleton-line meta-line" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : displayRelated.length === 0 ? (
+                <div className="related-empty">No related discussions yet</div>
+              ) : (
+                displayRelated.map((item) => {
+                  const itemId = item._id || item.id
+                  const catStyle = getCategoryIcon(item.category)
+                  const ItemIcon = catStyle.icon
+                  const replies = item.commentCount ?? (item.comments ? item.comments.length : 0)
+                  return (
+                    <Link
+                      key={itemId}
+                      to={`/forum/posts/${itemId}`}
+                      className="related-item-link"
                     >
-                      <ItemIcon size={16} />
-                    </div>
-                    <div className="related-item-content">
-                      <span className="related-item-title">{item.title}</span>
-                      <span className="related-item-meta">
-                        {item.replies} replies • {item.timeAgo}
-                      </span>
-                    </div>
-                  </Link>
-                )
-              })}
+                      <div
+                        className="related-icon-box"
+                        style={{ background: catStyle.bg, color: catStyle.color }}
+                      >
+                        <ItemIcon size={16} />
+                      </div>
+                      <div className="related-item-content">
+                        <span className="related-item-title">{item.title}</span>
+                        <span className="related-item-meta">
+                          {replies} replies • {formatRelativeTime(item.createdAt)}
+                        </span>
+                      </div>
+                    </Link>
+                  )
+                })
+              )}
             </div>
           </div>
 

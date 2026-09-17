@@ -1149,6 +1149,57 @@
   color: var(--text-muted);
 }
 
+.related-skeleton-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.related-skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.related-skeleton-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  animation: inlineReplyFade 1.5s infinite ease-in-out alternate;
+  flex-shrink: 0;
+}
+
+.related-skeleton-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.related-skeleton-line {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  animation: inlineReplyFade 1.5s infinite ease-in-out alternate;
+}
+
+.related-skeleton-line.title-line {
+  width: 80%;
+}
+
+.related-skeleton-line.meta-line {
+  width: 45%;
+  height: 8px;
+}
+
+.related-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 0.75rem 0;
+  text-align: center;
+}
+
 .lighthouse-quote-card {
   background: linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #0f172a 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);

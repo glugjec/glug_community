@@ -578,6 +578,13 @@
   font-size: 1.02rem;
   font-weight: 700;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.trending-flame-icon {
+  flex-shrink: 0;
 }
 
 .widget-view-all {
@@ -588,6 +595,16 @@
   color: var(--accent);
   font-weight: 600;
   text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: opacity 0.15s ease;
+}
+
+.widget-view-all:hover {
+  opacity: 0.85;
 }
 
 .cat-sidebar-list {
@@ -692,6 +709,58 @@
 .trending-replies {
   font-size: 0.74rem;
   color: var(--text-dim);
+}
+
+.trending-skeleton-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.trending-skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0.65rem;
+}
+
+.trending-skeleton-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  animation: pulseForumSkeleton 1.5s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.trending-skeleton-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.trending-skeleton-line {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  animation: pulseForumSkeleton 1.5s infinite ease-in-out;
+}
+
+.trending-skeleton-line.title {
+  width: 75%;
+}
+
+.trending-skeleton-line.replies {
+  width: 35%;
+  height: 8px;
+}
+
+.trending-empty {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  padding: 0.75rem 0.5rem;
+  text-align: center;
 }
 
 .quote-sunset-card {
