@@ -146,7 +146,7 @@ HackFOSS is our flagship annual hackathon encouraging students to collaborate on
       time: '04:00 PM - 06:30 PM IST',
       locationType: 'virtual',
       virtualLink: 'https://meet.google.com/glug-git-workshop',
-      bannerUrl: 'https://images.unsplash.com/photo-1618401471353-b98aedd04e11?auto=format&fit=crop&w=1400&q=80',
+      bannerUrl: 'https://images.unsplash.com/photo-1556075798-4825dfaaf498?auto=format&fit=crop&w=1400&q=80',
       description: `### Master Your VCS Skills
 Git is the backbone of open source development. Moving past simple \`git add\` and \`git commit\`, this session walks you through advanced git features used by professional software engineering teams worldwide.
 

@@ -121,36 +121,6 @@ const DEFAULT_DISCUSSIONS = [
   }
 ]
 
-const UPCOMING_EVENTS = [
-  {
-    id: 'gluginit',
-    title: 'GLUGINIT Linux Installation Drive',
-    date: 'Sep 19, 2026 · 5:00 PM',
-    location: 'Main Auditorium',
-    type: 'install',
-    iconBg: '#1e3a8a',
-    iconColor: '#60a5fa'
-  },
-  {
-    id: 'workshop-os',
-    title: 'Intro to Open Source Workshop',
-    date: 'Sep 26, 2026 · 4:00 PM',
-    location: 'Online (Meet)',
-    type: 'workshop',
-    iconBg: '#3b0764',
-    iconColor: '#c084fc'
-  },
-  {
-    id: 'hangout',
-    title: 'Community Hangout',
-    date: 'Oct 5, 2026 · 6:00 PM',
-    location: 'Cafeteria',
-    type: 'social',
-    iconBg: '#172554',
-    iconColor: '#38bdf8'
-  }
-]
-
 function UserAvatar({ src, username, size = 24, className = '' }) {
   const [error, setError] = useState(false)
   if (src && !error) {
@@ -285,6 +255,7 @@ export default function Home() {
   const cachedStats = discussionsCache.get('community_stats')
   const [stats, setStats] = useState(() => cachedStats?.data || null)
   const [upcomingEvents, setUpcomingEvents] = useState([])
+  const [loadingEvents, setLoadingEvents] = useState(true)
   const [eventStats, setEventStats] = useState(null)
 
   useEffect(() => {
@@ -300,6 +271,9 @@ export default function Home() {
         setUpcomingEvents(res.events)
       }
     }).catch(() => {})
+    .finally(() => {
+      if (isMounted) setLoadingEvents(false)
+    })
 
     eventsApi.getStats().then((res) => {
       if (isMounted && res) {
@@ -578,61 +552,88 @@ export default function Home() {
               View all <ArrowRight size={13} />
             </Link>
           </div>
-
           <div className="events-list">
-            {(upcomingEvents.length > 0 ? upcomingEvents : UPCOMING_EVENTS).map((evt) => {
-              const isReal = Boolean(evt._id)
-              const eventDate = isReal
-                ? new Date(evt.startDate).toLocaleDateString('en-US', {
+            {loadingEvents ? (
+              <div className="events-loading-skeletons">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="event-item event-item-skeleton">
+                    <div className="event-icon-box skeleton-box" />
+                    <div className="event-info">
+                      <div className="skeleton-line skeleton-title" />
+                      <div className="skeleton-line skeleton-sub" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : upcomingEvents.length > 0 ? (
+              upcomingEvents.map((evt) => {
+                const eventDate =
+                  new Date(evt.startDate).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                   }) + (evt.time ? ` · ${evt.time}` : '')
-                : evt.date
-              const eventLoc = isReal
-                ? evt.locationType === 'virtual'
-                  ? 'Online Virtual'
-                  : evt.venue || 'Campus'
-                : evt.location
+                const eventLoc =
+                  evt.locationType === 'virtual'
+                    ? 'Online Virtual'
+                    : evt.venue || 'Campus'
 
-              return (
-                <Link
-                  key={evt._id || evt.id}
-                  to={isReal ? `/events/${evt.slug || evt._id}` : '/events'}
-                  className="event-item"
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                  <div
-                    className="event-icon-box"
-                    style={{
-                      background: evt.bannerUrl ? '#0f172a' : evt.iconBg || '#172554',
-                      color: evt.iconColor || '#38bdf8',
-                      overflow: 'hidden',
-                    }}
+                return (
+                  <Link
+                    key={evt._id}
+                    to={`/events/${evt.slug || evt._id}`}
+                    className="event-item"
+                    style={{ textDecoration: 'none', color: 'inherit' }}
                   >
-                    {evt.bannerUrl ? (
-                      <img
-                        src={evt.bannerUrl}
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    <div
+                      className="event-icon-box"
+                      style={{
+                        background: '#0f172a',
+                        color: '#38bdf8',
+                        overflow: 'hidden',
+                        position: 'relative',
+                      }}
+                    >
+                      {evt.bannerUrl && (
+                        <img
+                          src={evt.bannerUrl}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      )}
+                      <Calendar
+                        size={17}
+                        style={{
+                          display: evt.bannerUrl ? 'none' : 'block',
+                        }}
                       />
-                    ) : (
-                      <Calendar size={17} />
-                    )}
-                  </div>
-                  <div className="event-info">
-                    <h4 className="event-title">{evt.title}</h4>
-                    <div className="event-sub">
-                      <span>{eventDate}</span>
                     </div>
-                    <div className="event-location">
-                      <MapPin size={11} />
-                      <span>{eventLoc}</span>
+                    <div className="event-info">
+                      <h4 className="event-title">{evt.title}</h4>
+                      <div className="event-sub">
+                        <span>{eventDate}</span>
+                      </div>
+                      <div className="event-location">
+                        <MapPin size={11} />
+                        <span>{eventLoc}</span>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight size={16} className="event-arrow" />
+                    <ChevronRight size={16} className="event-arrow" />
+                  </Link>
+                )
+              })
+            ) : (
+              <div className="events-empty-inline">
+                <Calendar size={22} className="events-empty-icon" />
+                <p>No upcoming events scheduled right now</p>
+                <Link to="/events" className="events-browse-link">
+                  Browse past events & recaps <ArrowRight size={12} />
                 </Link>
-              )
-            })}
+              </div>
+            )}
           </div>
         </div>
 

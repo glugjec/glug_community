@@ -529,6 +529,74 @@
   color: var(--text-dim);
 }
 
+.events-loading-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.event-item-skeleton {
+  pointer-events: none;
+}
+
+.skeleton-box {
+  background: var(--bg-card-subtle);
+  animation: pulseShimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-line {
+  border-radius: 4px;
+  background: var(--bg-card-subtle);
+  animation: pulseShimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-title {
+  height: 14px;
+  width: 75%;
+  margin-bottom: 6px;
+}
+
+.skeleton-sub {
+  height: 10px;
+  width: 45%;
+}
+
+@keyframes pulseShimmer {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.85; }
+}
+
+.events-empty-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 10px;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  gap: 6px;
+}
+
+.events-empty-icon {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.events-browse-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 4px;
+}
+
+.events-browse-link:hover {
+  text-decoration: underline;
+}
+
 .quote-mountains-card {
   position: relative;
   overflow: hidden;
