@@ -6,6 +6,7 @@ import { Vote } from '../models/Vote.js';
 import { Bookmark } from '../models/Bookmark.js';
 import { User } from '../models/User.js';
 import { Resource } from '../models/Resource.js';
+import { Event } from '../models/Event.js';
 import { requireAuth, optionalAuth, requireAdmin } from '../middleware/auth.js';
 import { calculateNextVoteScore } from '../utils/voteCalculator.js';
 import { createNotification, createSystemNotification, notifyAllAdmins } from '../utils/notificationService.js';
@@ -370,7 +371,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
 
 router.get('/meta/stats', async (req, res) => {
   try {
-    const [totalMembers, totalPosts, categoryCounts, categoryMembers, totalResources] = await Promise.all([
+    const [totalMembers, totalPosts, categoryCounts, categoryMembers, totalResources, totalEvents] = await Promise.all([
       User.countDocuments(),
       Post.countDocuments(),
       Post.aggregate([
@@ -381,6 +382,7 @@ router.get('/meta/stats', async (req, res) => {
         { $group: { _id: '$_id.category', members: { $sum: 1 } } },
       ]),
       Resource.countDocuments(),
+      Event.countDocuments({ status: 'published' }),
     ]);
 
     const validCategories = [
@@ -425,6 +427,7 @@ router.get('/meta/stats', async (req, res) => {
       members: totalMembers,
       discussions: totalPosts,
       resources: totalResources,
+      events: totalEvents,
       categories,
     });
   } catch (err) {

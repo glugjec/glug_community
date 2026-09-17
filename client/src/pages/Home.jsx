@@ -285,6 +285,7 @@ export default function Home() {
   const cachedStats = discussionsCache.get('community_stats')
   const [stats, setStats] = useState(() => cachedStats?.data || null)
   const [upcomingEvents, setUpcomingEvents] = useState([])
+  const [eventStats, setEventStats] = useState(null)
 
   useEffect(() => {
     let isMounted = true
@@ -297,6 +298,12 @@ export default function Home() {
     eventsApi.getUpcoming(3).then((res) => {
       if (isMounted && res?.events) {
         setUpcomingEvents(res.events)
+      }
+    }).catch(() => {})
+
+    eventsApi.getStats().then((res) => {
+      if (isMounted && res) {
+        setEventStats(res)
       }
     }).catch(() => {})
 
@@ -547,13 +554,13 @@ export default function Home() {
               </span>
               <span className="stat-tile-label">Discussions</span>
             </div>
-            <div className="home-stat-tile">
+            <Link to="/events" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <Calendar size={18} className="stat-tile-icon icon-indigo" />
               <span className="stat-tile-number">
-                {stats?.categories?.events ? formatStatCount(stats.categories.events.discussions) : '25'}
+                {eventStats ? eventStats.total : (stats?.events ?? (stats?.categories?.events ? stats.categories.events.discussions : '0'))}
               </span>
               <span className="stat-tile-label">Events</span>
-            </div>
+            </Link>
             <div className="home-stat-tile">
               <BookOpen size={18} className="stat-tile-icon icon-purple" />
               <span className="stat-tile-number">

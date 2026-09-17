@@ -6,6 +6,7 @@ import { Comment } from "../models/Comment.js";
 import { Vote } from "../models/Vote.js";
 import { Bookmark } from "../models/Bookmark.js";
 import { Resource } from "../models/Resource.js";
+import { Event } from "../models/Event.js";
 import { Report } from "../models/Report.js";
 import { Appeal } from "../models/Appeal.js";
 import { ModerationLog } from "../models/ModerationLog.js";
@@ -48,6 +49,7 @@ router.get("/stats", async (req, res) => {
       totalPosts,
       totalComments,
       totalResources,
+      totalEvents,
       adminCount,
       todayPosts,
       teamCount,
@@ -61,6 +63,7 @@ router.get("/stats", async (req, res) => {
       Post.countDocuments(),
       Comment.countDocuments(),
       Resource.countDocuments(),
+      Event.countDocuments(),
       User.countDocuments({ role: "admin" }),
       Post.countDocuments({ createdAt: { $gte: today } }),
       User.countDocuments({ "communityRole.isMember": true }),
@@ -76,6 +79,7 @@ router.get("/stats", async (req, res) => {
       totalPosts,
       totalComments,
       totalResources,
+      totalEvents,
       adminCount,
       todayPosts,
       teamCount,
@@ -83,6 +87,7 @@ router.get("/stats", async (req, res) => {
       flaggedPostsCount,
       flaggedCommentsCount,
       pendingReportsCount,
+      pendingAppealsCount,
       flaggedCount: flaggedPostsCount + flaggedCommentsCount,
     });
   } catch (err) {

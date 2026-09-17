@@ -285,13 +285,13 @@ export default function Categories() {
               </span>
               <span className="cat-stat-lbl">Categories</span>
             </div>
-            <div className="cat-stat-box">
+            <Link to="/events" className="cat-stat-box" style={{ textDecoration: 'none' }}>
               <Calendar size={18} className="cat-stat-icon icon-purple" />
               <span className="cat-stat-val">
-                {stats?.categories?.events ? formatStatCount(stats.categories.events.discussions) : '25'}
+                {stats ? formatStatCount(stats.events ?? (stats.categories?.events?.discussions ?? 0)) : '5'}
               </span>
               <span className="cat-stat-lbl">Events</span>
-            </div>
+            </Link>
           </div>
         </div>
 

@@ -21,6 +21,7 @@ import {
 import { eventsApi, uploadApi } from '../../api.js';
 import RichTextEditor from '../common/RichTextEditor.jsx';
 import MarkdownRenderer from '../common/MarkdownRenderer.jsx';
+import ConfirmDeleteModal from '../common/ConfirmDeleteModal.jsx';
 import './AdminEvents.css';
 
 const CATEGORIES = [
@@ -79,6 +80,7 @@ export default function AdminEvents() {
 
   const [uploadingSpeakerIdx, setUploadingSpeakerIdx] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   const bannerInputRef = useRef(null);
@@ -250,12 +252,15 @@ export default function AdminEvents() {
 
   const handleDelete = async (id) => {
     try {
+      setDeleting(true);
       await eventsApi.delete(id);
       showToast('Event deleted successfully');
       setDeleteConfirmId(null);
       loadData();
     } catch (err) {
       showToast('Failed to delete event');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1221,41 +1226,19 @@ export default function AdminEvents() {
         </div>
       )}
 
-      {deleteConfirmId && (
-        <div className="admin-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
-          <div className="admin-modal-window small" onClick={(e) => e.stopPropagation()}>
-            <div className="admin-modal-header">
-              <h3>Delete Event</h3>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setDeleteConfirmId(null)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-4 text-center">
-              <p>Are you sure you want to permanently delete this event and its gallery photos?</p>
-              <div className="admin-modal-actions mt-4">
-                <button
-                  type="button"
-                  className="admin-btn-cancel"
-                  onClick={() => setDeleteConfirmId(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="admin-btn-delete"
-                  onClick={() => handleDelete(deleteConfirmId)}
-                >
-                  Confirm Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        isOpen={Boolean(deleteConfirmId)}
+        onClose={() => {
+          if (!deleting) setDeleteConfirmId(null);
+        }}
+        onConfirm={() => handleDelete(deleteConfirmId)}
+        title="Delete Event"
+        description="Are you sure you want to permanently delete this event?"
+        itemTitle={events.find((e) => e._id === deleteConfirmId)?.title}
+        warningNote="This event and all its uploaded gallery photos will be permanently deleted from the database."
+        confirmText="Delete Event"
+        isDeleting={deleting}
+      />
     </div>
   );
 }

@@ -26,7 +26,7 @@
 
 .admin-events-stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -179,11 +179,13 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 14px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .admin-events-table {
   width: 100%;
+  min-width: 820px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.9rem;
@@ -1191,19 +1193,134 @@
   line-height: 1.6;
 }
 
+@media (max-width: 1024px) {
+  .admin-events-stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
+  .admin-events-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .toolbar-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .admin-events-search-wrap {
+    min-width: 100%;
+    max-width: 100%;
+    width: 100%;
+  }
+  .status-filter-pills {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .admin-create-event-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .admin-modal-overlay {
+    padding: 12px;
+  }
+  .admin-modal-window {
+    max-height: 94vh;
+  }
+  .admin-modal-form {
+    padding: 16px;
+    gap: 14px;
+  }
+  .admin-modal-header {
+    padding: 14px 18px;
+  }
+  .speaker-fields-row.primary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .speaker-fields-row.primary-row .speaker-field:first-child {
+    grid-column: 1 / -1;
+  }
+  .speaker-fields-row.social-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
   .form-group-row {
     flex-direction: column;
+    gap: 12px;
   }
   .speaker-card-body {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+  }
+  .speaker-photo-column {
+    display: flex;
     align-items: center;
   }
-  .speaker-fields-row.primary-row,
+  .speaker-fields-row.primary-row {
+    grid-template-columns: 1fr;
+  }
+  .speaker-fields-row.primary-row .speaker-field:first-child {
+    grid-column: auto;
+  }
   .speaker-fields-row.social-row {
     grid-template-columns: 1fr;
   }
   .resource-card-row {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+  .resource-card-row .resource-input:first-child {
+    grid-column: 1 / -1;
+  }
+  .resource-card-row .resource-input:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .resource-card-row .resource-select {
+    grid-column: 1;
+  }
+  .resource-card-row .btn-remove-sub {
+    grid-column: 2;
+    justify-self: end;
+  }
+  .admin-modal-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .admin-modal-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  .gallery-manager-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+  }
+  .preview-banner {
+    height: 180px;
+  }
+  .preview-meta-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-events-stats-row {
     grid-template-columns: 1fr;
+  }
+  .admin-stat-widget {
+    padding: 12px 14px;
+  }
+  .admin-stat-widget .stat-number {
+    font-size: 1.45rem;
   }
 }
