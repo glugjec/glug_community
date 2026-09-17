@@ -85,7 +85,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onToggleMobil
       <aside className={`sidebar-v2${collapsed ? ' is-collapsed' : ''}${mobileOpen ? ' is-mobile-open' : ''}`}>
         <div className="sb-header">
           <Link to="/" className="sb-brand" onClick={handleNavClick}>
-            <img src="/GClogo.jpg" alt="GLUG" className="sb-brand-logo" />
+            <img src="/GLUG-LOGO.png" alt="GLUG" className="sb-brand-logo" />
             <div className="sb-brand-meta">
               <span className="sb-brand-title">GLUG</span>
               <span className="sb-brand-sub">Learn · Share · Grow</span>

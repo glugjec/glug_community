@@ -10,7 +10,7 @@ export default function AuthLayout({ children }) {
 
       <header className="auth-portal-topbar">
         <Link to="/" className="auth-portal-brand">
-          <img src="/GClogo.jpg" alt="GLUG" className="auth-portal-brand-img" />
+          <img src="/GLUG-LOGO.png" alt="GLUG" className="auth-portal-brand-img" />
           <div className="auth-portal-brand-info">
             <span className="auth-portal-brand-title">GLUG</span>
             <span className="auth-portal-brand-sub">Learn · Share · Grow</span>

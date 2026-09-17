@@ -127,7 +127,7 @@ export default function ForgotPassword() {
         {step === 1 && (
           <div>
             <div className="auth-brand">
-              <img src="/GClogo.jpg" alt="GLUG" className="auth-logo" />
+              <img src="/GLUG-LOGO.png" alt="GLUG" className="auth-logo" />
               <h1 className="auth-title">Reset password</h1>
               <p className="auth-subtitle">
                 Enter your registered student email to receive a 6-digit reset code.
