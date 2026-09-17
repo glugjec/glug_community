@@ -17,11 +17,10 @@ import {
   AlertCircle,
   ExternalLink,
   Layers,
-  Sparkles,
 } from 'lucide-react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import { eventsApi, uploadApi } from '../../api.js';
+import RichTextEditor from '../common/RichTextEditor.jsx';
+import MarkdownRenderer from '../common/MarkdownRenderer.jsx';
 import './AdminEvents.css';
 
 const CATEGORIES = [
@@ -67,7 +66,6 @@ export default function AdminEvents() {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [bannerUploading, setBannerUploading] = useState(false);
-  const [descPreviewTab, setDescPreviewTab] = useState('write');
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -120,7 +118,6 @@ export default function AdminEvents() {
     setEditingId(null);
     setFormData(INITIAL_FORM);
     setSubmitError('');
-    setDescPreviewTab('write');
     setModalOpen(true);
   };
 
@@ -152,7 +149,6 @@ export default function AdminEvents() {
       resources: evt.resources || [],
     });
     setSubmitError('');
-    setDescPreviewTab('write');
     setModalOpen(true);
   };
 
@@ -755,42 +751,15 @@ export default function AdminEvents() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <div className="desc-tabs-header">
-                  <label>Detailed Description (Markdown Supported)</label>
-                  <div className="desc-tabs-pills">
-                    <button
-                      type="button"
-                      className={`desc-tab-btn ${descPreviewTab === 'write' ? 'active' : ''}`}
-                      onClick={() => setDescPreviewTab('write')}
-                    >
-                      Write
-                    </button>
-                    <button
-                      type="button"
-                      className={`desc-tab-btn ${descPreviewTab === 'preview' ? 'active' : ''}`}
-                      onClick={() => setDescPreviewTab('preview')}
-                    >
-                      Preview
-                    </button>
-                  </div>
-                </div>
-
-                {descPreviewTab === 'write' ? (
-                  <textarea
-                    rows={8}
-                    placeholder="Write event overview, schedule agenda, prerequisites, etc..."
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
-                ) : (
-                  <div
-                    className="admin-desc-preview"
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(marked.parse(formData.description || '')),
-                    }}
-                  />
-                )}
+              <div className="form-group editor-form-group">
+                <label>Event Description & Agenda</label>
+                <RichTextEditor
+                  content={formData.description}
+                  onChange={(val) => setFormData((prev) => ({ ...prev, description: val }))}
+                  placeholder="Write detailed event overview, schedule agenda, prerequisites, etc..."
+                  minHeight="220px"
+                  onError={(err) => setSubmitError(err)}
+                />
               </div>
 
               <div className="form-group">
@@ -804,8 +773,12 @@ export default function AdminEvents() {
               </div>
 
               <div className="form-collapsible-section">
-                <div className="collapsible-header">
-                  <label className="checkbox-label">
+                <div className="admin-toggle-row">
+                  <div className="toggle-info">
+                    <span className="toggle-title">Enable Registration / RSVP</span>
+                    <span className="toggle-desc">Require attendees to RSVP or register via an external link</span>
+                  </div>
+                  <label className="admin-switch">
                     <input
                       type="checkbox"
                       checked={formData.registrationEnabled}
@@ -813,12 +786,12 @@ export default function AdminEvents() {
                         setFormData({ ...formData, registrationEnabled: e.target.checked })
                       }
                     />
-                    <span>Enable Registration / RSVP</span>
+                    <span className="switch-slider round" />
                   </label>
                 </div>
 
                 {formData.registrationEnabled && (
-                  <div className="form-group-row mt-2">
+                  <div className="form-group-row mt-3">
                     <div className="form-group flex-2">
                       <label>Registration Link (Google Forms, Luma, etc.)</label>
                       <input
@@ -831,7 +804,7 @@ export default function AdminEvents() {
                       />
                     </div>
                     <div className="form-group flex-1">
-                      <label>Capacity</label>
+                      <label>Capacity (0 for unlimited)</label>
                       <input
                         type="number"
                         placeholder="e.g. 100"
@@ -1071,11 +1044,9 @@ export default function AdminEvents() {
                 </span>
               </div>
 
-              <div
+              <MarkdownRenderer
+                content={previewEvent.description || ''}
                 className="preview-body"
-                dangerouslySetInnerHTML={{
-                  __html: DOMPurify.sanitize(marked.parse(previewEvent.description || '')),
-                }}
               />
             </div>
           </div>

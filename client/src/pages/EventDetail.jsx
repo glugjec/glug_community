@@ -16,10 +16,9 @@ import {
   Image as ImageIcon,
   AlertCircle,
 } from 'lucide-react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import { eventsApi } from '../api.js';
 import EventLightbox from '../components/events/EventLightbox.jsx';
+import MarkdownRenderer from '../components/common/MarkdownRenderer.jsx';
 import './EventDetail.css';
 
 function GithubIcon({ size = 15 }) {
@@ -138,16 +137,6 @@ export default function EventDetail() {
       loadEvent();
     }
   }, [eventParam]);
-
-  const sanitizedDescription = useMemo(() => {
-    if (!event?.description) return '';
-    try {
-      const rawHtml = marked.parse(event.description);
-      return DOMPurify.sanitize(rawHtml);
-    } catch {
-      return event.description;
-    }
-  }, [event?.description]);
 
   const handleShare = async () => {
     const currentUrl = window.location.href;
@@ -318,10 +307,9 @@ export default function EventDetail() {
               <FileText size={20} />
               <span>About this Event</span>
             </h2>
-            <div
-              className="event-rich-body"
-              dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
-            />
+            <div className="event-rich-body">
+              <MarkdownRenderer content={event.description || ''} />
+            </div>
           </section>
 
           {event.speakers && event.speakers.length > 0 && (
