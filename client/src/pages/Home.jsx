@@ -629,7 +629,7 @@ export default function Home() {
               <div className="events-empty-inline">
                 <Calendar size={22} className="events-empty-icon" />
                 <p>No upcoming events scheduled right now</p>
-                <Link to="/events" className="events-browse-link">
+                <Link to="/events?tab=past" className="events-browse-link">
                   Browse past events & recaps <ArrowRight size={12} />
                 </Link>
               </div>
