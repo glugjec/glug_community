@@ -77,6 +77,7 @@ export default function AdminEvents() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewEvent, setPreviewEvent] = useState(null);
 
+  const [uploadingSpeakerIdx, setUploadingSpeakerIdx] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -299,6 +300,40 @@ export default function AdminEvents() {
       }
     } catch (err) {
       setGalleryError('Failed to remove photo');
+    }
+  };
+
+  const handleSpeakerPhotoUpload = async (idx, file) => {
+    if (!file) return;
+    try {
+      setUploadingSpeakerIdx(idx);
+      const res = await uploadApi.uploadImage(file);
+      if (res?.url) {
+        updateSpeaker(idx, 'avatar', res.url);
+        showToast('Speaker photo uploaded');
+      }
+    } catch (err) {
+      showToast('Failed to upload photo');
+    } finally {
+      setUploadingSpeakerIdx(null);
+    }
+  };
+
+  const handleUpdateCaption = async (imageId, caption) => {
+    if (!activeGalleryEvent) return;
+    try {
+      const res = await eventsApi.updateGalleryPhotoCaption(
+        activeGalleryEvent._id,
+        imageId,
+        caption
+      );
+      if (res?.gallery) {
+        setActiveGalleryEvent((prev) => ({ ...prev, gallery: res.gallery }));
+        showToast('Photo description saved');
+        loadData();
+      }
+    } catch (err) {
+      showToast('Failed to save caption');
     }
   };
 
@@ -827,33 +862,148 @@ export default function AdminEvents() {
                 </div>
 
                 {formData.speakers.map((spk, idx) => (
-                  <div key={idx} className="sub-item-card">
-                    <div className="form-group-row">
-                      <input
-                        type="text"
-                        placeholder="Name *"
-                        value={spk.name}
-                        onChange={(e) => updateSpeaker(idx, 'name', e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Role / Title"
-                        value={spk.role}
-                        onChange={(e) => updateSpeaker(idx, 'role', e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Company / Org"
-                        value={spk.company}
-                        onChange={(e) => updateSpeaker(idx, 'company', e.target.value)}
-                      />
+                  <div key={idx} className="speaker-card-container">
+                    <div className="speaker-card-header">
+                      <div className="speaker-card-badge">
+                        <span className="speaker-index-tag">#{idx + 1}</span>
+                        <span className="speaker-title-display">
+                          {spk.name || 'New Speaker / Host'}
+                        </span>
+                      </div>
                       <button
                         type="button"
-                        className="btn-remove-sub"
+                        className="speaker-delete-btn"
                         onClick={() => removeSpeaker(idx)}
+                        title="Remove speaker"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
+                        <span>Remove</span>
                       </button>
+                    </div>
+
+                    <div className="speaker-card-body">
+                      <div className="speaker-photo-column">
+                        {spk.avatar ? (
+                          <div className="speaker-photo-box has-avatar">
+                            <img
+                              src={spk.avatar}
+                              alt={spk.name || 'Speaker'}
+                              className="speaker-avatar-image"
+                            />
+                            <div className="speaker-photo-overlay">
+                              <label className="speaker-photo-change-btn" title="Change photo">
+                                <Upload size={13} />
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  style={{ display: 'none' }}
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      handleSpeakerPhotoUpload(idx, e.target.files[0]);
+                                    }
+                                  }}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                className="speaker-photo-delete-btn"
+                                onClick={() => updateSpeaker(idx, 'avatar', '')}
+                                title="Remove photo"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <label className="speaker-photo-box upload-empty">
+                            <Upload size={18} className="upload-icon" />
+                            <span className="upload-text">
+                              {uploadingSpeakerIdx === idx ? 'Uploading...' : 'Upload Photo'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  handleSpeakerPhotoUpload(idx, e.target.files[0]);
+                                }
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+
+                      <div className="speaker-fields-column">
+                        <div className="speaker-fields-row primary-row">
+                          <div className="speaker-field">
+                            <label className="speaker-field-label">Full Name *</label>
+                            <input
+                              type="text"
+                              className="speaker-input"
+                              placeholder="e.g. Arjun Sen"
+                              value={spk.name}
+                              onChange={(e) => updateSpeaker(idx, 'name', e.target.value)}
+                            />
+                          </div>
+                          <div className="speaker-field">
+                            <label className="speaker-field-label">Role / Title</label>
+                            <input
+                              type="text"
+                              className="speaker-input"
+                              placeholder="e.g. Systems Engineer"
+                              value={spk.role}
+                              onChange={(e) => updateSpeaker(idx, 'role', e.target.value)}
+                            />
+                          </div>
+                          <div className="speaker-field">
+                            <label className="speaker-field-label">Company / Org</label>
+                            <input
+                              type="text"
+                              className="speaker-input"
+                              placeholder="e.g. Kernel Lab"
+                              value={spk.company}
+                              onChange={(e) => updateSpeaker(idx, 'company', e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="speaker-fields-row">
+                          <div className="speaker-field full-width">
+                            <label className="speaker-field-label">Bio / About</label>
+                            <input
+                              type="text"
+                              className="speaker-input"
+                              placeholder="Brief bio or talk description..."
+                              value={spk.bio || ''}
+                              onChange={(e) => updateSpeaker(idx, 'bio', e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="speaker-fields-row social-row">
+                          <div className="speaker-field">
+                            <label className="speaker-field-label">GitHub URL</label>
+                            <input
+                              type="url"
+                              className="speaker-input"
+                              placeholder="https://github.com/..."
+                              value={spk.github || ''}
+                              onChange={(e) => updateSpeaker(idx, 'github', e.target.value)}
+                            />
+                          </div>
+                          <div className="speaker-field">
+                            <label className="speaker-field-label">LinkedIn URL</label>
+                            <input
+                              type="url"
+                              className="speaker-input"
+                              placeholder="https://linkedin.com/in/..."
+                              value={spk.linkedin || ''}
+                              onChange={(e) => updateSpeaker(idx, 'linkedin', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -868,37 +1018,39 @@ export default function AdminEvents() {
                 </div>
 
                 {formData.resources.map((res, idx) => (
-                  <div key={idx} className="sub-item-card">
-                    <div className="form-group-row">
-                      <input
-                        type="text"
-                        placeholder="Label (e.g. Slides)"
-                        value={res.label}
-                        onChange={(e) => updateResource(idx, 'label', e.target.value)}
-                      />
-                      <input
-                        type="url"
-                        placeholder="URL"
-                        value={res.url}
-                        onChange={(e) => updateResource(idx, 'url', e.target.value)}
-                      />
-                      <select
-                        value={res.type}
-                        onChange={(e) => updateResource(idx, 'type', e.target.value)}
-                      >
-                        <option value="code">Code / Repo</option>
-                        <option value="slides">Slides</option>
-                        <option value="recording">Recording</option>
-                        <option value="notes">Notes</option>
-                      </select>
-                      <button
-                        type="button"
-                        className="btn-remove-sub"
-                        onClick={() => removeResource(idx)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                  <div key={idx} className="resource-card-row">
+                    <input
+                      type="text"
+                      className="resource-input"
+                      placeholder="Label (e.g. Slides)"
+                      value={res.label}
+                      onChange={(e) => updateResource(idx, 'label', e.target.value)}
+                    />
+                    <input
+                      type="url"
+                      className="resource-input"
+                      placeholder="URL (https://...)"
+                      value={res.url}
+                      onChange={(e) => updateResource(idx, 'url', e.target.value)}
+                    />
+                    <select
+                      className="resource-select"
+                      value={res.type}
+                      onChange={(e) => updateResource(idx, 'type', e.target.value)}
+                    >
+                      <option value="code">Code / Repo</option>
+                      <option value="slides">Slides</option>
+                      <option value="recording">Recording</option>
+                      <option value="notes">Notes</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="btn-remove-sub"
+                      onClick={() => removeResource(idx)}
+                      title="Remove Resource"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -985,15 +1137,31 @@ export default function AdminEvents() {
                 ) : (
                   activeGalleryEvent.gallery.map((img) => (
                     <div key={img._id} className="gallery-manage-card">
-                      <img src={img.url} alt="" />
-                      <button
-                        type="button"
-                        className="gallery-delete-btn"
-                        onClick={() => handleDeleteGalleryImage(img._id)}
-                        title="Remove photo"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <div className="gallery-thumb-container">
+                        <img src={img.url} alt={img.caption || ''} />
+                        <button
+                          type="button"
+                          className="gallery-delete-btn"
+                          onClick={() => handleDeleteGalleryImage(img._id)}
+                          title="Remove photo"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                      <div className="gallery-caption-wrap">
+                        <input
+                          type="text"
+                          placeholder="Photo description / caption..."
+                          defaultValue={img.caption || ''}
+                          className="gallery-caption-input"
+                          onBlur={(e) => handleUpdateCaption(img._id, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.currentTarget.blur();
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
                   ))
                 )}

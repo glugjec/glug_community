@@ -239,6 +239,8 @@ export const eventsApi = {
   delete: (id) => client.delete(`/events/${id}`),
   addGalleryPhotos: (id, images) => client.post(`/events/${id}/gallery`, { images }),
   deleteGalleryPhoto: (id, imageId) => client.delete(`/events/${id}/gallery/${imageId}`),
+  updateGalleryPhotoCaption: (id, imageId, caption) =>
+    client.patch(`/events/${id}/gallery/${imageId}`, { caption }),
   updateStatus: (id, status) => client.patch(`/events/${id}/status`, { status }),
 };
 

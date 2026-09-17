@@ -337,6 +337,30 @@ router.delete('/:id/gallery/:imageId', requireAuth, requireAdmin, async (req, re
   }
 });
 
+router.patch('/:id/gallery/:imageId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id, imageId } = req.params;
+    const { caption } = req.body;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const img = event.gallery.id(imageId);
+    if (!img) {
+      return res.status(404).json({ error: 'Image not found in event gallery' });
+    }
+
+    img.caption = typeof caption === 'string' ? caption : '';
+    await event.save();
+
+    res.json({ message: 'Photo caption updated', gallery: event.gallery });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to update photo caption' });
+  }
+});
+
 router.patch('/:id/status', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
