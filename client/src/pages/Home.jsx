@@ -540,20 +540,20 @@ export default function Home() {
 
         <div className="home-widget-card stats-card">
           <div className="home-stats-2x2">
-            <div className="home-stat-tile">
+            <Link to="/members" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <Users size={18} className="stat-tile-icon icon-blue" />
               <span className="stat-tile-number">
                 {stats ? formatStatCount(stats.members) : '1.2K'}
               </span>
               <span className="stat-tile-label">Members</span>
-            </div>
-            <div className="home-stat-tile">
+            </Link>
+            <Link to="/forum" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <FileText size={18} className="stat-tile-icon icon-cyan" />
               <span className="stat-tile-number">
                 {stats ? formatStatCount(stats.discussions) : '450'}
               </span>
               <span className="stat-tile-label">Discussions</span>
-            </div>
+            </Link>
             <Link to="/events" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <Calendar size={18} className="stat-tile-icon icon-indigo" />
               <span className="stat-tile-number">
@@ -561,13 +561,13 @@ export default function Home() {
               </span>
               <span className="stat-tile-label">Events</span>
             </Link>
-            <div className="home-stat-tile">
+            <Link to="/resources" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <BookOpen size={18} className="stat-tile-icon icon-purple" />
               <span className="stat-tile-number">
                 {stats ? formatStatCount(stats.resources) : '120'}
               </span>
               <span className="stat-tile-label">Resources</span>
-            </div>
+            </Link>
           </div>
         </div>
 

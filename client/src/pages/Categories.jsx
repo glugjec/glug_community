@@ -264,27 +264,27 @@ export default function Categories() {
         <div className="cat-widget-card stats-widget">
           <h4 className="cat-widget-title">Community Stats</h4>
           <div className="cat-stats-grid">
-            <div className="cat-stat-box">
+            <Link to="/members" className="cat-stat-box" style={{ textDecoration: 'none' }}>
               <Users size={18} className="cat-stat-icon icon-blue" />
               <span className="cat-stat-val">
                 {stats ? formatStatCount(stats.members) : '1.2K'}
               </span>
               <span className="cat-stat-lbl">Members</span>
-            </div>
-            <div className="cat-stat-box">
+            </Link>
+            <Link to="/forum" className="cat-stat-box" style={{ textDecoration: 'none' }}>
               <FileText size={18} className="cat-stat-icon icon-cyan" />
               <span className="cat-stat-val">
                 {stats ? formatStatCount(stats.discussions) : '450'}
               </span>
               <span className="cat-stat-lbl">Discussions</span>
-            </div>
-            <div className="cat-stat-box">
+            </Link>
+            <Link to="/categories" className="cat-stat-box" style={{ textDecoration: 'none' }}>
               <Layers size={18} className="cat-stat-icon icon-indigo" />
               <span className="cat-stat-val">
                 {CATEGORIES_DATA.length}
               </span>
               <span className="cat-stat-lbl">Categories</span>
-            </div>
+            </Link>
             <Link to="/events" className="cat-stat-box" style={{ textDecoration: 'none' }}>
               <Calendar size={18} className="cat-stat-icon icon-purple" />
               <span className="cat-stat-val">
