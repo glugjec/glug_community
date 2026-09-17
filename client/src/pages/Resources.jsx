@@ -251,7 +251,7 @@ export default function Resources() {
           </div>
           <div className="res-stat-item">
             <span className="res-stat-value accent">{totalDownloadableFiles}</span>
-            <span className="res-stat-label">Downloadable Files via Link</span>
+            <span className="res-stat-label">Downloadable Files</span>
           </div>
           <div className="res-stat-item">
             <span className="res-stat-value">{CATEGORY_LIST.length - 1}</span>
