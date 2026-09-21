@@ -1482,25 +1482,25 @@ export default function AdminDashboard() {
                               {u.isBanned ? (
                                 <button
                                   type="button"
-                                  className="admin-action-btn"
-                                  style={{ borderColor: "#10b981", color: "#10b981" }}
+                                  className="admin-action-btn success"
                                   onClick={() => setUnbanTarget(u)}
                                   title="Unban this user"
                                 >
-                                  Unban
+                                  <UserCheck size={13} />
+                                  <span>Unban</span>
                                 </button>
                               ) : (
                                 <button
                                   type="button"
-                                  className="admin-action-btn"
-                                  style={{ borderColor: "#ef4444", color: "#ef4444" }}
+                                  className="admin-action-btn danger"
                                   onClick={() => {
                                     setBanUserModalTarget(u);
                                     setBanForm({ reason: "", hours: "" });
                                   }}
                                   title="Ban user"
                                 >
-                                  Ban
+                                  <UserX size={13} />
+                                  <span>Ban</span>
                                 </button>
                               )}
                               <button
@@ -1509,7 +1509,8 @@ export default function AdminDashboard() {
                                 onClick={() => setRoleChangeTarget(u)}
                                 title={u.role === "admin" ? "Demote to student" : "Promote to administrator"}
                               >
-                                {u.role === "admin" ? "Demote" : "Make Admin"}
+                                {u.role === "admin" ? <User size={13} /> : <Shield size={13} />}
+                                <span>{u.role === "admin" ? "Demote" : "Make Admin"}</span>
                               </button>
                               <button
                                 type="button"
