@@ -267,14 +267,22 @@ export default function Categories() {
             <Link to="/members" className="cat-stat-box" style={{ textDecoration: 'none' }}>
               <Users size={18} className="cat-stat-icon icon-blue" />
               <span className="cat-stat-val">
-                {stats ? formatStatCount(stats.members) : '1.2K'}
+                {stats ? (
+                  formatStatCount(stats.members ?? 0)
+                ) : (
+                  <span className="stat-num-skeleton glug-skeleton-shimmer" />
+                )}
               </span>
               <span className="cat-stat-lbl">Members</span>
             </Link>
             <Link to="/forum" className="cat-stat-box" style={{ textDecoration: 'none' }}>
               <FileText size={18} className="cat-stat-icon icon-cyan" />
               <span className="cat-stat-val">
-                {stats ? formatStatCount(stats.discussions) : '450'}
+                {stats ? (
+                  formatStatCount(stats.discussions ?? 0)
+                ) : (
+                  <span className="stat-num-skeleton glug-skeleton-shimmer" />
+                )}
               </span>
               <span className="cat-stat-lbl">Discussions</span>
             </Link>
@@ -288,7 +296,11 @@ export default function Categories() {
             <Link to="/events" className="cat-stat-box" style={{ textDecoration: 'none' }}>
               <Calendar size={18} className="cat-stat-icon icon-purple" />
               <span className="cat-stat-val">
-                {stats ? formatStatCount(stats.events ?? (stats.categories?.events?.discussions ?? 0)) : '5'}
+                {stats ? (
+                  formatStatCount(stats.events ?? (stats.categories?.events?.discussions ?? 0))
+                ) : (
+                  <span className="stat-num-skeleton glug-skeleton-shimmer" />
+                )}
               </span>
               <span className="cat-stat-lbl">Events</span>
             </Link>

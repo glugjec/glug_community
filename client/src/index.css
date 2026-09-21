@@ -211,6 +211,14 @@ body {
   border-radius: 8px;
 }
 
+.stat-num-skeleton {
+  display: inline-block;
+  width: 44px;
+  height: 1.25rem;
+  border-radius: 6px;
+  vertical-align: middle;
+}
+
 @keyframes glugShimmerSweep {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }

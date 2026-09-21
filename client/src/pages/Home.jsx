@@ -427,28 +427,44 @@ export default function Home() {
             <Link to="/members" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <Users size={18} className="stat-tile-icon icon-blue" />
               <span className="stat-tile-number">
-                {stats ? formatStatCount(stats.members) : '1.2K'}
+                {stats ? (
+                  formatStatCount(stats.members ?? 0)
+                ) : (
+                  <span className="stat-num-skeleton glug-skeleton-shimmer" />
+                )}
               </span>
               <span className="stat-tile-label">Members</span>
             </Link>
             <Link to="/forum" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <FileText size={18} className="stat-tile-icon icon-cyan" />
               <span className="stat-tile-number">
-                {stats ? formatStatCount(stats.discussions) : '450'}
+                {stats ? (
+                  formatStatCount(stats.discussions ?? 0)
+                ) : (
+                  <span className="stat-num-skeleton glug-skeleton-shimmer" />
+                )}
               </span>
               <span className="stat-tile-label">Discussions</span>
             </Link>
             <Link to="/events" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <Calendar size={18} className="stat-tile-icon icon-indigo" />
               <span className="stat-tile-number">
-                {eventStats ? eventStats.total : (stats?.events ?? (stats?.categories?.events ? stats.categories.events.discussions : '0'))}
+                {stats || eventStats ? (
+                  formatStatCount(eventStats ? eventStats.total : (stats?.events ?? (stats?.categories?.events ? stats.categories.events.discussions : 0)))
+                ) : (
+                  <span className="stat-num-skeleton glug-skeleton-shimmer" />
+                )}
               </span>
               <span className="stat-tile-label">Events</span>
             </Link>
             <Link to="/resources" className="home-stat-tile" style={{ textDecoration: 'none' }}>
               <BookOpen size={18} className="stat-tile-icon icon-purple" />
               <span className="stat-tile-number">
-                {stats ? formatStatCount(stats.resources) : '120'}
+                {stats ? (
+                  formatStatCount(stats.resources ?? 0)
+                ) : (
+                  <span className="stat-num-skeleton glug-skeleton-shimmer" />
+                )}
               </span>
               <span className="stat-tile-label">Resources</span>
             </Link>
