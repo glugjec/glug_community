@@ -17,12 +17,12 @@
 }
 
 .report-modal-dialog {
-  background-color: #161b22;
-  border: 1px solid #30363d;
+  background-color: var(--bg-card, #161b22);
+  border: 1px solid var(--border, #30363d);
   border-radius: 12px;
   width: 100%;
   max-width: 460px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-card, 0 16px 40px rgba(0, 0, 0, 0.3));
   overflow: hidden;
   animation: reportSlideUp 0.15s ease-out;
 }
@@ -37,7 +37,7 @@
   align-items: flex-start;
   gap: 0.75rem;
   padding: 1.25rem 1.25rem 1rem;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--border, #21262d);
   position: relative;
 }
 
@@ -64,19 +64,19 @@
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #f0f6fc;
+  color: var(--text, #f0f6fc);
 }
 
 .report-modal-desc {
   margin: 0.25rem 0 0;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: var(--text-muted, #8b949e);
 }
 
 .report-modal-close {
   background: none;
   border: none;
-  color: #8b949e;
+  color: var(--text-muted, #8b949e);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -86,8 +86,8 @@
 }
 
 .report-modal-close:hover {
-  color: #f0f6fc;
-  background-color: #21262d;
+  color: var(--text, #f0f6fc);
+  background-color: var(--bg-hover, #21262d);
 }
 
 .report-modal-body {
@@ -116,16 +116,16 @@
 
 .report-modal-field label {
   font-size: 0.85rem;
-  color: #c9d1d9;
+  color: var(--text, #c9d1d9);
   font-weight: 500;
 }
 
 .report-modal-textarea {
-  background-color: #0d1117;
-  border: 1px solid #30363d;
+  background-color: var(--bg-input, #0d1117);
+  border: 1px solid var(--border, #30363d);
   border-radius: 6px;
   padding: 0.6rem 0.8rem;
-  color: #c9d1d9;
+  color: var(--text, #c9d1d9);
   font-size: 0.88rem;
   resize: vertical;
   min-height: 72px;
@@ -134,18 +134,18 @@
 }
 
 .report-modal-textarea:focus {
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+  border-color: var(--accent, #58a6ff);
+  box-shadow: 0 0 0 3px var(--accent-subtle, rgba(88, 166, 255, 0.15));
 }
 
 .report-modal-char-count {
   font-size: 0.75rem;
-  color: #8b949e;
+  color: var(--text-dim, #8b949e);
   text-align: right;
 }
 
 .report-modal-info {
-  background-color: rgba(56, 139, 253, 0.1);
+  background-color: var(--accent-subtle, rgba(56, 139, 253, 0.1));
   border: 1px solid rgba(56, 139, 253, 0.2);
   border-radius: 6px;
   padding: 0.6rem 0.8rem;
@@ -155,7 +155,7 @@
 .report-modal-info p {
   margin: 0;
   font-size: 0.78rem;
-  color: #79c0ff;
+  color: var(--accent, #79c0ff);
   line-height: 1.4;
 }
 
@@ -176,14 +176,14 @@
 }
 
 .report-btn.secondary {
-  background-color: #21262d;
-  border-color: #30363d;
-  color: #c9d1d9;
+  background-color: var(--bg-card-subtle, #21262d);
+  border-color: var(--border, #30363d);
+  color: var(--text, #c9d1d9);
 }
 
 .report-btn.secondary:hover {
-  background-color: #30363d;
-  color: #f0f6fc;
+  background-color: var(--bg-hover, #30363d);
+  color: var(--text, #f0f6fc);
 }
 
 .report-btn.danger {
@@ -211,13 +211,13 @@
 
 .report-modal-success h4 {
   margin: 0.5rem 0 0;
-  color: #f0f6fc;
+  color: var(--text, #f0f6fc);
   font-size: 1.1rem;
 }
 
 .report-modal-success p {
   margin: 0;
-  color: #8b949e;
+  color: var(--text-muted, #8b949e);
   font-size: 0.88rem;
   line-height: 1.4;
 }

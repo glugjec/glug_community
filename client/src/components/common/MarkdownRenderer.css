@@ -17,7 +17,7 @@
 .glug-markdown-content h2,
 .glug-markdown-content h3,
 .glug-markdown-content h4 {
-  color: #f8fafc;
+  color: var(--text, #f8fafc);
   font-weight: 700;
   margin-top: 1.25rem;
   margin-bottom: 0.6rem;
@@ -26,13 +26,13 @@
 
 .glug-markdown-content h1 {
   font-size: 1.4rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   padding-bottom: 0.4rem;
 }
 
 .glug-markdown-content h2 {
   font-size: 1.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
   padding-bottom: 0.35rem;
 }
 
@@ -45,29 +45,29 @@
 }
 
 .glug-markdown-content strong {
-  color: #ffffff;
+  color: var(--text, #ffffff);
   font-weight: 700;
 }
 
 .glug-markdown-content em {
   font-style: italic;
-  color: #cbd5e1;
+  color: inherit;
 }
 
 .glug-markdown-content .md-link {
-  color: #38bdf8;
+  color: var(--accent, #38bdf8);
   text-decoration: underline;
   text-underline-offset: 3px;
   transition: color 0.15s ease;
 }
 
 .glug-markdown-content .md-link:hover {
-  color: #7dd3fc;
+  color: var(--accent-hover, #7dd3fc);
 }
 
 .glug-markdown-content pre {
-  background: #090d16;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--bg-card-subtle, #090d16);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.09));
   border-radius: 8px;
   padding: 0.85rem 1rem;
   margin: 0.85rem 0;
@@ -78,15 +78,15 @@
   background: transparent;
   padding: 0;
   border: none;
-  color: #e2e8f0;
+  color: var(--text, #e2e8f0);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.85rem;
   line-height: 1.5;
 }
 
 .glug-markdown-content :not(pre) > code {
-  background: rgba(59, 130, 246, 0.12);
-  color: #93c5fd;
+  background: var(--accent-subtle, rgba(59, 130, 246, 0.12));
+  color: var(--accent, #93c5fd);
   border: 1px solid rgba(59, 130, 246, 0.22);
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
@@ -95,12 +95,12 @@
 }
 
 .glug-markdown-content blockquote {
-  border-left: 3px solid #3b82f6;
-  background: rgba(59, 130, 246, 0.05);
+  border-left: 3px solid var(--accent, #3b82f6);
+  background: var(--accent-subtle, rgba(59, 130, 246, 0.05));
   padding: 0.5rem 0.9rem;
   margin: 0.75rem 0;
   border-radius: 0 6px 6px 0;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
   font-style: italic;
 }
 
@@ -126,8 +126,8 @@
   width: auto;
   height: auto;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   display: block;
   object-fit: contain;
   margin: 0.85rem 0;
@@ -137,24 +137,43 @@
   width: 100%;
   border-collapse: collapse;
   margin: 0.85rem 0;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   font-size: 0.88rem;
 }
 
 .glug-markdown-content th,
 .glug-markdown-content td {
   padding: 0.5rem 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
 }
 
 .glug-markdown-content th {
-  background: rgba(255, 255, 255, 0.04);
-  color: #f1f5f9;
+  background: var(--bg-card-subtle, rgba(255, 255, 255, 0.04));
+  color: var(--text, #f1f5f9);
   font-weight: 600;
 }
 
 .glug-markdown-content hr {
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   margin: 1.25rem 0;
+}
+
+[data-theme="light"] .glug-markdown-content pre {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .glug-markdown-content pre code {
+  color: #0f172a;
+}
+
+[data-theme="light"] .glug-markdown-content :not(pre) > code {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+[data-theme="light"] .glug-markdown-content blockquote {
+  color: #475569;
 }

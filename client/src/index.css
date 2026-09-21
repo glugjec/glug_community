@@ -19,6 +19,7 @@
   --sidebar-w: 250px;
   --sidebar-w-collapsed: 72px;
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --text-bright: #f8fafc;
 }
 
 [data-theme="light"] {
@@ -30,6 +31,7 @@
   --border: #e2e8f0;
   --border-subtle: #cbd5e1;
   --text: #0f172a;
+  --text-bright: #0f172a;
   --text-muted: #475569;
   --text-dim: #64748b;
   --accent: #2563eb;
@@ -3277,16 +3279,25 @@ body.glug-mobile-search-open .sidebar-hamburger {
 .notif-text strong,
 .notif-text .notif-strong {
   font-weight: 700;
-  color: var(--text-bright, #f8fafc);
+  color: var(--text-bright, var(--text));
 }
 
 .notif-text .notif-quote-tag {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.05rem 0.3rem;
+  background: var(--accent-subtle, rgba(59, 130, 246, 0.12));
+  border: 1px solid var(--border, rgba(59, 130, 246, 0.22));
+  padding: 0.1rem 0.35rem;
   border-radius: 4px;
   font-weight: 600;
-  color: var(--text-bright, #f8fafc);
+  color: var(--accent, #60a5fa);
   font-style: normal;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+[data-theme="light"] .notif-text .notif-quote-tag {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+  color: #1d4ed8;
 }
 
 .notif-time {
