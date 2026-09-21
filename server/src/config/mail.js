@@ -484,6 +484,8 @@ export async function sendAppealDecisionMail({
   decision = 'approved',
   appealType = 'strike',
   strikeIndex = 1,
+  decrementStrike = true,
+  restoreContent = true,
   adminNotes = '',
   originalReason = '',
   originalCategory = '',
@@ -528,8 +530,12 @@ export async function sendAppealDecisionMail({
     const sIndexLabel = strikeIndex ? `Strike ${strikeIndex}` : 'Strike';
     appealLabel = `Strike Penalty Appeal (${sIndexLabel})`;
     if (isApproved) {
-      subject = `[GLUG Notice] ${sIndexLabel} Appeal Approved - Penalty Revoked`;
-      mainMessage = `Your appeal regarding ${sIndexLabel} has been reviewed and approved. The strike penalty has been removed from your record, and any restrictions on your posting privileges have been lifted.`;
+      subject = decrementStrike
+        ? `[GLUG Notice] ${sIndexLabel} Appeal Approved - Penalty Revoked`
+        : `[GLUG Notice] ${sIndexLabel} Appeal Approved`;
+      mainMessage = decrementStrike
+        ? `Your appeal regarding ${sIndexLabel} has been reviewed and approved. The strike penalty has been removed from your record, and any restrictions on your posting privileges have been lifted.`
+        : `Your appeal regarding ${sIndexLabel} has been reviewed and approved by an administrator.`;
       buttonLabel = 'View Account Standing';
       buttonUrl = `${clientUrl}/settings?tab=standing`;
     } else {
@@ -541,10 +547,16 @@ export async function sendAppealDecisionMail({
   } else if (appealType === 'post') {
     appealLabel = 'Post Content Appeal';
     if (isApproved) {
-      subject = '[GLUG Notice] Post Appeal Approved - Content Restored';
-      mainMessage = safeTitle
-        ? `Your appeal regarding your post "${safeTitle}" has been approved. The moderation restrictions have been cleared, and your post has been restored to the community.`
-        : 'Your appeal regarding your flagged post has been approved. The content has been restored and is visible to the community again.';
+      subject = restoreContent
+        ? '[GLUG Notice] Post Appeal Approved - Content Restored'
+        : (decrementStrike ? '[GLUG Notice] Post Appeal Approved - Strike Revoked' : '[GLUG Notice] Post Appeal Approved');
+      mainMessage = restoreContent
+        ? (safeTitle
+            ? `Your appeal regarding your post "${safeTitle}" has been approved. The moderation restrictions have been cleared, and your post has been restored to the community.`
+            : 'Your appeal regarding your flagged post has been approved. The content has been restored and is visible to the community again.')
+        : (decrementStrike
+            ? 'Your appeal regarding your flagged post has been approved and your strike penalty has been revoked.'
+            : 'Your appeal regarding your flagged post has been reviewed and approved by an administrator.');
       buttonLabel = postId ? 'View Restored Post' : 'View Account Standing';
       buttonUrl = postId ? `${clientUrl}/posts/${postId}` : `${clientUrl}/settings?tab=standing`;
     } else {
@@ -558,10 +570,16 @@ export async function sendAppealDecisionMail({
   } else if (appealType === 'comment') {
     appealLabel = 'Comment Content Appeal';
     if (isApproved) {
-      subject = '[GLUG Notice] Comment Appeal Approved - Content Restored';
-      mainMessage = safeTitle
-        ? `Your appeal regarding your comment on "${safeTitle}" has been approved. Your comment has been restored to the discussion.`
-        : 'Your appeal regarding your flagged comment has been approved. Your comment has been unhidden and restored to the discussion.';
+      subject = restoreContent
+        ? '[GLUG Notice] Comment Appeal Approved - Content Restored'
+        : (decrementStrike ? '[GLUG Notice] Comment Appeal Approved - Strike Revoked' : '[GLUG Notice] Comment Appeal Approved');
+      mainMessage = restoreContent
+        ? (safeTitle
+            ? `Your appeal regarding your comment on "${safeTitle}" has been approved. Your comment has been restored to the discussion.`
+            : 'Your appeal regarding your flagged comment has been approved. Your comment has been unhidden and restored to the discussion.')
+        : (decrementStrike
+            ? 'Your appeal regarding your flagged comment has been approved and your strike penalty has been revoked.'
+            : 'Your appeal regarding your flagged comment has been reviewed and approved by an administrator.');
       buttonLabel = postId ? 'View Discussion' : 'View Account Standing';
       buttonUrl = postId ? `${clientUrl}/posts/${postId}` : `${clientUrl}/settings?tab=standing`;
     } else {

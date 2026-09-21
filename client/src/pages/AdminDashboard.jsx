@@ -4718,7 +4718,7 @@ export default function AdminDashboard() {
                     {isResolvingAppeal
                       ? "Saving..."
                       : appealResolveForm.status === "approved"
-                      ? (isAccountBanAppeal ? "Approve & Unban User" : "Approve & Revoke Strike")
+                      ? "Approve"
                       : "Deny Appeal"}
                   </button>
                 </div>

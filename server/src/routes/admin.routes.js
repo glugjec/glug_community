@@ -1435,10 +1435,24 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
         recipientId: appeal.appellant,
         type: "report_accepted",
         message: isAccountBanAppeal
-          ? "Your account ban appeal has been APPROVED by an administrator. Your suspension has been lifted."
+          ? (decrementStrike
+              ? "Your account ban appeal has been APPROVED by an administrator. Your suspension has been lifted and strike penalty revoked."
+              : "Your account ban appeal has been APPROVED by an administrator. Your suspension has been lifted.")
           : (isCommentAppeal
-              ? "Your comment moderation appeal has been APPROVED by an administrator. Your strike has been revoked."
-              : "Your moderation appeal has been APPROVED by an administrator. Your strike has been revoked and standing updated."),
+              ? (decrementStrike
+                  ? (restoreContent
+                      ? "Your comment moderation appeal has been APPROVED. Your strike has been revoked and comment restored."
+                      : "Your comment moderation appeal has been APPROVED by an administrator. Your strike has been revoked.")
+                  : (restoreContent
+                      ? "Your comment moderation appeal has been APPROVED. Your comment has been restored."
+                      : "Your comment moderation appeal has been APPROVED by an administrator."))
+              : (decrementStrike
+                  ? (restoreContent
+                      ? "Your moderation appeal has been APPROVED. Your strike has been revoked and post restored."
+                      : "Your moderation appeal has been APPROVED by an administrator. Your strike has been revoked and standing updated.")
+                  : (restoreContent
+                      ? "Your moderation appeal has been APPROVED. Your post has been restored."
+                      : "Your moderation appeal has been APPROVED by an administrator."))),
       });
     } else {
       // Rejected
@@ -1490,6 +1504,8 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
         decision: status,
         appealType,
         strikeIndex: appeal.strikeIndex || 1,
+        decrementStrike: Boolean(decrementStrike),
+        restoreContent: Boolean(restoreContent),
         adminNotes: appeal.adminNotes || "",
         originalReason: appeal.originalReason || "",
         originalCategory: appeal.originalCategory || "",
@@ -1506,7 +1522,11 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
     return res.json({
       success: true,
       message: status === "approved"
-        ? (isAccountBanAppeal ? "Appeal approved and account ban lifted" : "Appeal approved and strike penalty revoked")
+        ? (isAccountBanAppeal
+            ? (decrementStrike ? "Appeal approved, suspension lifted and strike revoked" : "Appeal approved and account suspension lifted")
+            : (decrementStrike
+                ? (restoreContent ? "Appeal approved, strike revoked and content restored" : "Appeal approved and strike penalty revoked")
+                : (restoreContent ? "Appeal approved and content restored" : "Appeal approved")))
         : "Appeal rejected",
       appeal: appeal.toJSON(),
       updatedStrikes: appellant?.moderationStrikes ?? 0,
