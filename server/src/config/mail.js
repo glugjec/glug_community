@@ -24,7 +24,148 @@ const transporter = hasSmtp
     )
   : null;
 
-export async function sendOtpMail({ to, otp, purpose = 'registration' }) {
+class AsyncMailQueue {
+  constructor(concurrency = 2, maxRetries = 3) {
+    this.concurrency = concurrency;
+    this.maxRetries = maxRetries;
+    this.interDispatchDelayMs = Number(process.env.MAIL_INTER_DISPATCH_DELAY_MS) || 400;
+    this.maxQueueSize = 250;
+    this.queue = [];
+    this.active = 0;
+    this.lastDispatchTime = 0;
+    this.dailyDispatched = 0;
+    this.dayWindowStart = Date.now();
+  }
+
+  add(task, { priority = 'low' } = {}) {
+    return new Promise((resolve, reject) => {
+      this.checkDailyQuota();
+
+      if (this.queue.length >= this.maxQueueSize) {
+        const dropIdx = this.queue.findIndex((item) => item.priority === 'low');
+        if (dropIdx !== -1) {
+          const dropped = this.queue.splice(dropIdx, 1)[0];
+          dropped.reject(new Error('Mail queue full. Low-priority notification dropped.'));
+        } else if (priority === 'low') {
+          return reject(new Error('Mail queue full. Notification dropped.'));
+        }
+      }
+
+      const item = {
+        task,
+        priority,
+        attempts: 0,
+        enqueuedAt: Date.now(),
+        resolve,
+        reject,
+      };
+
+      if (priority === 'high') {
+        const insertIdx = this.queue.findIndex((i) => i.priority !== 'high');
+        if (insertIdx === -1) {
+          this.queue.push(item);
+        } else {
+          this.queue.splice(insertIdx, 0, item);
+        }
+      } else if (priority === 'normal') {
+        const insertIdx = this.queue.findIndex((i) => i.priority === 'low');
+        if (insertIdx === -1) {
+          this.queue.push(item);
+        } else {
+          this.queue.splice(insertIdx, 0, item);
+        }
+      } else {
+        this.queue.push(item);
+      }
+
+      this.process();
+    });
+  }
+
+  checkDailyQuota() {
+    const now = Date.now();
+    if (now - this.dayWindowStart > 24 * 60 * 60 * 1000) {
+      this.dayWindowStart = now;
+      this.dailyDispatched = 0;
+    }
+    if (this.dailyDispatched >= 450) {
+      console.warn(`[Gmail SMTP Warning] Approaching daily limit (${this.dailyDispatched}/500 emails in last 24h).`);
+    }
+  }
+
+  isTransientError(err) {
+    if (!err) return false;
+    const msg = String(err.message || '').toLowerCase();
+    const code = String(err.code || '').toUpperCase();
+    const responseCode = Number(err.responseCode) || 0;
+
+    if (responseCode === 421 || responseCode === 451 || responseCode === 454) return true;
+    if (code === 'ETIMEDOUT' || code === 'ECONNRESET' || code === 'ECONNREFUSED' || code === 'ESOCKET') return true;
+    if (msg.includes('try again') || msg.includes('timeout') || msg.includes('too many concurrent')) return true;
+
+    if (responseCode === 535 || responseCode === 550 || responseCode === 553 || responseCode === 554) return false;
+    if (msg.includes('invalid credentials') || msg.includes('bad username') || msg.includes('authentication failed')) return false;
+
+    return true;
+  }
+
+  async process() {
+    if (this.active >= this.concurrency || this.queue.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceLast = now - this.lastDispatchTime;
+    if (timeSinceLast < this.interDispatchDelayMs) {
+      const waitTime = this.interDispatchDelayMs - timeSinceLast;
+      setTimeout(() => this.process(), waitTime);
+      return;
+    }
+
+    this.active++;
+    this.lastDispatchTime = Date.now();
+    const item = this.queue.shift();
+    if (!item) {
+      this.active--;
+      return;
+    }
+
+    try {
+      item.attempts++;
+      const result = await item.task();
+      this.dailyDispatched++;
+      item.resolve(result);
+    } catch (err) {
+      const shouldRetry = this.isTransientError(err) && item.attempts < this.maxRetries;
+
+      if (shouldRetry) {
+        const delay = Math.pow(2, item.attempts) * 1000 + Math.floor(Math.random() * 500);
+        console.warn(`[Mail Queue Retry] Transient error (${err.message}). Retrying attempt ${item.attempts + 1}/${this.maxRetries} in ${delay}ms...`);
+        setTimeout(() => {
+          if (item.priority === 'high') {
+            this.queue.unshift(item);
+          } else {
+            this.queue.push(item);
+          }
+          this.process();
+        }, delay);
+      } else {
+        console.error('[Mail Queue Failure]', err?.message || err);
+        item.reject(err);
+      }
+    } finally {
+      this.active--;
+      this.process();
+    }
+  }
+}
+
+export const mailQueue = new AsyncMailQueue(
+  Number(process.env.MAIL_MAX_CONCURRENCY) || 2,
+  Number(process.env.MAIL_MAX_RETRIES) || 3
+);
+
+async function rawSendOtpMail({ to, otp, purpose = 'registration' }) {
   const from = process.env.EMAIL_FROM || '"GLUG Community" <glug.jec@gmail.com>';
   const subject = `Your GLUG Verification Code: ${otp}`;
   const purposeLabel =
@@ -144,61 +285,13 @@ export async function sendOtpMail({ to, otp, purpose = 'registration' }) {
     return { success: true, messageId: info.messageId };
   } catch (err) {
     console.error('[Nodemailer Error]', err);
-    throw new Error('Failed to send verification email');
+    throw err;
   }
 }
 
-class AsyncMailQueue {
-  constructor(concurrency = 2, maxRetries = 3) {
-    this.concurrency = concurrency;
-    this.maxRetries = maxRetries;
-    this.queue = [];
-    this.active = 0;
-  }
-
-  add(task) {
-    return new Promise((resolve, reject) => {
-      this.queue.push({
-        task,
-        attempts: 0,
-        resolve,
-        reject,
-      });
-      this.process();
-    });
-  }
-
-  async process() {
-    if (this.active >= this.concurrency || this.queue.length === 0) {
-      return;
-    }
-
-    this.active++;
-    const item = this.queue.shift();
-
-    try {
-      item.attempts++;
-      const result = await item.task();
-      item.resolve(result);
-    } catch (err) {
-      if (item.attempts < this.maxRetries) {
-        const delay = Math.pow(2, item.attempts) * 1000;
-        setTimeout(() => {
-          this.queue.push(item);
-          this.process();
-        }, delay);
-      } else {
-        console.error('[Mail Queue Failure]', err.message);
-        item.reject(err);
-      }
-    } finally {
-      this.active--;
-      this.process();
-    }
-  }
+export function sendOtpMail(options) {
+  return mailQueue.add(() => rawSendOtpMail(options), { priority: 'high' });
 }
-
-export const mailQueue = new AsyncMailQueue(2, 3);
 
 function getClientBaseUrl() {
   const envUrl =
@@ -235,7 +328,7 @@ function formatCommentPreview(raw) {
     .replace(/\n/g, '<br/>');
 }
 
-export async function sendNotificationMail({
+async function rawSendNotificationMail({
   to,
   recipientUsername,
   senderUsername,
@@ -360,7 +453,7 @@ export async function sendNotificationMail({
   return { success: true, messageId: info.messageId };
 }
 
-export async function sendStrikeMail({
+async function rawSendStrikeMail({
   to,
   username,
   strikeLevel,
@@ -478,7 +571,7 @@ export async function sendStrikeMail({
   return { success: true, messageId: info.messageId };
 }
 
-export async function sendAppealDecisionMail({
+async function rawSendAppealDecisionMail({
   to,
   username,
   decision = 'approved',
@@ -712,5 +805,17 @@ export async function sendAppealDecisionMail({
     text: plainText,
   });
   return { success: true, messageId: info.messageId };
+}
+
+export function sendNotificationMail(options) {
+  return mailQueue.add(() => rawSendNotificationMail(options), { priority: 'low' });
+}
+
+export function sendStrikeMail(options) {
+  return mailQueue.add(() => rawSendStrikeMail(options), { priority: 'normal' });
+}
+
+export function sendAppealDecisionMail(options) {
+  return mailQueue.add(() => rawSendAppealDecisionMail(options), { priority: 'normal' });
 }
 

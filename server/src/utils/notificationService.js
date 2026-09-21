@@ -1,7 +1,7 @@
 import { Notification } from "../models/Notification.js";
 import { User } from "../models/User.js";
 import { Post } from "../models/Post.js";
-import { mailQueue, sendNotificationMail } from "../config/mail.js";
+import { sendNotificationMail } from "../config/mail.js";
 
 export async function createNotification({
   senderId,
@@ -45,21 +45,17 @@ export async function createNotification({
       recipient.preferences?.replyNotifs !== false;
 
     if (emailAllowed && recipient.email) {
-      mailQueue
-        .add(() =>
-          sendNotificationMail({
-            to: recipient.email,
-            recipientUsername: recipient.username,
-            senderUsername: sender.username,
-            type,
-            postTitle: post.title,
-            commentBody,
-            postId,
-          })
-        )
-        .catch((mailErr) => {
-          console.error("[Notification Mail Error]", mailErr.message);
-        });
+      sendNotificationMail({
+        to: recipient.email,
+        recipientUsername: recipient.username,
+        senderUsername: sender.username,
+        type,
+        postTitle: post.title,
+        commentBody,
+        postId,
+      }).catch((mailErr) => {
+        console.error("[Notification Mail Error]", mailErr.message);
+      });
     }
 
     return notification;
