@@ -358,8 +358,14 @@ function stripHtml(html) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [savingPassword, setSavingPassword] = useState(false)
 
-  // Theme & Appearance State
-  const [theme, setTheme] = useState(() => localStorage.getItem('glug_theme') || 'dark')
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('glug_theme')
+    if (saved === 'cyber') {
+      localStorage.setItem('glug_theme', 'dark')
+      return 'dark'
+    }
+    return saved || 'dark'
+  })
   const [fontSize, setFontSize] = useState(
     () => localStorage.getItem('glug_editor_font_size') || '14'
   )
@@ -461,11 +467,15 @@ function stripHtml(html) {
   }
 
   const handleThemeSelect = (selectedTheme) => {
+    if (selectedTheme === 'cyber') {
+      showToast('Cyberpunk theme coming soon!')
+      return
+    }
     setTheme(selectedTheme)
     localStorage.setItem('glug_theme', selectedTheme)
     document.documentElement.setAttribute('data-theme', selectedTheme)
     window.dispatchEvent(new CustomEvent('glug-theme-change', { detail: selectedTheme }))
-    showToast(`Switched to ${selectedTheme === 'dark' ? 'Dark' : selectedTheme === 'light' ? 'Light' : 'Cyber'} mode`)
+    showToast(`Switched to ${selectedTheme === 'dark' ? 'Dark' : 'Light'} mode`)
 
     if (user) {
       authApi.updateProfile({ preferences: { ...user.preferences, theme: selectedTheme } }).catch(() => {})
@@ -1062,9 +1072,10 @@ function stripHtml(html) {
                   </div>
 
                   <div
-                    className={`theme-card-option ${theme === 'cyber' ? 'is-selected' : ''}`}
+                    className="theme-card-option theme-card-coming-soon"
                     onClick={() => handleThemeSelect('cyber')}
                   >
+                    <span className="theme-coming-soon-badge">Coming Soon</span>
                     <div className="theme-preview-pill" style={{ background: '#05050f', border: '1px solid #3b0764' }}>
                       <Sparkles size={18} color="#a855f7" />
                     </div>
