@@ -3653,5 +3653,35 @@ label.role-option-card:hover {
   border-top-color: #e2e8f0;
 }
 
+[data-theme="light"] .admin-system-info-row {
+  border-bottom-color: #e2e8f0;
+}
 
+[data-theme="light"] .admin-sys-label {
+  color: #475569;
+}
 
+[data-theme="light"] .admin-sys-val {
+  color: #0f172a;
+}
+
+[data-theme="light"] .admin-sys-badge.healthy {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+[data-theme="light"] .admin-protected-item {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .admin-email-tag {
+  color: #0284c7;
+}
+
+[data-theme="light"] .admin-shield-badge {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+}
