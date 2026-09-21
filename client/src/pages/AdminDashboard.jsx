@@ -407,7 +407,12 @@ export default function AdminDashboard() {
 
     setIsResolvingAppeal(true);
     try {
-      const res = await adminApi.resolveAppeal(appealToResolve.id || appealToResolve._id, appealResolveForm);
+      const isContentDeleted = Boolean(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted);
+      const payload = {
+        ...appealResolveForm,
+        restoreContent: isContentDeleted ? false : appealResolveForm.restoreContent,
+      };
+      const res = await adminApi.resolveAppeal(appealToResolve.id || appealToResolve._id, payload);
       showToast(res.message || "Appeal resolved successfully", "success");
       setAppealToResolve(null);
       loadAppeals();
@@ -2377,11 +2382,12 @@ export default function AdminDashboard() {
                                     type="button"
                                     className="admin-action-btn primary"
                                     onClick={() => {
+                                      const isDeleted = Boolean(a.targetComment?.isDeleted || a.isCommentDeleted);
                                       setAppealToResolve(a);
                                       setAppealResolveForm({
                                         status: "approved",
                                         adminNotes: "",
-                                        restoreContent: true,
+                                        restoreContent: !isDeleted,
                                         decrementStrike: true,
                                       });
                                     }}
@@ -2700,11 +2706,12 @@ export default function AdminDashboard() {
                                 type="button"
                                 className="admin-action-btn primary"
                                 onClick={() => {
+                                  const isDeleted = Boolean(a.targetComment?.isDeleted || a.isCommentDeleted);
                                   setAppealToResolve(a);
                                   setAppealResolveForm({
                                     status: "approved",
                                     adminNotes: "",
-                                    restoreContent: true,
+                                    restoreContent: !isDeleted,
                                     decrementStrike: true,
                                   });
                                 }}
@@ -4608,27 +4615,34 @@ export default function AdminDashboard() {
                         </span>
                       </label>
                     </div>
-                    {!isAccountBanAppeal && (
-                      <div className={`admin-checkbox-card success ${appealResolveForm.restoreContent ? "is-checked" : ""} ${(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted) ? "is-disabled" : ""}`}>
-                        <label className="admin-checkbox-label">
-                          <input
-                            type="checkbox"
-                            className="admin-native-checkbox"
-                            checked={appealResolveForm.restoreContent && !(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted)}
-                            disabled={appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted}
-                            onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
-                          />
-                          <span className="admin-custom-checkbox">
-                            <Check size={13} strokeWidth={3} />
-                          </span>
-                          <span className="admin-checkbox-text">
-                            {(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted)
-                              ? "Restore flagged content (Disabled - comment was permanently deleted)"
-                              : "Restore flagged content to public view (unhide)"}
-                          </span>
-                        </label>
-                      </div>
-                    )}
+                    {!isAccountBanAppeal && (() => {
+                      const isContentDeleted = Boolean(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted);
+                      const isRestoreChecked = appealResolveForm.restoreContent && !isContentDeleted;
+                      return (
+                        <div
+                          className={`admin-checkbox-card ${isRestoreChecked ? "success is-checked" : ""} ${isContentDeleted ? "is-disabled" : ""}`}
+                          style={isContentDeleted ? { opacity: 0.6, cursor: "not-allowed" } : {}}
+                        >
+                          <label className="admin-checkbox-label" style={isContentDeleted ? { cursor: "not-allowed" } : {}}>
+                            <input
+                              type="checkbox"
+                              className="admin-native-checkbox"
+                              checked={isRestoreChecked}
+                              disabled={isContentDeleted}
+                              onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
+                            />
+                            <span className="admin-custom-checkbox">
+                              <Check size={13} strokeWidth={3} />
+                            </span>
+                            <span className="admin-checkbox-text">
+                              {isContentDeleted
+                                ? "Restore flagged content (Disabled - comment was permanently deleted)"
+                                : "Restore flagged content to public view (unhide)"}
+                            </span>
+                          </label>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 

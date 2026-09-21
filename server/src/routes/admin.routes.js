@@ -1352,6 +1352,8 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
 
     const appellant = await User.findById(appeal.appellant);
     const isAccountBanAppeal = appeal.itemType === "account_ban" || appeal.originalCategory === "account_ban";
+    const isCommentAppeal = appeal.itemType === "comment" || !!appeal.targetComment;
+    const appealType = isAccountBanAppeal ? "account_ban" : (isCommentAppeal ? "comment" : (appeal.itemType || "strike"));
 
     if (status === "approved") {
       // 1. Unban and/or decrement strike if requested
@@ -1459,8 +1461,6 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
       });
     }
 
-    const isCommentAppeal = appeal.itemType === "comment" || !!appeal.targetComment;
-    const appealType = isAccountBanAppeal ? "account_ban" : (isCommentAppeal ? "comment" : (appeal.itemType || "strike"));
     let contentTitle = appeal.postTitle || "";
     let relatedPostId = null;
 
