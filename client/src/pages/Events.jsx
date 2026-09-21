@@ -15,9 +15,7 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   Share2,
-  Shield,
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext.jsx';
 import { eventsApi } from '../api.js';
 import './Events.css';
 
@@ -94,7 +92,6 @@ function downloadIcsFile(event) {
 }
 
 export default function Events() {
-  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get('tab') || 'upcoming';
   const currentCategory = searchParams.get('category') || 'all';
@@ -178,33 +175,9 @@ export default function Events() {
       <header className="events-hero-section">
         <div className="events-hero-glow" />
         <div className="events-hero-container">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-            <div className="events-hero-badge">
-              <Sparkles size={14} />
-              <span>Community Gatherings & Knowledge Sharing</span>
-            </div>
-            {['admin', 'content_admin'].includes(user?.role) && (
-              <Link
-                to="/admin?tab=events"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#38bdf8',
-                  background: 'rgba(56, 189, 248, 0.1)',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Shield size={14} />
-                <span>Admin Console</span>
-              </Link>
-            )}
+          <div className="events-hero-badge">
+            <Sparkles size={14} />
+            <span>Community Gatherings & Knowledge Sharing</span>
           </div>
 
           <h1 className="events-hero-title">

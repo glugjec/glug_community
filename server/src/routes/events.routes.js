@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Event } from '../models/Event.js';
-import { requireAuth, requireAdmin, requireContentAdmin } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import cloudinary from '../config/cloudinary.js';
 
 const router = Router();
@@ -147,7 +147,7 @@ router.get('/:idOrSlug', async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, requireContentAdmin, async (req, res) => {
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
   try {
     const {
       title,
@@ -204,7 +204,7 @@ router.post('/', requireAuth, requireContentAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, requireContentAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -235,7 +235,7 @@ router.put('/:id', requireAuth, requireContentAdmin, async (req, res) => {
   }
 });
 
-router.delete('/:id', requireAuth, requireContentAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -276,7 +276,7 @@ router.delete('/:id', requireAuth, requireContentAdmin, async (req, res) => {
   }
 });
 
-router.post('/:id/gallery', requireAuth, requireContentAdmin, async (req, res) => {
+router.post('/:id/gallery', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { images } = req.body;
@@ -306,7 +306,7 @@ router.post('/:id/gallery', requireAuth, requireContentAdmin, async (req, res) =
   }
 });
 
-router.delete('/:id/gallery/:imageId', requireAuth, requireContentAdmin, async (req, res) => {
+router.delete('/:id/gallery/:imageId', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id, imageId } = req.params;
 
@@ -337,7 +337,7 @@ router.delete('/:id/gallery/:imageId', requireAuth, requireContentAdmin, async (
   }
 });
 
-router.patch('/:id/gallery/:imageId', requireAuth, requireContentAdmin, async (req, res) => {
+router.patch('/:id/gallery/:imageId', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id, imageId } = req.params;
     const { caption } = req.body;
@@ -361,7 +361,7 @@ router.patch('/:id/gallery/:imageId', requireAuth, requireContentAdmin, async (r
   }
 });
 
-router.patch('/:id/status', requireAuth, requireContentAdmin, async (req, res) => {
+router.patch('/:id/status', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
