@@ -230,17 +230,15 @@
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
 }
 
 .res-category-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-
-.res-category-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .res-category-pill {

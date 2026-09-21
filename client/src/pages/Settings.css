@@ -52,6 +52,14 @@
   gap: 0.35rem;
   position: sticky;
   top: 1.5rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settings-sidebar-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .settings-nav-item {
@@ -439,6 +447,9 @@
     position: static;
     flex-direction: row;
     overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .settings-nav-item {
