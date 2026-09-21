@@ -447,7 +447,7 @@ export default function Profile() {
           <div className="profile-header-content">
             <div className="profile-avatar-row">
               <div className="profile-avatar-wrapper">
-                <div className="profile-avatar-skeleton glug-skeleton-shimmer" />
+                <div className="profile-avatar-skeleton glug-skeleton-shimmer" style={{ borderRadius: '50%' }} />
               </div>
               <div className="profile-user-info-col" style={{ flex: 1, minWidth: 0 }}>
                 <div className="profile-name-row" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
