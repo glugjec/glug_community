@@ -7,34 +7,112 @@ import { Comment } from '../models/Comment.js';
 import { ModerationLog } from '../models/ModerationLog.js';
 
 const cache = new Map();
+const inFlight = new Map();
 const MAX_CACHE_SIZE = 1000;
 
 function hashText(text) {
   return crypto.createHash('sha256').update(String(text).trim().toLowerCase()).digest('hex');
 }
 
-/**
- * Calls Groq API to classify user content.
- * Returns: { verdict: 'VIOLATION' | 'SAFE', reason: string, category: string }
- */
-export async function moderateContent(text) {
-  if (!text || typeof text !== 'string' || !text.trim()) {
-    return { verdict: 'SAFE', reason: '', category: 'none' };
+class AIModerationQueue {
+  constructor() {
+    this.concurrency = Number(process.env.GROQ_MAX_CONCURRENCY) || 2;
+    this.maxRpm = Number(process.env.GROQ_MAX_RPM) || 25;
+    this.maxRetries = Number(process.env.GROQ_MAX_RETRIES) || 3;
+    this.queueTimeoutMs = Number(process.env.GROQ_QUEUE_TIMEOUT_MS) || 6000;
+    this.queue = [];
+    this.active = 0;
+    this.requestTimestamps = [];
   }
 
-  const cleanText = text.trim();
-  const textHash = hashText(cleanText);
+  enqueue(taskFn, { priority = 'normal' } = {}) {
+    return new Promise((resolve) => {
+      const entry = {
+        taskFn,
+        priority,
+        enqueuedAt: Date.now(),
+        attempts: 0,
+        resolve,
+      };
 
-  if (cache.has(textHash)) {
-    return cache.get(textHash);
+      if (priority === 'high') {
+        const insertIdx = this.queue.findIndex((item) => item.priority !== 'high');
+        if (insertIdx === -1) {
+          this.queue.push(entry);
+        } else {
+          this.queue.splice(insertIdx, 0, entry);
+        }
+      } else {
+        this.queue.push(entry);
+      }
+
+      this.process();
+    });
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    console.warn('[Moderation] GROQ_API_KEY is not configured. Failing open (allowing content).');
-    return { verdict: 'SAFE', reason: 'Moderation key missing', category: 'none', skipped: true };
+  getMsUntilNextSlot() {
+    const now = Date.now();
+    this.requestTimestamps = this.requestTimestamps.filter((t) => now - t < 60000);
+    if (this.requestTimestamps.length < this.maxRpm) return 0;
+    const oldestInWindow = this.requestTimestamps[0];
+    return Math.max(0, 60000 - (now - oldestInWindow) + 50);
   }
 
+  async process() {
+    if (this.queue.length === 0 || this.active >= this.concurrency) {
+      return;
+    }
+
+    const waitTime = this.getMsUntilNextSlot();
+    if (waitTime > 0) {
+      setTimeout(() => this.process(), waitTime);
+      return;
+    }
+
+    const item = this.queue.shift();
+    if (!item) return;
+
+    if (Date.now() - item.enqueuedAt > this.queueTimeoutMs) {
+      console.warn('[Moderation Queue] Request timed out in queue. Failing open.');
+      item.resolve({ verdict: 'SAFE', reason: 'Queue timeout fallback', category: 'none', skipped: true });
+      this.process();
+      return;
+    }
+
+    this.active++;
+    this.requestTimestamps.push(Date.now());
+
+    try {
+      item.attempts++;
+      const result = await item.taskFn();
+      item.resolve(result);
+    } catch (err) {
+      const isRateLimit = err?.status === 429 || (err?.message && err.message.includes('429'));
+      const isServerError = err?.status >= 500;
+
+      if ((isRateLimit || isServerError) && item.attempts < this.maxRetries) {
+        let retryDelay = Math.pow(2, item.attempts) * 1000 + Math.floor(Math.random() * 500);
+        if (err?.retryAfterSeconds) {
+          retryDelay = Math.max(retryDelay, err.retryAfterSeconds * 1000);
+        }
+        setTimeout(() => {
+          this.queue.unshift(item);
+          this.process();
+        }, retryDelay);
+      } else {
+        console.error('[Moderation Queue Failure]', err?.message || err);
+        item.resolve({ verdict: 'SAFE', reason: 'Moderation error fallback', category: 'none', error: true });
+      }
+    } finally {
+      this.active--;
+      this.process();
+    }
+  }
+}
+
+export const moderationQueue = new AIModerationQueue();
+
+async function callGroqModerationApi(cleanText, apiKey) {
   const systemPrompt = `You are a content safety and moderation classifier for a GNU/Linux User Group community forum.
 
 CORE TOLERANCE GUIDELINE:
@@ -54,65 +132,111 @@ Respond ONLY with a valid JSON object matching this schema with no markdown code
   "reason": "One sentence explanation"
 }`;
 
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: cleanText },
+      ],
+      temperature: 0,
+      max_tokens: 300,
+    }),
+  });
+
+  if (response.status === 429) {
+    const retryHeader = response.headers.get('retry-after');
+    const retryAfterSeconds = retryHeader ? Number(retryHeader) : null;
+    const err = new Error('Groq 429 Rate Limit');
+    err.status = 429;
+    if (retryAfterSeconds) err.retryAfterSeconds = retryAfterSeconds;
+    throw err;
+  }
+
+  if (response.status >= 500) {
+    const err = new Error(`Groq server error ${response.status}`);
+    err.status = response.status;
+    throw err;
+  }
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error(`[Moderation] Groq API returned status ${response.status}: ${errText}`);
+    return { verdict: 'SAFE', reason: 'API error fallback', category: 'none', error: true };
+  }
+
+  const data = await response.json();
+  const rawContent = data.choices?.[0]?.message?.content?.trim() || '{}';
+
+  let parsed;
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    parsed = JSON.parse(rawContent);
+  } catch {
+    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error('Failed to parse moderation JSON');
+    }
+  }
+
+  const verdict = parsed.verdict?.toUpperCase() === 'VIOLATION' ? 'VIOLATION' : 'SAFE';
+  const category = parsed.category || (verdict === 'VIOLATION' ? 'abuse' : 'none');
+  const reason = parsed.reason || (verdict === 'VIOLATION' ? 'Violates community guidelines' : '');
+
+  return { verdict, category, reason };
+}
+
+export async function moderateContent(text, options = {}) {
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return { verdict: 'SAFE', reason: '', category: 'none' };
+  }
+
+  const cleanText = text.trim();
+  if (cleanText.length <= 3) {
+    return { verdict: 'SAFE', reason: '', category: 'none' };
+  }
+
+  const textHash = hashText(cleanText);
+
+  if (cache.has(textHash)) {
+    return cache.get(textHash);
+  }
+
+  if (inFlight.has(textHash)) {
+    return inFlight.get(textHash);
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    console.warn('[Moderation] GROQ_API_KEY is not configured. Failing open (allowing content).');
+    return { verdict: 'SAFE', reason: 'Moderation key missing', category: 'none', skipped: true };
+  }
+
+  const promise = moderationQueue
+    .enqueue(
+      async () => {
+        const result = await callGroqModerationApi(cleanText, apiKey);
+        if (cache.size >= MAX_CACHE_SIZE) {
+          const firstKey = cache.keys().next().value;
+          cache.delete(firstKey);
+        }
+        cache.set(textHash, result);
+        return result;
       },
-      body: JSON.stringify({
-        model: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: cleanText },
-        ],
-        temperature: 0,
-        max_tokens: 300,
-      }),
+      { priority: options.priority || 'normal' }
+    )
+    .finally(() => {
+      inFlight.delete(textHash);
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`[Moderation] Groq API returned status ${response.status}: ${errText}`);
-      // Fail-open strategy to avoid blocking users during API outage
-      return { verdict: 'SAFE', reason: 'API error fallback', category: 'none', error: true };
-    }
-
-    const data = await response.json();
-    const rawContent = data.choices?.[0]?.message?.content?.trim() || '{}';
-
-    let parsed;
-    try {
-      parsed = JSON.parse(rawContent);
-    } catch {
-      // Fallback regex extraction if needed
-      const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Failed to parse moderation JSON');
-      }
-    }
-
-    const verdict = parsed.verdict?.toUpperCase() === 'VIOLATION' ? 'VIOLATION' : 'SAFE';
-    const category = parsed.category || (verdict === 'VIOLATION' ? 'abuse' : 'none');
-    const reason = parsed.reason || (verdict === 'VIOLATION' ? 'Violates community guidelines' : '');
-
-    const result = { verdict, category, reason };
-
-    // Maintain in-memory cache
-    if (cache.size >= MAX_CACHE_SIZE) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey);
-    }
-    cache.set(textHash, result);
-
-    return result;
-  } catch (err) {
-    console.error('[Moderation Error]', err.message);
-    return { verdict: 'SAFE', reason: 'Moderation service error', category: 'none', error: true };
-  }
+  inFlight.set(textHash, promise);
+  return promise;
 }
 
 /**

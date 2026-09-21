@@ -619,7 +619,7 @@ router.post('/', requireAuth, async (req, res) => {
     let pipelineResult = null;
 
     if (req.user.role !== 'admin') {
-      const modResult = await moderateContent(`${title.trim()}\n\n${body.trim()}`);
+      const modResult = await moderateContent(`${title.trim()}\n\n${body.trim()}`, { priority: 'high' });
       if (modResult.verdict === 'VIOLATION') {
         isHidden = true;
         moderationReason = modResult.reason || 'Violates community guidelines';
@@ -695,7 +695,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     const newBody = body?.trim() || post.body;
 
     if (req.user.role !== 'admin' && (title?.trim() || body?.trim())) {
-      const modResult = await moderateContent(`${newTitle}\n\n${newBody}`);
+      const modResult = await moderateContent(`${newTitle}\n\n${newBody}`, { priority: 'high' });
       if (modResult.verdict === 'VIOLATION') {
         isHidden = true;
         moderationReason = modResult.reason || 'Violates community guidelines';
@@ -928,7 +928,7 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     let pipelineResult = null;
 
     if (req.user.role !== 'admin') {
-      const modResult = await moderateContent(body.trim());
+      const modResult = await moderateContent(body.trim(), { priority: 'high' });
       if (modResult.verdict === 'VIOLATION') {
         isHidden = true;
         moderationReason = modResult.reason || 'Violates community guidelines';
@@ -1275,7 +1275,7 @@ router.post('/:id/report', requireAuth, async (req, res) => {
     }
 
     // AI Check
-    const modResult = await moderateContent(`${post.title}\n\n${post.body}`);
+    const modResult = await moderateContent(`${post.title}\n\n${post.body}`, { priority: 'normal' });
     const isViolation = modResult.verdict === 'VIOLATION';
 
     const report = await Report.create({
@@ -1381,7 +1381,7 @@ router.post('/:id/comments/:commentId/report', requireAuth, async (req, res) => 
     }
 
     // AI Check
-    const modResult = await moderateContent(comment.body);
+    const modResult = await moderateContent(comment.body, { priority: 'normal' });
     const isViolation = modResult.verdict === 'VIOLATION';
 
     const report = await Report.create({
