@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { authApi, usersApi } from '../api.js'
@@ -33,6 +33,51 @@ import {
   MessageSquare
 } from 'lucide-react'
 import './Settings.css'
+
+function ExpandableModReason({ reason }) {
+  const [expanded, setExpanded] = useState(false)
+  const [isTruncated, setIsTruncated] = useState(false)
+  const textRef = useRef(null)
+
+  useLayoutEffect(() => {
+    const el = textRef.current
+    if (!el) return
+
+    const measure = () => {
+      if (expanded) return
+      setIsTruncated(el.scrollHeight > el.clientHeight + 2)
+    }
+
+    measure()
+
+    const ro = new ResizeObserver(() => {
+      measure()
+    })
+    ro.observe(el)
+
+    return () => ro.disconnect()
+  }, [reason, expanded])
+
+  return (
+    <div className="settings-mod-reason-wrap">
+      <p
+        ref={textRef}
+        className={`settings-mod-item-reason ${!expanded ? 'is-clamped' : ''}`}
+      >
+        <strong>Reason:</strong> {reason}
+      </p>
+      {(isTruncated || expanded) && (
+        <button
+          type="button"
+          className="settings-mod-reason-toggle"
+          onClick={() => setExpanded((prev) => !prev)}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
+  )
+}
 
 export default function Settings() {
   const { user, updateUser, logout } = useAuth()
@@ -941,52 +986,7 @@ function stripHtml(html) {
                               <p className="settings-mod-item-snippet">"{item.snippet}"</p>
                             )}
                             {item.reason && (
-                              <div style={{ marginBottom: '0.45rem' }}>
-                                <div
-                                  style={{
-                                    maxHeight: expandedReasons[`item-reason-${item.key}`] ? 'none' : '52px',
-                                    overflow: expandedReasons[`item-reason-${item.key}`] ? 'visible' : 'hidden',
-                                    position: 'relative',
-                                    transition: 'max-height 0.2s ease',
-                                  }}
-                                >
-                                  <p className="settings-mod-item-reason" style={{ margin: 0 }}>
-                                    <strong>Reason:</strong> {item.reason}
-                                  </p>
-                                  {!expandedReasons[`item-reason-${item.key}`] && item.reason.length > 120 && (
-                                    <div
-                                      style={{
-                                        position: 'absolute',
-                                        bottom: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: '20px',
-                                        background: 'linear-gradient(to bottom, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.95))',
-                                        pointerEvents: 'none',
-                                      }}
-                                    />
-                                  )}
-                                </div>
-                                {item.reason.length > 120 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleReasonExpanded(`item-reason-${item.key}`)}
-                                    style={{
-                                      background: 'none',
-                                      border: 'none',
-                                      color: '#60a5fa',
-                                      fontSize: '0.74rem',
-                                      fontWeight: 600,
-                                      padding: '2px 0',
-                                      marginTop: '2px',
-                                      cursor: 'pointer',
-                                      display: 'inline-block',
-                                    }}
-                                  >
-                                    {expandedReasons[`item-reason-${item.key}`] ? 'Show less' : 'Show full reason'}
-                                  </button>
-                                )}
-                              </div>
+                              <ExpandableModReason reason={item.reason} />
                             )}
                             {appeal?.adminNotes && (
                               <div className={`settings-mod-admin-note status-${appeal.status}`}>
