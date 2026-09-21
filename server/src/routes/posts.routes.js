@@ -954,8 +954,8 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
         reason: moderationReason,
         category: moderationCategory,
         actionSource: 'auto_flag',
-        targetComment: comment._id,
-        targetPost: post._id,
+        targetComment: comment,
+        targetPost: post,
       });
     } else {
       post.commentCount = (post.commentCount || 0) + 1;

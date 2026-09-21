@@ -35,23 +35,23 @@ export async function moderateContent(text) {
     return { verdict: 'SAFE', reason: 'Moderation key missing', category: 'none', skipped: true };
   }
 
-  const systemPrompt = `You are a content safety and moderation classifier for a college GNU/Linux User Group (GLUG) community forum.
+  const systemPrompt = `You are a content safety and moderation classifier for a GNU/Linux User Group community forum.
 
 CORE TOLERANCE GUIDELINE:
-- Normal heated arguments, debate, disagreements, strong criticism of tools/distributions/approaches, swearing, profanity, cuss words, and informal or bad language are ACCEPTABLE and MUST be classified as SAFE.
-- Do NOT flag normal technical words (e.g. kill -9, execute, dump, abort, master/slave branch, daemon) or bad language/profanity as violations.
+- Heated arguments, debate, disagreements, strong technical criticism, cursing, swearing, profanity, or informal language are ACCEPTABLE and SAFE.
+- Do NOT flag technical words (e.g. kill -9, execute, dump, abort, master/slave, daemon).
 
-STRICT VIOLATIONS (ONLY FLAG IF PRESENT):
-1. NSFW / Sexual content / Pornography / Explicit sexual imagery or descriptions (category: "nsfw")
+STRICT VIOLATIONS (FLAG AS VIOLATION):
+1. NSFW / Sexual content / Pornography / Standalone sexual words or references (e.g., sex, porn, genitals, explicit sexual terms) without any technical or educational context (category: "nsfw")
 2. Targeted harassment, malicious bullying, stalking, direct personal threats, doxxing (category: "harassment")
-3. Child protection law violations, CSAM, child exploitation or endangerment - ZERO TOLERANCE (category: "child_safety")
+3. Child protection law violations, CSAM - ZERO TOLERANCE (category: "child_safety")
 4. Severe real-world threats of physical violence, terrorism, or self-harm (category: "threat")
 
 Respond ONLY with a valid JSON object matching this schema with no markdown code blocks:
 {
   "verdict": "VIOLATION" or "SAFE",
   "category": "nsfw" | "harassment" | "child_safety" | "threat" | "none",
-  "reason": "Short explanation in one sentence of why it violated guidelines or empty string if SAFE"
+  "reason": "One sentence explanation"
 }`;
 
   try {
@@ -67,9 +67,8 @@ Respond ONLY with a valid JSON object matching this schema with no markdown code
           { role: 'system', content: systemPrompt },
           { role: 'user', content: cleanText },
         ],
-        temperature: 0.1,
-        max_tokens: 500,
-        response_format: { type: 'json_object' },
+        temperature: 0,
+        max_tokens: 300,
       }),
     });
 
@@ -196,32 +195,18 @@ export async function applyStrikePipeline({
 
   await user.save();
 
-  try {
-    await createSystemNotification({
-      recipientId: user._id,
-      type: 'moderation_strike',
-      message: strikeNotice,
-      postId: targetPost?._id || targetPost || null,
-      commentId: targetComment?._id || targetComment || null,
-    });
-  } catch (notifErr) {
-    console.error('[Strike Notification Error]', notifErr.message);
-  }
-
   if (user.email) {
-    try {
-      await sendStrikeMail({
-        to: user.email,
-        username: user.username,
-        strikeLevel: currentStrikes,
-        reason,
-        category,
-        postingRestrictedUntil: user.postingRestrictedUntil,
-        strikeExpiresAt: user.strikeExpiresAt,
-      });
-    } catch (mailErr) {
+    sendStrikeMail({
+      to: user.email,
+      username: user.username,
+      strikeLevel: currentStrikes,
+      reason,
+      category,
+      postingRestrictedUntil: user.postingRestrictedUntil,
+      strikeExpiresAt: user.strikeExpiresAt,
+    }).catch((mailErr) => {
       console.error('[Strike Mail Error]', mailErr.message);
-    }
+    });
   }
 
   let commentSnippet = '';
@@ -248,9 +233,17 @@ export async function applyStrikePipeline({
   const contentType = targetComment ? 'comment' : (targetPost ? 'post' : (targetMessage ? 'message' : 'user'));
   const contentSnippet = targetComment ? commentSnippet : postSnippet;
 
-  // Record in audit log
-  try {
-    await ModerationLog.create({
+  await Promise.all([
+    createSystemNotification({
+      recipientId: user._id,
+      type: 'moderation_strike',
+      message: strikeNotice,
+      postId: targetPost?._id || targetPost || null,
+      commentId: targetComment?._id || targetComment || null,
+    }).catch((notifErr) => {
+      console.error('[Strike Notification Error]', notifErr.message);
+    }),
+    ModerationLog.create({
       action: actionSource,
       performedBy: performedBy || null,
       targetUser: user._id,
@@ -263,10 +256,10 @@ export async function applyStrikePipeline({
       reason,
       category,
       details: `Strike #${currentStrikes} applied. Resulting action: ${actionTaken}`,
-    });
-  } catch (logErr) {
-    console.error('[ModerationLog Error]', logErr.message);
-  }
+    }).catch((logErr) => {
+      console.error('[ModerationLog Error]', logErr.message);
+    }),
+  ]);
 
   return {
     strikes: currentStrikes,
