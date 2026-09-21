@@ -20,6 +20,8 @@
   --sidebar-w-collapsed: 72px;
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
   --text-bright: #f8fafc;
+  --text-main: #f1f5f9;
+  --border-color: #1a2336;
 }
 
 [data-theme="light"] {
@@ -32,6 +34,8 @@
   --border-subtle: #cbd5e1;
   --text: #0f172a;
   --text-bright: #0f172a;
+  --text-main: #0f172a;
+  --border-color: #e2e8f0;
   --text-muted: #475569;
   --text-dim: #64748b;
   --accent: #2563eb;
