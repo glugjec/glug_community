@@ -619,14 +619,15 @@ export default function AdminEvents() {
       </div>
 
       {modalOpen && (
-        <div className="admin-modal-overlay" onClick={() => setModalOpen(false)}>
+        <div className="admin-modal-overlay" onClick={() => !submitting && setModalOpen(false)}>
           <div className="admin-modal-window large" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <h3>{editingId ? 'Edit Event' : 'Create New Event'}</h3>
               <button
                 type="button"
                 className="modal-close-btn"
-                onClick={() => setModalOpen(false)}
+                onClick={() => !submitting && setModalOpen(false)}
+                disabled={submitting}
               >
                 <X size={18} />
               </button>
@@ -1076,11 +1077,18 @@ export default function AdminEvents() {
                   type="button"
                   className="admin-btn-cancel"
                   onClick={() => setModalOpen(false)}
+                  disabled={submitting}
                 >
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting} className="admin-btn-submit">
-                  {submitting ? 'Saving...' : editingId ? 'Update Event' : 'Create Event'}
+                  {submitting
+                    ? editingId
+                      ? 'Saving...'
+                      : 'Publishing...'
+                    : editingId
+                    ? 'Update Event'
+                    : 'Create Event'}
                 </button>
               </div>
             </form>

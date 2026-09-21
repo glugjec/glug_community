@@ -149,6 +149,7 @@ export default function AdminDashboard() {
   const [editingResource, setEditingResource] = useState(null);
   const [resourceToDelete, setResourceToDelete] = useState(null);
   const [isDeletingResource, setIsDeletingResource] = useState(false);
+  const [isSavingResource, setIsSavingResource] = useState(false);
   const [resourceSearch, setResourceSearch] = useState("");
   const [resourceCategoryFilter, setResourceCategoryFilter] = useState("all");
   const [resourceForm, setResourceForm] = useState({
@@ -701,6 +702,7 @@ export default function AdminDashboard() {
       links: cleanLinks,
     };
 
+    setIsSavingResource(true);
     try {
       if (editingResource) {
         const updated = await resourcesApi.update(editingResource.id, payload);
@@ -730,6 +732,8 @@ export default function AdminDashboard() {
       });
     } catch (err) {
       showToast(err.message, "error");
+    } finally {
+      setIsSavingResource(false);
     }
   }
 
@@ -3728,7 +3732,7 @@ export default function AdminDashboard() {
       )}
 
       {resourceModalOpen && (
-        <div className="admin-modal-overlay" onClick={() => setResourceModalOpen(false)}>
+        <div className="admin-modal-overlay" onClick={() => !isSavingResource && setResourceModalOpen(false)}>
           <div
             className="admin-modal-sheet"
             onClick={(e) => e.stopPropagation()}
@@ -3745,7 +3749,8 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 className="admin-modal-close"
-                onClick={() => setResourceModalOpen(false)}
+                onClick={() => !isSavingResource && setResourceModalOpen(false)}
+                disabled={isSavingResource}
                 aria-label="Close modal"
               >
                 <X size={18} />
@@ -4053,11 +4058,18 @@ export default function AdminDashboard() {
                   type="button"
                   className="admin-cancel-btn"
                   onClick={() => setResourceModalOpen(false)}
+                  disabled={isSavingResource}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="admin-primary-btn">
-                  {editingResource ? "Save Changes" : "Publish Topic"}
+                <button type="submit" className="admin-primary-btn" disabled={isSavingResource}>
+                  {isSavingResource
+                    ? editingResource
+                      ? "Saving..."
+                      : "Publishing..."
+                    : editingResource
+                    ? "Save Changes"
+                    : "Publish Topic"}
                 </button>
               </div>
             </form>

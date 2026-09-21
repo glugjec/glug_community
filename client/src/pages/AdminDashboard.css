@@ -115,10 +115,17 @@
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
 }
 
-.admin-primary-btn:hover {
+.admin-primary-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #1d4ed8, #2563eb);
   box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
   transform: translateY(-1px);
+}
+
+.admin-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .admin-outline-btn {
@@ -1373,9 +1380,14 @@ select.admin-form-input {
   transition: all 0.15s ease;
 }
 
-.admin-cancel-btn:hover {
+.admin-cancel-btn:hover:not(:disabled) {
   background: #1e293b;
   color: #ffffff;
+}
+
+.admin-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .admin-preview-meta {

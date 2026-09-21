@@ -750,6 +750,11 @@
   cursor: pointer;
 }
 
+.admin-btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .admin-btn-submit {
   background: var(--accent);
   color: #ffffff;
@@ -758,6 +763,11 @@
   border: none;
   font-weight: 600;
   cursor: pointer;
+}
+
+.admin-btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .admin-btn-delete {
