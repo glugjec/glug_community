@@ -2333,6 +2333,43 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
 }
 
+.sb-nav-item.sb-nav-admin:not(.sb-nav-item-active) {
+  color: #f59e0b;
+}
+
+.sb-nav-item.sb-nav-admin:not(.sb-nav-item-active) .sb-nav-icon {
+  color: #f59e0b;
+}
+
+.sb-nav-item.sb-nav-content-admin:not(.sb-nav-item-active) {
+  color: #06b6d4;
+}
+
+.sb-nav-item.sb-nav-content-admin:not(.sb-nav-item-active) .sb-nav-icon {
+  color: #06b6d4;
+}
+
+[data-theme="light"] .sb-nav-item.sb-nav-admin:not(.sb-nav-item-active) {
+  color: #d97706;
+}
+
+[data-theme="light"] .sb-nav-item.sb-nav-admin:not(.sb-nav-item-active) .sb-nav-icon {
+  color: #d97706;
+}
+
+[data-theme="light"] .sb-nav-item.sb-nav-content-admin:not(.sb-nav-item-active) {
+  color: #0891b2;
+}
+
+[data-theme="light"] .sb-nav-item.sb-nav-content-admin:not(.sb-nav-item-active) .sb-nav-icon {
+  color: #0891b2;
+}
+
+.sb-nav-item-active .sb-nav-icon,
+.sb-nav-item-active .sb-nav-text {
+  color: #ffffff !important;
+}
+
 .sidebar-v2.is-collapsed .sb-nav-item {
   justify-content: center;
   padding: 0.65rem 0;

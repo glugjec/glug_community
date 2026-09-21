@@ -27,21 +27,33 @@
 .admin-title-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.admin-title-badge .admin-badge-icon {
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+.admin-title-badge.super-admin,
+.admin-title-badge:not(.content-admin) {
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.3);
   color: #fbbf24;
-  padding: 4px 12px;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  margin-bottom: 12px;
 }
 
-.admin-badge-icon {
-  color: #fbbf24;
+.admin-title-badge.content-admin {
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: #22d3ee;
 }
 
 .admin-title {
@@ -2721,10 +2733,17 @@ label.role-option-card:hover {
   color: #64748b;
 }
 
-[data-theme="light"] .admin-title-badge {
-  background: rgba(245, 158, 11, 0.12);
+[data-theme="light"] .admin-title-badge.super-admin,
+[data-theme="light"] .admin-title-badge:not(.content-admin) {
+  background: rgba(245, 158, 11, 0.1);
   color: #b45309;
-  border-color: rgba(245, 158, 11, 0.28);
+  border: 1px solid rgba(217, 119, 6, 0.32);
+}
+
+[data-theme="light"] .admin-title-badge.content-admin {
+  background: rgba(6, 182, 212, 0.1);
+  color: #0e7490;
+  border: 1px solid rgba(8, 145, 178, 0.32);
 }
 
 [data-theme="light"] .admin-secondary-btn {

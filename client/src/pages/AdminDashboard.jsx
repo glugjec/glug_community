@@ -946,15 +946,15 @@ export default function AdminDashboard() {
 
       <header className="admin-header">
         <div className="admin-header-main">
-          <div className="admin-title-badge">
+          <div className={`admin-title-badge ${isContentAdmin ? 'content-admin' : 'super-admin'}`}>
             {isContentAdmin ? (
               <>
-                <BookOpen className="admin-badge-icon" size={20} style={{ color: "#22d3ee" }} />
+                <BookOpen className="admin-badge-icon" size={15} />
                 <span>Content Admin Console</span>
               </>
             ) : (
               <>
-                <Shield className="admin-badge-icon" size={20} />
+                <Shield className="admin-badge-icon" size={15} />
                 <span>Admin Control Panel</span>
               </>
             )}
