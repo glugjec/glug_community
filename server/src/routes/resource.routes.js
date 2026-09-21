@@ -31,7 +31,7 @@ function formatResource(r, currentUserId = null) {
   let author = null;
   if (r.createdBy && typeof r.createdBy === "object") {
     const username = r.createdBy.username || null;
-    const name = r.createdBy.name || username || "Admin";
+    const name = username || "Admin";
     author = {
       id: r.createdBy._id?.toString() || r.createdBy.id?.toString(),
       username,
