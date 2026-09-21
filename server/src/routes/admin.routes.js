@@ -1484,25 +1484,23 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
     }
 
     if (appellant?.email) {
-      try {
-        await sendAppealDecisionMail({
-          to: appellant.email,
-          username: appellant.username || "Member",
-          decision: status,
-          appealType,
-          strikeIndex: appeal.strikeIndex || 1,
-          adminNotes: appeal.adminNotes || "",
-          originalReason: appeal.originalReason || "",
-          originalCategory: appeal.originalCategory || "",
-          statement: appeal.statement || "",
-          contentTitle,
-          postId: relatedPostId,
-          currentStrikes: appellant?.moderationStrikes ?? 0,
-          isBanned: appellant?.isBanned ?? false,
-        });
-      } catch (mailErr) {
+      sendAppealDecisionMail({
+        to: appellant.email,
+        username: appellant.username || "Member",
+        decision: status,
+        appealType,
+        strikeIndex: appeal.strikeIndex || 1,
+        adminNotes: appeal.adminNotes || "",
+        originalReason: appeal.originalReason || "",
+        originalCategory: appeal.originalCategory || "",
+        statement: appeal.statement || "",
+        contentTitle,
+        postId: relatedPostId,
+        currentStrikes: appellant?.moderationStrikes ?? 0,
+        isBanned: appellant?.isBanned ?? false,
+      }).catch((mailErr) => {
         console.error("[Appeal Decision Mail Error]", mailErr.message);
-      }
+      });
     }
 
     return res.json({
