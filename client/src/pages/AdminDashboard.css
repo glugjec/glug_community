@@ -6,6 +6,7 @@
   color: #f1f5f9;
   min-height: calc(100vh - 80px);
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .admin-header {
@@ -571,10 +572,13 @@
 
 .admin-table-container {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   background: #0b1120;
   border: 1px solid #1e293b;
   border-radius: 16px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   box-sizing: border-box;
 }
@@ -1881,6 +1885,15 @@ select.admin-form-input {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 14px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-subtabs-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .admin-subtab-btn {
@@ -1940,15 +1953,23 @@ select.admin-form-input {
   color: #ffffff;
 }
 
+.admin-appeals-mobile-list {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .admin-page {
-    padding: 24px 16px 60px;
+    padding: 16px 12px 60px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   .admin-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 14px;
   }
 
   .admin-header-actions {
@@ -1956,15 +1977,37 @@ select.admin-form-input {
   }
 
   .admin-title {
-    font-size: 26px;
+    font-size: 24px;
   }
 
   .admin-tabs-nav {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+  }
+
+  .admin-tabs-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .admin-tabs {
-    width: 100%;
+    width: max-content;
+    max-width: none;
+  }
+
+  .admin-subtabs-nav {
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    gap: 6px;
+  }
+
+  .admin-subtab-btn {
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    gap: 6px;
   }
 
   .admin-overview-grid {
@@ -1978,6 +2021,31 @@ select.admin-form-input {
   .admin-toolbar {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .admin-toolbar-desc {
+    max-width: 100%;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .admin-filter-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .admin-filter-group .admin-select,
+  .admin-filter-group .admin-secondary-btn {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    justify-content: center;
   }
 
   .admin-search-wrap {
@@ -1986,7 +2054,92 @@ select.admin-form-input {
 
   .admin-table th,
   .admin-table td {
-    padding: 12px 14px;
+    padding: 10px 12px;
+  }
+
+  .admin-appeals-table-wrap {
+    display: none;
+  }
+
+  .admin-appeals-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .admin-appeal-card {
+    background: #0b1120;
+    border: 1px solid #1e293b;
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-sizing: border-box;
+    width: 100%;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .admin-appeal-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .admin-appeal-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .admin-appeal-reason-box {
+    background: rgba(239, 68, 68, 0.07);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .admin-appeal-statement-box {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .admin-appeal-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid #131d31;
+    flex-wrap: wrap;
+  }
+
+  .admin-appeal-card-actions .admin-action-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .admin-appeal-card.empty {
+    text-align: center;
+    padding: 36px 16px;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    gap: 10px;
   }
 }
 

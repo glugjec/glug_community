@@ -2000,98 +2000,409 @@ export default function AdminDashboard() {
           )}
 
           {/* SUBTAB: APPEALS */}
-          {modSubTab === "appeals" && (
-            <>
-              <div className="admin-toolbar">
-                <p className="admin-toolbar-desc">
-                  Member appeals against automated moderation flags and account strikes. Review appellant defenses and revoke strikes or restore content if justified.
-                </p>
-                <div className="admin-filter-group">
-                  <select
-                    className="admin-select"
-                    value={appealStatusFilter}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setAppealStatusFilter(val);
-                      loadAppeals(val);
-                    }}
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="pending">Pending Appeals</option>
-                    <option value="approved">Approved Appeals</option>
-                    <option value="rejected">Rejected Appeals</option>
-                  </select>
-                  <select
-                    className="admin-select"
-                    value={appealCategoryFilter}
-                    onChange={(e) => setAppealCategoryFilter(e.target.value)}
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="account_ban">Account Bans</option>
-                    <option value="content_strike">Strikes & Content</option>
-                  </select>
-                  <button
-                    type="button"
-                    className="admin-secondary-btn"
-                    onClick={() => loadAppeals()}
-                    disabled={loadingAppeals}
-                    title="Reload appeals"
-                  >
-                    <RefreshCw size={14} className={loadingAppeals ? "admin-spin" : ""} />
-                    <span>Refresh</span>
-                  </button>
-                </div>
-              </div>
+          {modSubTab === "appeals" && (() => {
+            const filteredAppeals = appeals.filter((a) => {
+              if (appealCategoryFilter === "account_ban") {
+                return a.itemType === "account_ban" || a.originalCategory === "account_ban";
+              }
+              if (appealCategoryFilter === "content_strike") {
+                return a.itemType !== "account_ban" && a.originalCategory !== "account_ban";
+              }
+              return true;
+            });
 
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Appellant</th>
-                      <th>Item / Category</th>
-                      <th>Original Reason</th>
-                      <th>User Statement</th>
-                      <th>Status</th>
-                      <th className="admin-th-actions">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadingAppeals && appeals.length === 0 ? (
+            return (
+              <>
+                <div className="admin-toolbar">
+                  <p className="admin-toolbar-desc">
+                    Member appeals against automated moderation flags and account strikes. Review appellant defenses and revoke strikes or restore content if justified.
+                  </p>
+                  <div className="admin-filter-group">
+                    <select
+                      className="admin-select"
+                      value={appealStatusFilter}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAppealStatusFilter(val);
+                        loadAppeals(val);
+                      }}
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="pending">Pending Appeals</option>
+                      <option value="approved">Approved Appeals</option>
+                      <option value="rejected">Rejected Appeals</option>
+                    </select>
+                    <select
+                      className="admin-select"
+                      value={appealCategoryFilter}
+                      onChange={(e) => setAppealCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">All Categories</option>
+                      <option value="account_ban">Account Bans</option>
+                      <option value="content_strike">Strikes & Content</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="admin-secondary-btn"
+                      onClick={() => loadAppeals()}
+                      disabled={loadingAppeals}
+                      title="Reload appeals"
+                    >
+                      <RefreshCw size={14} className={loadingAppeals ? "admin-spin" : ""} />
+                      <span>Refresh</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="admin-table-container admin-appeals-table-wrap">
+                  <table className="admin-table">
+                    <thead>
                       <tr>
-                        <td colSpan="6" className="admin-table-empty">
-                          <RefreshCw className="admin-spin" size={20} />
-                          <span>Loading appeals...</span>
-                        </td>
+                        <th>Appellant</th>
+                        <th>Item / Category</th>
+                        <th>Original Reason</th>
+                        <th>User Statement</th>
+                        <th>Status</th>
+                        <th className="admin-th-actions">Actions</th>
                       </tr>
-                    ) : appeals.filter((a) => {
-                        if (appealCategoryFilter === "account_ban") {
-                          return a.itemType === "account_ban" || a.originalCategory === "account_ban";
-                        }
-                        if (appealCategoryFilter === "content_strike") {
-                          return a.itemType !== "account_ban" && a.originalCategory !== "account_ban";
-                        }
-                        return true;
-                      }).length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="admin-table-empty">
-                          <CheckCircle2 size={26} className="text-emerald" />
-                          <span>No moderation appeals matching this filter.</span>
-                        </td>
-                      </tr>
-                    ) : (
-                      appeals
-                        .filter((a) => {
-                          if (appealCategoryFilter === "account_ban") {
-                            return a.itemType === "account_ban" || a.originalCategory === "account_ban";
-                          }
-                          if (appealCategoryFilter === "content_strike") {
-                            return a.itemType !== "account_ban" && a.originalCategory !== "account_ban";
-                          }
-                          return true;
-                        })
-                        .map((a) => (
-                        <tr key={a.id || a._id}>
-                          <td>
+                    </thead>
+                    <tbody>
+                      {loadingAppeals && appeals.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="admin-table-empty">
+                            <RefreshCw className="admin-spin" size={20} />
+                            <span>Loading appeals...</span>
+                          </td>
+                        </tr>
+                      ) : filteredAppeals.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="admin-table-empty">
+                            <CheckCircle2 size={26} className="text-emerald" />
+                            <span>No moderation appeals matching this filter.</span>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredAppeals.map((a) => (
+                          <tr key={a.id || a._id}>
+                            <td>
+                              <div className="admin-user-cell">
+                                <AdminUserAvatar
+                                  src={a.appellant?.avatar}
+                                  name={a.appellant?.username || "User"}
+                                />
+                                <div className="admin-user-info">
+                                  <span className="admin-username">@{a.appellant?.username || "unknown"}</span>
+                                  <span className="admin-date-subtext">
+                                    Strikes: {a.appellant?.moderationStrikes || 0}
+                                    {a.appellant?.isBanned ? " (Banned)" : ""}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                                  {a.itemType === "account_ban" || a.originalCategory === "account_ban" ? (
+                                    <span
+                                      className="admin-badge danger"
+                                      style={{
+                                        background: "rgba(239, 68, 68, 0.2)",
+                                        color: "#f87171",
+                                        border: "1px solid rgba(239, 68, 68, 0.4)",
+                                        fontWeight: 700,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                      }}
+                                    >
+                                      <ShieldAlert size={12} />
+                                      <span>Account Ban</span>
+                                    </span>
+                                  ) : (
+                                    <>
+                                      {a.itemType !== "strike" && (
+                                        <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
+                                          {a.itemType}
+                                        </span>
+                                      )}
+                                      {a.strikeIndex ? (
+                                        <span className="admin-badge warning">
+                                          Strike #{a.strikeIndex}
+                                        </span>
+                                      ) : a.itemType === "strike" ? (
+                                        <span className="admin-badge warning">
+                                          Strike
+                                        </span>
+                                      ) : null}
+                                    </>
+                                  )}
+                                </div>
+                                {a.targetPost?.title && (
+                                  <Link
+                                    to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="admin-date-subtext"
+                                    style={{
+                                      maxWidth: "240px",
+                                      whiteSpace: "nowrap",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      color: "#60a5fa",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                    title={a.targetPost.title}
+                                  >
+                                    <span>"{a.targetPost.title}"</span>
+                                    <ExternalLink size={10} style={{ flexShrink: 0 }} />
+                                  </Link>
+                                )}
+                                {a.targetComment && (
+                                  <Link
+                                    to={(a.targetComment.postId || a.targetPostId) ? `/forum/posts/${a.targetComment.postId || a.targetPostId}` : "#"}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="admin-date-subtext"
+                                    style={{
+                                      maxWidth: "240px",
+                                      whiteSpace: "nowrap",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                    title={stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}
+                                  >
+                                    <span>"{stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}"</span>
+                                    {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} style={{ flexShrink: 0 }} />}
+                                  </Link>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ maxWidth: "260px", minWidth: "180px" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                                <div>
+                                  <div
+                                    style={{
+                                      maxHeight: expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "none" : "60px",
+                                      overflow: expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "visible" : "hidden",
+                                      position: "relative",
+                                      transition: "max-height 0.2s ease",
+                                    }}
+                                  >
+                                    <span style={{ fontSize: "0.82rem", color: "#fca5a5", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
+                                      {a.originalReason || "Policy violation"}
+                                    </span>
+                                    {!expandedTextMap[`appeal-reason-${a.id || a._id}`] && a.originalReason && a.originalReason.length > 80 && (
+                                      <div
+                                        style={{
+                                          position: "absolute",
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          height: "22px",
+                                          background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
+                                          pointerEvents: "none",
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                  {a.originalReason && a.originalReason.length > 80 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleTextExpanded(`appeal-reason-${a.id || a._id}`)}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#60a5fa",
+                                        fontSize: "0.74rem",
+                                        fontWeight: 600,
+                                        padding: "1px 0",
+                                        marginTop: "2px",
+                                        cursor: "pointer",
+                                        display: "inline-block",
+                                      }}
+                                    >
+                                      {expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "Show less" : "Show full reason"}
+                                    </button>
+                                  )}
+                                </div>
+                                {a.originalCategory && (
+                                  <span className="admin-date-subtext" style={{ textTransform: "capitalize" }}>
+                                    Category: {a.originalCategory === "account_ban" ? "Account Ban" : a.originalCategory}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ maxWidth: "280px", minWidth: "200px" }}>
+                              <div
+                                style={{
+                                  maxHeight: expandedTextMap[`appeal-${a.id || a._id}`] ? "none" : "86px",
+                                  overflow: expandedTextMap[`appeal-${a.id || a._id}`] ? "visible" : "hidden",
+                                  position: "relative",
+                                  transition: "max-height 0.2s ease",
+                                }}
+                              >
+                                <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                  "{a.statement}"
+                                </p>
+                                {!expandedTextMap[`appeal-${a.id || a._id}`] && a.statement && a.statement.length > 100 && (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "30px",
+                                      background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
+                                      pointerEvents: "none",
+                                    }}
+                                  />
+                                )}
+                              </div>
+                              {a.statement && a.statement.length > 100 && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleTextExpanded(`appeal-${a.id || a._id}`)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#60a5fa",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                    padding: "2px 0",
+                                    marginTop: "2px",
+                                    cursor: "pointer",
+                                    display: "inline-block",
+                                  }}
+                                >
+                                  {expandedTextMap[`appeal-${a.id || a._id}`] ? "Show less" : "Show full text"}
+                                </button>
+                              )}
+                              <span className="admin-date-subtext" style={{ display: "block", marginTop: "4px" }}>
+                                Submitted {new Date(a.createdAt).toLocaleDateString()}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className="admin-badge"
+                                style={{
+                                  background:
+                                    a.status === "pending"
+                                      ? "rgba(245, 158, 11, 0.15)"
+                                      : a.status === "approved"
+                                      ? "rgba(16, 185, 129, 0.15)"
+                                      : "rgba(239, 68, 68, 0.15)",
+                                  color:
+                                    a.status === "pending"
+                                      ? "#fbbf24"
+                                      : a.status === "approved"
+                                      ? "#34d399"
+                                      : "#f87171",
+                                  textTransform: "capitalize",
+                                }}
+                              >
+                                {a.status === "pending" ? "Pending Review" : a.status}
+                              </span>
+                              {a.adminNotes && (
+                                <span className="admin-date-subtext" style={{ display: "block", marginTop: "3px" }}>
+                                  Note: {a.adminNotes}
+                                </span>
+                              )}
+                            </td>
+                            <td className="admin-td-actions">
+                              <div className="admin-actions-row" style={{ justifyContent: "flex-end", gap: "6px" }}>
+                                <button
+                                  type="button"
+                                  className="admin-icon-btn secondary"
+                                  onClick={() => {
+                                    const isAccBan = a.itemType === "account_ban" || a.originalCategory === "account_ban";
+                                    setViewItemModal({
+                                      contentType: a.itemType,
+                                      isAccountBan: isAccBan,
+                                      body: isAccBan ? null : (a.targetComment?.body || a.targetComment?.bodySnippet || a.targetPost?.body || a.targetPost?.bodySnippet),
+                                      title: isAccBan ? null : (a.targetPost?.title || (a.targetComment ? `Comment on: "${a.targetComment.postTitle || 'Post'}"` : "Appealed Content")),
+                                      author: a.appellant,
+                                      postId: a.targetPostId || a.targetPost?.id || a.targetComment?.postId,
+                                      moderationCategory: a.originalCategory,
+                                      originalReason: a.originalReason,
+                                      appealStatement: a.statement,
+                                      moderationReason: `[Original Reason]: ${a.originalReason} | [Appeal Statement]: "${a.statement}"`,
+                                    });
+                                  }}
+                                  title={a.itemType === "account_ban" || a.originalCategory === "account_ban" ? "Inspect appeal details" : "Inspect appealed content"}
+                                >
+                                  <Eye size={13} />
+                                </button>
+                                {(a.targetPostId || a.targetPost?.id || a.targetComment?.postId) && (
+                                  <Link
+                                    to={`/forum/posts/${a.targetPostId || a.targetPost?.id || a.targetComment?.postId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="admin-icon-btn secondary"
+                                    title="View post on forum"
+                                  >
+                                    <ExternalLink size={13} />
+                                  </Link>
+                                )}
+                                {a.status === "pending" && (
+                                  <button
+                                    type="button"
+                                    className="admin-action-btn primary"
+                                    onClick={() => {
+                                      setAppealToResolve(a);
+                                      setAppealResolveForm({
+                                        status: "approved",
+                                        adminNotes: "",
+                                        restoreContent: true,
+                                        decrementStrike: true,
+                                      });
+                                    }}
+                                    title="Review & resolve appeal"
+                                    style={{ gap: "4px", padding: "5px 10px", fontSize: "0.78rem" }}
+                                  >
+                                    <Edit3 size={13} />
+                                    <span>Resolve</span>
+                                  </button>
+                                )}
+                              </div>
+                              {a.status !== "pending" && a.resolvedBy && (
+                                <span
+                                  className="admin-date-subtext"
+                                  style={{ display: "block", marginTop: "4px", textAlign: "right", whiteSpace: "nowrap" }}
+                                >
+                                  Resolved by @{a.resolvedBy}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="admin-appeals-mobile-list">
+                  {loadingAppeals && appeals.length === 0 ? (
+                    <div className="admin-appeal-card empty">
+                      <RefreshCw className="admin-spin" size={20} />
+                      <span>Loading appeals...</span>
+                    </div>
+                  ) : filteredAppeals.length === 0 ? (
+                    <div className="admin-appeal-card empty">
+                      <CheckCircle2 size={26} className="text-emerald" />
+                      <span>No moderation appeals matching this filter.</span>
+                    </div>
+                  ) : (
+                    filteredAppeals.map((a) => {
+                      const isAccBan = a.itemType === "account_ban" || a.originalCategory === "account_ban";
+                      return (
+                        <div key={a.id || a._id} className="admin-appeal-card">
+                          <div className="admin-appeal-card-header">
                             <div className="admin-user-cell">
                               <AdminUserAvatar
                                 src={a.appellant?.avatar}
@@ -2105,196 +2416,6 @@ export default function AdminDashboard() {
                                 </span>
                               </div>
                             </div>
-                          </td>
-                          <td>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                                {a.itemType === "account_ban" || a.originalCategory === "account_ban" ? (
-                                  <span
-                                    className="admin-badge danger"
-                                    style={{
-                                      background: "rgba(239, 68, 68, 0.2)",
-                                      color: "#f87171",
-                                      border: "1px solid rgba(239, 68, 68, 0.4)",
-                                      fontWeight: 700,
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                    }}
-                                  >
-                                    <ShieldAlert size={12} />
-                                    <span>Account Ban</span>
-                                  </span>
-                                ) : (
-                                  <>
-                                    {a.itemType !== "strike" && (
-                                      <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
-                                        {a.itemType}
-                                      </span>
-                                    )}
-                                    {a.strikeIndex ? (
-                                      <span className="admin-badge warning">
-                                        Strike #{a.strikeIndex}
-                                      </span>
-                                    ) : a.itemType === "strike" ? (
-                                      <span className="admin-badge warning">
-                                        Strike
-                                      </span>
-                                    ) : null}
-                                  </>
-                                )}
-                              </div>
-                              {a.targetPost?.title && (
-                                <Link
-                                  to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="admin-date-subtext"
-                                  style={{
-                                    maxWidth: "240px",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    color: "#60a5fa",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                  }}
-                                  title={a.targetPost.title}
-                                >
-                                  <span>"{a.targetPost.title}"</span>
-                                  <ExternalLink size={10} style={{ flexShrink: 0 }} />
-                                </Link>
-                              )}
-                              {a.targetComment && (
-                                <Link
-                                  to={(a.targetComment.postId || a.targetPostId) ? `/forum/posts/${a.targetComment.postId || a.targetPostId}` : "#"}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="admin-date-subtext"
-                                  style={{
-                                    maxWidth: "240px",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                  }}
-                                  title={stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}
-                                >
-                                  <span>"{stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}"</span>
-                                  {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} style={{ flexShrink: 0 }} />}
-                                </Link>
-                              )}
-                            </div>
-                          </td>
-                          <td style={{ maxWidth: "260px", minWidth: "180px" }}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                              <div>
-                                <div
-                                  style={{
-                                    maxHeight: expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "none" : "60px",
-                                    overflow: expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "visible" : "hidden",
-                                    position: "relative",
-                                    transition: "max-height 0.2s ease",
-                                  }}
-                                >
-                                  <span style={{ fontSize: "0.82rem", color: "#fca5a5", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
-                                    {a.originalReason || "Policy violation"}
-                                  </span>
-                                  {!expandedTextMap[`appeal-reason-${a.id || a._id}`] && a.originalReason && a.originalReason.length > 80 && (
-                                    <div
-                                      style={{
-                                        position: "absolute",
-                                        bottom: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: "22px",
-                                        background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
-                                        pointerEvents: "none",
-                                      }}
-                                    />
-                                  )}
-                                </div>
-                                {a.originalReason && a.originalReason.length > 80 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleTextExpanded(`appeal-reason-${a.id || a._id}`)}
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: "#60a5fa",
-                                      fontSize: "0.74rem",
-                                      fontWeight: 600,
-                                      padding: "1px 0",
-                                      marginTop: "2px",
-                                      cursor: "pointer",
-                                      display: "inline-block",
-                                    }}
-                                  >
-                                    {expandedTextMap[`appeal-reason-${a.id || a._id}`] ? "Show less" : "Show full reason"}
-                                  </button>
-                                )}
-                              </div>
-                              {a.originalCategory && (
-                                <span className="admin-date-subtext" style={{ textTransform: "capitalize" }}>
-                                  Category: {a.originalCategory === "account_ban" ? "Account Ban" : a.originalCategory}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td style={{ maxWidth: "280px", minWidth: "200px" }}>
-                            <div
-                              style={{
-                                maxHeight: expandedTextMap[`appeal-${a.id || a._id}`] ? "none" : "86px",
-                                overflow: expandedTextMap[`appeal-${a.id || a._id}`] ? "visible" : "hidden",
-                                position: "relative",
-                                transition: "max-height 0.2s ease",
-                              }}
-                            >
-                              <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                                "{a.statement}"
-                              </p>
-                              {!expandedTextMap[`appeal-${a.id || a._id}`] && a.statement && a.statement.length > 100 && (
-                                <div
-                                  style={{
-                                    position: "absolute",
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: "30px",
-                                    background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
-                                    pointerEvents: "none",
-                                  }}
-                                />
-                              )}
-                            </div>
-                            {a.statement && a.statement.length > 100 && (
-                              <button
-                                type="button"
-                                onClick={() => toggleTextExpanded(`appeal-${a.id || a._id}`)}
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  color: "#60a5fa",
-                                  fontSize: "0.75rem",
-                                  fontWeight: 600,
-                                  padding: "2px 0",
-                                  marginTop: "2px",
-                                  cursor: "pointer",
-                                  display: "inline-block",
-                                }}
-                              >
-                                {expandedTextMap[`appeal-${a.id || a._id}`] ? "Show less" : "Show full text"}
-                              </button>
-                            )}
-                            <span className="admin-date-subtext" style={{ display: "block", marginTop: "4px" }}>
-                              Submitted {new Date(a.createdAt).toLocaleDateString()}
-                            </span>
-                          </td>
-                          <td>
                             <span
                               className="admin-badge"
                               style={{
@@ -2315,85 +2436,263 @@ export default function AdminDashboard() {
                             >
                               {a.status === "pending" ? "Pending Review" : a.status}
                             </span>
-                            {a.adminNotes && (
-                              <span className="admin-date-subtext" style={{ display: "block", marginTop: "3px" }}>
-                                Note: {a.adminNotes}
-                              </span>
-                            )}
-                          </td>
-                          <td className="admin-td-actions">
-                            <div className="admin-actions-row" style={{ justifyContent: "flex-end", gap: "6px" }}>
-                              <button
-                                type="button"
-                                className="admin-icon-btn secondary"
-                                onClick={() => {
-                                  const isAccBan = a.itemType === "account_ban" || a.originalCategory === "account_ban";
-                                  setViewItemModal({
-                                    contentType: a.itemType,
-                                    isAccountBan: isAccBan,
-                                    body: isAccBan ? null : (a.targetComment?.body || a.targetComment?.bodySnippet || a.targetPost?.body || a.targetPost?.bodySnippet),
-                                    title: isAccBan ? null : (a.targetPost?.title || (a.targetComment ? `Comment on: "${a.targetComment.postTitle || 'Post'}"` : "Appealed Content")),
-                                    author: a.appellant,
-                                    postId: a.targetPostId || a.targetPost?.id || a.targetComment?.postId,
-                                    moderationCategory: a.originalCategory,
-                                    originalReason: a.originalReason,
-                                    appealStatement: a.statement,
-                                    moderationReason: `[Original Reason]: ${a.originalReason} | [Appeal Statement]: "${a.statement}"`,
-                                  });
-                                }}
-                                title={a.itemType === "account_ban" || a.originalCategory === "account_ban" ? "Inspect appeal details" : "Inspect appealed content"}
-                              >
-                                <Eye size={13} />
-                              </button>
-                              {(a.targetPostId || a.targetPost?.id || a.targetComment?.postId) && (
-                                <Link
-                                  to={`/forum/posts/${a.targetPostId || a.targetPost?.id || a.targetComment?.postId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="admin-icon-btn secondary"
-                                  title="View post on forum"
+                          </div>
+
+                          <div className="admin-appeal-card-body">
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                              {isAccBan ? (
+                                <span
+                                  className="admin-badge danger"
+                                  style={{
+                                    background: "rgba(239, 68, 68, 0.2)",
+                                    color: "#f87171",
+                                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                                    fontWeight: 700,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
                                 >
-                                  <ExternalLink size={13} />
-                                </Link>
+                                  <ShieldAlert size={12} />
+                                  <span>Account Ban</span>
+                                </span>
+                              ) : (
+                                <>
+                                  {a.itemType !== "strike" && (
+                                    <span className="admin-badge neutral" style={{ textTransform: "uppercase" }}>
+                                      {a.itemType}
+                                    </span>
+                                  )}
+                                  {a.strikeIndex ? (
+                                    <span className="admin-badge warning">
+                                      Strike #{a.strikeIndex}
+                                    </span>
+                                  ) : a.itemType === "strike" ? (
+                                    <span className="admin-badge warning">
+                                      Strike
+                                    </span>
+                                  ) : null}
+                                </>
                               )}
-                              {a.status === "pending" && (
+                              {a.originalCategory && (
+                                <span className="admin-date-subtext" style={{ textTransform: "capitalize" }}>
+                                  Category: {a.originalCategory === "account_ban" ? "Account Ban" : a.originalCategory}
+                                </span>
+                              )}
+                            </div>
+
+                            {a.targetPost?.title && (
+                              <Link
+                                to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="admin-date-subtext"
+                                style={{
+                                  color: "#60a5fa",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                <span>"{a.targetPost.title}"</span>
+                                <ExternalLink size={10} style={{ flexShrink: 0 }} />
+                              </Link>
+                            )}
+
+                            {a.targetComment && (
+                              <Link
+                                to={(a.targetComment.postId || a.targetPostId) ? `/forum/posts/${a.targetComment.postId || a.targetPostId}` : "#"}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="admin-date-subtext"
+                                style={{
+                                  color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                <span>"{stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}"</span>
+                                {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} style={{ flexShrink: 0 }} />}
+                              </Link>
+                            )}
+
+                            <div className="admin-appeal-reason-box">
+                              <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "#f87171", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                                Original Reason
+                              </span>
+                              <div
+                                style={{
+                                  maxHeight: expandedTextMap[`appeal-reason-m-${a.id || a._id}`] ? "none" : "60px",
+                                  overflow: expandedTextMap[`appeal-reason-m-${a.id || a._id}`] ? "visible" : "hidden",
+                                  position: "relative",
+                                  transition: "max-height 0.2s ease",
+                                }}
+                              >
+                                <span style={{ fontSize: "0.82rem", color: "#fca5a5", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
+                                  {a.originalReason || "Policy violation"}
+                                </span>
+                                {!expandedTextMap[`appeal-reason-m-${a.id || a._id}`] && a.originalReason && a.originalReason.length > 80 && (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "22px",
+                                      background: "linear-gradient(to bottom, rgba(239, 68, 68, 0), rgba(11, 17, 32, 0.95))",
+                                      pointerEvents: "none",
+                                    }}
+                                  />
+                                )}
+                              </div>
+                              {a.originalReason && a.originalReason.length > 80 && (
                                 <button
                                   type="button"
-                                  className="admin-action-btn primary"
-                                  onClick={() => {
-                                    setAppealToResolve(a);
-                                    setAppealResolveForm({
-                                      status: "approved",
-                                      adminNotes: "",
-                                      restoreContent: true,
-                                      decrementStrike: true,
-                                    });
+                                  onClick={() => toggleTextExpanded(`appeal-reason-m-${a.id || a._id}`)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#60a5fa",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                    padding: "2px 0",
+                                    cursor: "pointer",
+                                    alignSelf: "flex-start",
                                   }}
-                                  title="Review & resolve appeal"
-                                  style={{ gap: "4px", padding: "5px 10px", fontSize: "0.78rem" }}
                                 >
-                                  <Edit3 size={13} />
-                                  <span>Resolve</span>
+                                  {expandedTextMap[`appeal-reason-m-${a.id || a._id}`] ? "Show less" : "Show more"}
                                 </button>
                               )}
                             </div>
-                            {a.status !== "pending" && a.resolvedBy && (
-                              <span
-                                className="admin-date-subtext"
-                                style={{ display: "block", marginTop: "4px", textAlign: "right", whiteSpace: "nowrap" }}
+
+                            <div className="admin-appeal-statement-box">
+                              <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                                Appellant Statement
+                              </span>
+                              <div
+                                style={{
+                                  maxHeight: expandedTextMap[`appeal-m-${a.id || a._id}`] ? "none" : "86px",
+                                  overflow: expandedTextMap[`appeal-m-${a.id || a._id}`] ? "visible" : "hidden",
+                                  position: "relative",
+                                  transition: "max-height 0.2s ease",
+                                }}
                               >
-                                Resolved by @{a.resolvedBy}
+                                <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                  "{a.statement}"
+                                </p>
+                                {!expandedTextMap[`appeal-m-${a.id || a._id}`] && a.statement && a.statement.length > 100 && (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "30px",
+                                      background: "linear-gradient(to bottom, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.95))",
+                                      pointerEvents: "none",
+                                    }}
+                                  />
+                                )}
+                              </div>
+                              {a.statement && a.statement.length > 100 && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleTextExpanded(`appeal-m-${a.id || a._id}`)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#60a5fa",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                    padding: "2px 0",
+                                    cursor: "pointer",
+                                    alignSelf: "flex-start",
+                                  }}
+                                >
+                                  {expandedTextMap[`appeal-m-${a.id || a._id}`] ? "Show less" : "Show more"}
+                                </button>
+                              )}
+                              <span className="admin-date-subtext" style={{ marginTop: "4px" }}>
+                                Submitted {new Date(a.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+
+                            {a.adminNotes && (
+                              <span className="admin-date-subtext">
+                                Note: {a.adminNotes}
                               </span>
                             )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+                          </div>
+
+                          <div className="admin-appeal-card-actions">
+                            <button
+                              type="button"
+                              className="admin-action-btn"
+                              onClick={() => {
+                                setViewItemModal({
+                                  contentType: a.itemType,
+                                  isAccountBan: isAccBan,
+                                  body: isAccBan ? null : (a.targetComment?.body || a.targetComment?.bodySnippet || a.targetPost?.body || a.targetPost?.bodySnippet),
+                                  title: isAccBan ? null : (a.targetPost?.title || (a.targetComment ? `Comment on: "${a.targetComment.postTitle || 'Post'}"` : "Appealed Content")),
+                                  author: a.appellant,
+                                  postId: a.targetPostId || a.targetPost?.id || a.targetComment?.postId,
+                                  moderationCategory: a.originalCategory,
+                                  originalReason: a.originalReason,
+                                  appealStatement: a.statement,
+                                  moderationReason: `[Original Reason]: ${a.originalReason} | [Appeal Statement]: "${a.statement}"`,
+                                });
+                              }}
+                              title="Inspect appeal details"
+                            >
+                              <Eye size={13} />
+                              <span>Inspect</span>
+                            </button>
+                            {(a.targetPostId || a.targetPost?.id || a.targetComment?.postId) && (
+                              <Link
+                                to={`/forum/posts/${a.targetPostId || a.targetPost?.id || a.targetComment?.postId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="admin-action-btn"
+                                title="View post on forum"
+                              >
+                                <ExternalLink size={13} />
+                                <span>View Post</span>
+                              </Link>
+                            )}
+                            {a.status === "pending" && (
+                              <button
+                                type="button"
+                                className="admin-action-btn primary"
+                                onClick={() => {
+                                  setAppealToResolve(a);
+                                  setAppealResolveForm({
+                                    status: "approved",
+                                    adminNotes: "",
+                                    restoreContent: true,
+                                    decrementStrike: true,
+                                  });
+                                }}
+                                title="Review & resolve appeal"
+                              >
+                                <Edit3 size={13} />
+                                <span>Resolve Appeal</span>
+                              </button>
+                            )}
+                          </div>
+                          {a.status !== "pending" && a.resolvedBy && (
+                            <span className="admin-date-subtext" style={{ textAlign: "right", marginTop: "2px" }}>
+                              Resolved by @{a.resolvedBy}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            );
+          })()}
 
           {/* SUBTAB 3: BANNED USERS */}
           {modSubTab === "banned" && (
