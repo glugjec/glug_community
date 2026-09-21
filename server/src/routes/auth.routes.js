@@ -221,7 +221,6 @@ router.post(
       sendWelcomeMail({
         to: user.email,
         username: user.username,
-        name: user.name,
       }).catch((err) => {
         console.error('[Welcome Mail Error]', err?.message || err);
       });
@@ -681,7 +680,6 @@ router.post(
       sendWelcomeMail({
         to: user.email,
         username: user.username,
-        name: user.name,
       }).catch((err) => {
         console.error('[Welcome Mail Error]', err?.message || err);
       });

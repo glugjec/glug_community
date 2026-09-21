@@ -52,6 +52,14 @@
   gap: 0.35rem;
   position: sticky;
   top: 1.5rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settings-sidebar-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .settings-nav-item {
@@ -246,6 +254,7 @@
 }
 
 .theme-card-option {
+  position: relative;
   border: 2px solid var(--border);
   border-radius: 14px;
   padding: 1rem;
@@ -256,6 +265,23 @@
   align-items: center;
   gap: 0.6rem;
   transition: all 0.15s ease;
+}
+
+.theme-coming-soon-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #c084fc;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 9999px;
+  padding: 2px 7px;
+  line-height: 1.2;
+  pointer-events: none;
 }
 
 .theme-card-option:hover {
@@ -421,6 +447,9 @@
     position: static;
     flex-direction: row;
     overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .settings-nav-item {

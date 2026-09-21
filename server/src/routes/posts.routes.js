@@ -54,7 +54,6 @@ router.get('/', optionalAuth, async (req, res) => {
         $or: [
           { username: { $regex: escaped, $options: 'i' } },
           { email: { $regex: escaped, $options: 'i' } },
-          { name: { $regex: escaped, $options: 'i' } },
         ],
       }).select('_id').lean();
       const userIds = matchingUsers.map((u) => u._id);

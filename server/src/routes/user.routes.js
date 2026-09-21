@@ -100,16 +100,14 @@ router.get('/search', async (req, res) => {
       $or: [
         { username: { $regex: regex } },
         { email: { $regex: regex } },
-        { name: { $regex: regex } },
       ],
     })
-      .select('name username email role avatar bio skills communityRole createdAt')
+      .select('username email role avatar bio skills communityRole createdAt')
       .limit(6)
       .lean();
 
     const formatted = users.map((u) => ({
       id: u._id.toString(),
-      name: u.name || '',
       username: u.username,
       email: u.email || '',
       role: u.role,
