@@ -46,6 +46,14 @@ const appealSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    contentSnippet: {
+      type: String,
+      default: "",
+    },
+    postTitle: {
+      type: String,
+      default: "",
+    },
     statement: {
       type: String,
       required: [true, "Please provide an appeal statement"],

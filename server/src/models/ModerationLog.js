@@ -57,6 +57,19 @@ const moderationLogSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    contentType: {
+      type: String,
+      enum: ['post', 'comment', 'message', 'account_ban', 'user', 'unknown'],
+      default: 'unknown',
+    },
+    contentSnippet: {
+      type: String,
+      default: '',
+    },
+    postTitle: {
+      type: String,
+      default: '',
+    },
     details: {
       type: String,
       default: '',

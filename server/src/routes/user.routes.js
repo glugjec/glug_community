@@ -238,7 +238,7 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const [userDoc, flaggedPosts, flaggedComments, strikeLogs, appeals] = await Promise.all([
+    const [userDoc, flaggedPosts, flaggedComments, rawStrikeLogs, rawAppeals] = await Promise.all([
       User.findById(userId).select("moderationStrikes isBanned banExpiresAt banReason strikeExpiresAt postingRestrictedUntil").lean(),
       Post.find({ author: userId, isHidden: true })
         .select("title body category isHidden moderationReason moderationCategory hiddenAt createdAt")
@@ -253,26 +253,30 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
         targetUser: userId,
         action: { $in: ["auto_flag", "report_flag", "manual_ban"] },
       })
-        .populate("targetPost", "title")
-        .populate("targetComment", "body")
-        .populate({
-          path: "targetComment",
-          select: "body post",
-          populate: { path: "post", select: "title" },
-        })
         .sort({ createdAt: -1 })
         .lean(),
       Appeal.find({ appellant: userId })
-        .populate("targetPost", "title")
-        .populate("targetComment", "body")
-        .populate({
-          path: "targetComment",
-          select: "body post",
-          populate: { path: "post", select: "title" },
-        })
         .sort({ createdAt: -1 })
         .lean(),
     ]);
+
+    const allPostIds = [
+      ...rawStrikeLogs.map((s) => s.targetPost),
+      ...rawAppeals.map((a) => a.targetPost),
+    ].filter(Boolean);
+
+    const allCommentIds = [
+      ...rawStrikeLogs.map((s) => s.targetComment),
+      ...rawAppeals.map((a) => a.targetComment),
+    ].filter(Boolean);
+
+    const [extraPosts, extraComments] = await Promise.all([
+      Post.find({ _id: { $in: allPostIds } }).select("title body").lean(),
+      Comment.find({ _id: { $in: allCommentIds } }).select("body post").populate("post", "title").lean(),
+    ]);
+
+    const postMap = new Map(extraPosts.map((p) => [p._id.toString(), p]));
+    const commentMap = new Map(extraComments.map((c) => [c._id.toString(), c]));
 
     return res.json({
       strikes: userDoc?.moderationStrikes || 0,
@@ -307,12 +311,20 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
           hiddenAt: c.hiddenAt || c.createdAt,
         };
       }),
-      strikeLogs: strikeLogs.map((s) => {
-        const targetPostId = s.targetPost?._id
-          ? s.targetPost._id.toString()
-          : (s.targetComment?.post?._id
-              ? s.targetComment.post._id.toString()
-              : (s.targetComment?.post ? s.targetComment.post.toString() : null));
+      strikeLogs: rawStrikeLogs.map((s) => {
+        const targetCommentId = s.targetComment ? s.targetComment.toString() : null;
+        const targetPostId = s.targetPost ? s.targetPost.toString() : null;
+        const matchedComment = targetCommentId ? commentMap.get(targetCommentId) : null;
+        const matchedPost = targetPostId
+          ? postMap.get(targetPostId)
+          : (matchedComment?.post?._id ? postMap.get(matchedComment.post._id.toString()) : null);
+
+        const isComment = s.contentType === "comment" || !!targetCommentId || s.action === "delete_comment" || /comment/i.test(s.details || "");
+        const postTitle = s.postTitle || matchedPost?.title || matchedComment?.post?.title || null;
+        const commentSnippet = matchedComment?.body
+          ? stripHtml(matchedComment.body).slice(0, 150)
+          : (s.contentSnippet || "[Removed comment]");
+
         return {
           id: s._id.toString(),
           _id: s._id.toString(),
@@ -320,31 +332,44 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
           reason: s.reason,
           category: s.category,
           details: s.details,
-          targetPostId,
-          postId: targetPostId,
-          targetCommentId: s.targetComment?._id
-            ? s.targetComment._id.toString()
-            : (s.targetComment ? s.targetComment.toString() : null),
-          targetPostTitle: s.targetPost?.title || s.targetComment?.post?.title || null,
-          targetCommentSnippet: s.targetComment?.body ? stripHtml(s.targetComment.body).slice(0, 100) : null,
+          contentType: isComment ? "comment" : (s.contentType === "post" || (targetPostId && !targetCommentId) ? "post" : (s.contentType || "strike")),
+          isComment,
+          isCommentDeleted: isComment && !matchedComment,
+          targetPostId: targetPostId || matchedComment?.post?._id?.toString() || null,
+          postId: targetPostId || matchedComment?.post?._id?.toString() || null,
+          targetCommentId,
+          targetPostTitle: postTitle,
+          targetCommentSnippet: isComment ? commentSnippet : null,
+          contentSnippet: isComment ? commentSnippet : (matchedPost?.body ? stripHtml(matchedPost.body).slice(0, 150) : s.contentSnippet || ""),
           createdAt: s.createdAt,
         };
       }),
-      appeals: appeals.map((a) => {
-        const targetPostId = a.targetPost?._id
-          ? a.targetPost._id.toString()
-          : (a.targetComment?.post?._id
-              ? a.targetComment.post._id.toString()
-              : (a.targetComment?.post ? a.targetComment.post.toString() : (a.targetPost ? a.targetPost.toString() : null)));
+      appeals: rawAppeals.map((a) => {
+        const targetCommentId = a.targetComment ? a.targetComment.toString() : null;
+        const targetPostId = a.targetPost ? a.targetPost.toString() : null;
+        const matchedComment = targetCommentId ? commentMap.get(targetCommentId) : null;
+        const matchedPost = targetPostId
+          ? postMap.get(targetPostId)
+          : (matchedComment?.post?._id ? postMap.get(matchedComment.post._id.toString()) : null);
+
+        const isCommentAppeal = a.itemType === "comment" || !!targetCommentId || /comment/i.test(a.originalReason || "");
+        const postTitle = a.postTitle || matchedPost?.title || matchedComment?.post?.title || null;
+        const commentSnippet = matchedComment?.body
+          ? stripHtml(matchedComment.body).slice(0, 150)
+          : (a.contentSnippet || "[Removed comment]");
+
         return {
           id: a._id.toString(),
           _id: a._id.toString(),
-          itemType: a.itemType,
-          targetPostId,
-          postId: targetPostId,
-          targetCommentId: a.targetComment?._id ? a.targetComment._id.toString() : (a.targetComment || null),
-          targetPostTitle: a.targetPost?.title || a.targetComment?.post?.title || null,
-          targetCommentSnippet: a.targetComment?.body ? a.targetComment.body.slice(0, 100) : null,
+          itemType: isCommentAppeal ? "comment" : a.itemType,
+          isComment: isCommentAppeal,
+          isCommentDeleted: isCommentAppeal && !matchedComment,
+          targetPostId: targetPostId || matchedComment?.post?._id?.toString() || null,
+          postId: targetPostId || matchedComment?.post?._id?.toString() || null,
+          targetCommentId,
+          targetPostTitle: postTitle,
+          targetCommentSnippet: isCommentAppeal ? commentSnippet : null,
+          contentSnippet: isCommentAppeal ? commentSnippet : (matchedPost?.body ? stripHtml(matchedPost.body).slice(0, 150) : a.contentSnippet || ""),
           moderationLogId: a.moderationLog ? a.moderationLog.toString() : null,
           strikeIndex: a.strikeIndex,
           originalReason: a.originalReason,
@@ -385,18 +410,70 @@ router.post("/me/appeals", requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Check duplicate pending appeal for this specific item/strike
+    let finalItemType = itemType;
+    let finalCommentId = targetCommentId;
+    let finalPostId = targetPostId;
+    let contentSnippet = "";
+    let postTitle = "";
+
+    if (moderationLogId) {
+      const log = await ModerationLog.findById(moderationLogId).lean();
+      if (log) {
+        if (
+          log.contentType === "comment" ||
+          log.targetComment ||
+          log.action === "delete_comment" ||
+          /comment/i.test(log.details || "")
+        ) {
+          finalItemType = "comment";
+          if (!finalCommentId && log.targetComment) {
+            finalCommentId = log.targetComment.toString();
+          }
+          if (!finalPostId && log.targetPost) {
+            finalPostId = log.targetPost.toString();
+          }
+        } else if (
+          log.contentType === "post" ||
+          (log.targetPost && !log.targetComment) ||
+          log.action === "delete_post"
+        ) {
+          finalItemType = "post";
+          if (!finalPostId && log.targetPost) {
+            finalPostId = log.targetPost.toString();
+          }
+        }
+        contentSnippet = log.contentSnippet || "";
+        postTitle = log.postTitle || "";
+      }
+    }
+
+    if (finalItemType === "comment" || finalCommentId) {
+      finalItemType = "comment";
+    }
+
+    if (finalPostId && !postTitle) {
+      const p = await Post.findById(finalPostId).select("title").lean();
+      if (p?.title) postTitle = p.title;
+    }
+    if (finalCommentId && !contentSnippet) {
+      const c = await Comment.findById(finalCommentId).select("body").lean();
+      if (c?.body) contentSnippet = stripHtml(c.body).slice(0, 150);
+    }
+    if (finalItemType === "comment" && !contentSnippet) {
+      contentSnippet = "[Removed comment]";
+    }
+
     const query = {
       appellant: userId,
       status: "pending",
     };
 
-    if (targetCommentId) {
-      query.targetComment = targetCommentId;
-    } else if (moderationLogId) {
+    if (moderationLogId) {
       query.moderationLog = moderationLogId;
-    } else if (targetPostId && itemType === "post") {
-      query.targetPost = targetPostId;
+    } else if (finalCommentId) {
+      query.targetComment = finalCommentId;
+    } else if (finalPostId && finalItemType === "post") {
+      query.targetPost = finalPostId;
     } else {
       query.strikeIndex = strikeIndex;
     }
@@ -408,26 +485,28 @@ router.post("/me/appeals", requireAuth, async (req, res) => {
 
     const appeal = await Appeal.create({
       appellant: userId,
-      itemType,
-      targetPost: (itemType === "post" ? targetPostId : null) || null,
-      targetComment: targetCommentId || null,
+      itemType: finalItemType,
+      targetPost: finalPostId || null,
+      targetComment: finalCommentId || null,
       targetMessage: targetMessageId || null,
       moderationLog: moderationLogId || null,
       strikeIndex: Number(strikeIndex) || 1,
       originalReason: String(originalReason).trim().slice(0, 300),
       originalCategory: String(originalCategory).trim().slice(0, 100),
       statement: statement.trim().slice(0, 1500),
+      contentSnippet,
+      postTitle,
       status: "pending",
     });
 
     const appellant = await User.findById(userId).select("username").lean();
     const appellantName = appellant?.username || "A member";
-    const typeLabel = itemType === "account_ban" ? "account ban" : itemType === "post" ? "post" : itemType === "comment" ? "comment" : `strike ${strikeIndex}`;
+    const typeLabel = finalItemType === "account_ban" ? "account ban" : finalItemType === "post" ? "post" : finalItemType === "comment" ? "comment" : `strike ${strikeIndex}`;
     notifyAllAdmins({
       message: `${appellantName} submitted a new ${typeLabel} appeal for review.`,
       senderId: userId,
-      postId: (itemType === "post" ? targetPostId : null) || null,
-      commentId: targetCommentId || null,
+      postId: finalPostId || null,
+      commentId: finalCommentId || null,
     }).catch(() => {});
 
     return res.status(201).json({

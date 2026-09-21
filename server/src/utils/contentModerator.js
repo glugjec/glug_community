@@ -224,6 +224,30 @@ export async function applyStrikePipeline({
     }
   }
 
+  let commentSnippet = '';
+  let postSnippet = '';
+
+  if (targetComment) {
+    if (typeof targetComment === 'object' && targetComment.body) {
+      commentSnippet = targetComment.body.slice(0, 200);
+    } else {
+      const c = await Comment.findById(targetComment).select('body post').lean().catch(() => null);
+      if (c?.body) commentSnippet = c.body.slice(0, 200);
+    }
+  }
+
+  if (targetPost) {
+    if (typeof targetPost === 'object' && targetPost.body) {
+      postSnippet = targetPost.body.slice(0, 200);
+    } else {
+      const p = await Post.findById(targetPost).select('body').lean().catch(() => null);
+      if (p?.body) postSnippet = p.body.slice(0, 200);
+    }
+  }
+
+  const contentType = targetComment ? 'comment' : (targetPost ? 'post' : (targetMessage ? 'message' : 'user'));
+  const contentSnippet = targetComment ? commentSnippet : postSnippet;
+
   // Record in audit log
   try {
     await ModerationLog.create({
@@ -233,6 +257,9 @@ export async function applyStrikePipeline({
       targetPost: targetPost?._id || targetPost || null,
       targetComment: targetComment?._id || targetComment || null,
       targetMessage: targetMessage?._id || targetMessage || null,
+      contentType,
+      contentSnippet,
+      postTitle,
       reason,
       category,
       details: `Strike #${currentStrikes} applied. Resulting action: ${actionTaken}`,

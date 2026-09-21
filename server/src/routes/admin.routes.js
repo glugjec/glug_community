@@ -878,10 +878,36 @@ router.delete("/moderation/comments/:id", async (req, res) => {
     }
 
     const postId = comment.post;
+    const post = await Post.findById(postId).select("title").lean();
     const allIds = await getAllDescendantCommentIds(comment._id);
+    const commentSnippet = stripHtmlText(comment.body || "").slice(0, 150);
+    const postTitle = post?.title || "";
+
     await Promise.all([
       Comment.deleteMany({ _id: { $in: allIds } }),
       Report.deleteMany({ targetComment: { $in: allIds } }),
+      ModerationLog.updateMany(
+        { targetComment: { $in: allIds } },
+        {
+          $set: {
+            contentType: "comment",
+            contentSnippet: commentSnippet,
+            postTitle: postTitle,
+            targetPost: postId,
+          },
+        }
+      ),
+      Appeal.updateMany(
+        { targetComment: { $in: allIds } },
+        {
+          $set: {
+            itemType: "comment",
+            contentSnippet: commentSnippet,
+            postTitle: postTitle,
+            targetPost: postId,
+          },
+        }
+      ),
     ]);
 
     const remainingCount = await Comment.countDocuments({
@@ -895,6 +921,10 @@ router.delete("/moderation/comments/:id", async (req, res) => {
       performedBy: req.user.id,
       targetUser: comment.author,
       targetPost: postId,
+      targetComment: comment._id,
+      contentType: "comment",
+      contentSnippet: commentSnippet,
+      postTitle: postTitle,
       details: `Permanently deleted flagged comment (and ${allIds.length - 1} replies)`,
     });
 
@@ -1215,26 +1245,35 @@ router.get("/moderation/appeals", async (req, res) => {
       filter.status = status;
     }
 
-    const appeals = await Appeal.find(filter)
+    const rawAppeals = await Appeal.find(filter)
       .sort({ createdAt: -1 })
       .populate("appellant", "username email role avatar moderationStrikes isBanned banExpiresAt")
       .populate("resolvedBy", "username")
-      .populate("targetPost", "title body")
-      .populate("targetComment", "body")
-      .populate({
-        path: "targetComment",
-        select: "body post",
-        populate: { path: "post", select: "title" },
-      })
       .lean();
 
+    const postIds = rawAppeals.map((a) => a.targetPost).filter(Boolean);
+    const commentIds = rawAppeals.map((a) => a.targetComment).filter(Boolean);
+    const [posts, comments] = await Promise.all([
+      Post.find({ _id: { $in: postIds } }).select("title body").lean(),
+      Comment.find({ _id: { $in: commentIds } }).select("body post").populate("post", "title").lean(),
+    ]);
+    const postMap = new Map(posts.map((p) => [p._id.toString(), p]));
+    const commentMap = new Map(comments.map((c) => [c._id.toString(), c]));
+
     return res.json({
-      appeals: appeals.map((a) => {
-        const targetPostId = a.targetPost?._id
-          ? a.targetPost._id.toString()
-          : (a.targetComment?.post?._id
-              ? a.targetComment.post._id.toString()
-              : (a.targetComment?.post ? a.targetComment.post.toString() : null));
+      appeals: rawAppeals.map((a) => {
+        const targetCommentId = a.targetComment ? a.targetComment.toString() : null;
+        const targetPostId = a.targetPost ? a.targetPost.toString() : null;
+        const matchedComment = targetCommentId ? commentMap.get(targetCommentId) : null;
+        const matchedPost = targetPostId
+          ? postMap.get(targetPostId)
+          : (matchedComment?.post?._id ? postMap.get(matchedComment.post._id.toString()) : null);
+
+        const isCommentAppeal = a.itemType === "comment" || !!targetCommentId || /comment/i.test(a.originalReason || "");
+        const itemType = isCommentAppeal ? "comment" : a.itemType;
+        const postTitle = a.postTitle || matchedPost?.title || matchedComment?.post?.title || "Discussion Post";
+        const commentBody = matchedComment?.body || a.contentSnippet || "[Removed comment]";
+
         return {
           id: a._id.toString(),
           _id: a._id.toString(),
@@ -1250,29 +1289,32 @@ router.get("/moderation/appeals", async (req, res) => {
                 banExpiresAt: a.appellant.banExpiresAt,
               }
             : null,
-          itemType: a.itemType,
+          itemType,
+          isComment: isCommentAppeal,
+          isCommentDeleted: isCommentAppeal && !matchedComment,
           strikeIndex: a.strikeIndex,
           originalReason: a.originalReason,
           originalCategory: a.originalCategory,
           statement: a.statement,
           status: a.status,
           adminNotes: a.adminNotes || "",
-          targetPostId,
-          targetPost: a.targetPost
+          targetPostId: targetPostId || matchedComment?.post?._id?.toString() || null,
+          targetPost: matchedPost
             ? {
-                id: a.targetPost._id.toString(),
-                title: a.targetPost.title,
-                body: a.targetPost.body || "",
-                bodySnippet: stripHtmlText(a.targetPost.body || "").slice(0, 150),
+                id: matchedPost._id.toString(),
+                title: matchedPost.title,
+                body: matchedPost.body || "",
+                bodySnippet: stripHtmlText(matchedPost.body || "").slice(0, 150),
               }
-            : null,
-          targetComment: a.targetComment
+            : (postTitle ? { id: targetPostId, title: postTitle, bodySnippet: "" } : null),
+          targetComment: isCommentAppeal
             ? {
-                id: a.targetComment._id.toString(),
-                postId: a.targetComment.post?._id?.toString() || a.targetComment.post?.toString() || null,
-                postTitle: a.targetComment.post?.title || "Discussion Post",
-                body: a.targetComment.body || "",
-                bodySnippet: stripHtmlText(a.targetComment.body || "").slice(0, 150),
+                id: targetCommentId,
+                postId: targetPostId || matchedComment?.post?._id?.toString() || null,
+                postTitle: postTitle,
+                body: commentBody,
+                bodySnippet: stripHtmlText(commentBody).slice(0, 150),
+                isDeleted: !matchedComment,
               }
             : null,
           resolvedBy: a.resolvedBy?.username || null,
@@ -1341,14 +1383,23 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
 
       // 2. Restore content if requested
       if (restoreContent) {
-        if (appeal.targetPost) {
+        if (isCommentAppeal) {
+          if (appeal.targetComment) {
+            await Comment.findByIdAndUpdate(appeal.targetComment, {
+              isHidden: false,
+              moderationReason: "",
+              hiddenAt: null,
+            });
+            if (appeal.targetPost) {
+              const remainingCount = await Comment.countDocuments({
+                post: appeal.targetPost,
+                isHidden: { $ne: true },
+              });
+              await Post.findByIdAndUpdate(appeal.targetPost, { commentCount: remainingCount });
+            }
+          }
+        } else if (appeal.targetPost) {
           await Post.findByIdAndUpdate(appeal.targetPost, {
-            isHidden: false,
-            moderationReason: "",
-            hiddenAt: null,
-          });
-        } else if (appeal.targetComment) {
-          await Comment.findByIdAndUpdate(appeal.targetComment, {
             isHidden: false,
             moderationReason: "",
             hiddenAt: null,
@@ -1363,6 +1414,9 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
         targetUser: appeal.appellant,
         targetPost: appeal.targetPost || null,
         targetComment: appeal.targetComment || null,
+        contentType: isCommentAppeal ? "comment" : (appeal.targetPost ? "post" : (isAccountBanAppeal ? "account_ban" : "unknown")),
+        postTitle: appeal.postTitle || "",
+        contentSnippet: appeal.contentSnippet || "",
         reason: adminNotes || (isAccountBanAppeal ? "Account ban appeal approved by administrator" : "Appeal reviewed and approved by administrator"),
         details: isAccountBanAppeal
           ? `Account unbanned. Strike decremented: ${decrementStrike}.`
@@ -1375,7 +1429,9 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
         type: "report_accepted",
         message: isAccountBanAppeal
           ? "Your account ban appeal has been APPROVED by an administrator. Your suspension has been lifted."
-          : "Your moderation appeal has been APPROVED by an administrator. Your strike has been revoked and standing updated.",
+          : (isCommentAppeal
+              ? "Your comment moderation appeal has been APPROVED by an administrator. Your strike has been revoked."
+              : "Your moderation appeal has been APPROVED by an administrator. Your strike has been revoked and standing updated."),
       });
     } else {
       // Rejected
@@ -1385,6 +1441,9 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
         targetUser: appeal.appellant,
         targetPost: appeal.targetPost || null,
         targetComment: appeal.targetComment || null,
+        contentType: isCommentAppeal ? "comment" : (appeal.targetPost ? "post" : (isAccountBanAppeal ? "account_ban" : "unknown")),
+        postTitle: appeal.postTitle || "",
+        contentSnippet: appeal.contentSnippet || "",
         reason: adminNotes || (isAccountBanAppeal ? "Account ban appeal denied by administrator" : "Appeal denied by administrator"),
         details: `Admin notes: ${adminNotes}`,
       });
@@ -1394,23 +1453,28 @@ router.put("/moderation/appeals/:id/resolve", async (req, res) => {
         type: "system",
         message: isAccountBanAppeal
           ? `Your account ban appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`
-          : `Your moderation appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`,
+          : (isCommentAppeal
+              ? `Your comment moderation appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`
+              : `Your moderation appeal was reviewed and denied. Note: "${adminNotes || 'Denied following review against community guidelines.'}"`),
       });
     }
 
-    const appealType = isAccountBanAppeal ? "account_ban" : (appeal.itemType || "strike");
-    let contentTitle = "";
+    const isCommentAppeal = appeal.itemType === "comment" || !!appeal.targetComment;
+    const appealType = isAccountBanAppeal ? "account_ban" : (isCommentAppeal ? "comment" : (appeal.itemType || "strike"));
+    let contentTitle = appeal.postTitle || "";
     let relatedPostId = null;
 
     if (appeal.targetPost) {
       relatedPostId = appeal.targetPost.toString();
-      const p = await Post.findById(appeal.targetPost).select("title");
-      if (p?.title) contentTitle = p.title;
+      if (!contentTitle) {
+        const p = await Post.findById(appeal.targetPost).select("title").lean();
+        if (p?.title) contentTitle = p.title;
+      }
     } else if (appeal.targetComment) {
-      const c = await Comment.findById(appeal.targetComment).populate("post", "title").select("body post");
+      const c = await Comment.findById(appeal.targetComment).populate("post", "title").select("body post").lean();
       if (c?.post) {
         relatedPostId = c.post._id ? c.post._id.toString() : c.post.toString();
-        contentTitle = c.post.title || "";
+        if (!contentTitle && c.post.title) contentTitle = c.post.title;
       }
     }
 

@@ -12,6 +12,7 @@ import { calculateNextVoteScore } from '../utils/voteCalculator.js';
 import { createNotification, createSystemNotification, notifyAllAdmins } from '../utils/notificationService.js';
 import { Report } from '../models/Report.js';
 import { ModerationLog } from '../models/ModerationLog.js';
+import { Appeal } from '../models/Appeal.js';
 import { moderateContent, applyStrikePipeline } from '../utils/contentModerator.js';
 
 const router = Router();
@@ -996,29 +997,30 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
       }
     }
 
-    const populated = await Comment.findById(comment._id).populate(
+    const populated = await comment.populate(
       'author',
       'username role avatar communityRole'
     );
+    const doc = populated || comment;
 
     clearServerPostsCache();
 
     const commentJson = {
-      id: populated._id.toString(),
-      _id: populated._id.toString(),
-      body: populated.body,
-      parentComment: populated.parentComment ? populated.parentComment.toString() : null,
-      createdAt: populated.createdAt,
-      isHidden: !!populated.isHidden,
-      author: populated.author
+      id: doc._id.toString(),
+      _id: doc._id.toString(),
+      body: doc.body,
+      parentComment: doc.parentComment ? doc.parentComment.toString() : null,
+      createdAt: doc.createdAt,
+      isHidden: !!doc.isHidden,
+      author: doc.author && typeof doc.author === 'object' && doc.author._id
         ? {
-            id: populated.author._id.toString(),
-            username: populated.author.username,
-            role: populated.author.role,
-            avatar: populated.author.avatar,
-            communityRole: populated.author.communityRole || {},
+            id: doc.author._id.toString(),
+            username: doc.author.username,
+            role: doc.author.role,
+            avatar: doc.author.avatar,
+            communityRole: doc.author.communityRole || {},
           }
-        : { username: 'deleted', role: 'student', communityRole: {} },
+        : { username: req.user.username || 'Member', role: req.user.role || 'student', communityRole: {} },
     };
 
     if (isHidden && pipelineResult) {
@@ -1078,7 +1080,34 @@ router.delete('/:id/comments/:commentId', requireAuth, async (req, res) => {
     }
 
     const allIds = await getAllDescendantCommentIds(comment._id);
-    await Comment.deleteMany({ _id: { $in: allIds } });
+    const commentSnippet = String(comment.body || '').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().slice(0, 150);
+    const postTitle = post.title || '';
+
+    await Promise.all([
+      Comment.deleteMany({ _id: { $in: allIds } }),
+      ModerationLog.updateMany(
+        { targetComment: { $in: allIds } },
+        {
+          $set: {
+            contentType: 'comment',
+            contentSnippet: commentSnippet,
+            postTitle: postTitle,
+            targetPost: post._id,
+          },
+        }
+      ),
+      Appeal.updateMany(
+        { targetComment: { $in: allIds } },
+        {
+          $set: {
+            itemType: 'comment',
+            contentSnippet: commentSnippet,
+            postTitle: postTitle,
+            targetPost: post._id,
+          },
+        }
+      ),
+    ]);
 
     const remainingCount = await Comment.countDocuments({ post: post._id });
     await Post.findByIdAndUpdate(post._id, { commentCount: remainingCount });

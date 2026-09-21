@@ -2137,7 +2137,52 @@ export default function AdminDashboard() {
                                     </>
                                   )}
                                 </div>
-                                {a.targetPost?.title && (
+                                {a.targetComment || a.itemType === "comment" ? (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                    {(a.targetComment?.postTitle || a.targetPost?.title) && (
+                                      <Link
+                                        to={(a.targetComment?.postId || a.targetPostId) ? `/forum/posts/${a.targetComment?.postId || a.targetPostId}` : "#"}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="admin-date-subtext"
+                                        style={{
+                                          maxWidth: "240px",
+                                          whiteSpace: "nowrap",
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          color: "#60a5fa",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "4px",
+                                        }}
+                                        title={`Comment on: ${a.targetComment?.postTitle || a.targetPost?.title}`}
+                                      >
+                                        <span>On: "{a.targetComment?.postTitle || a.targetPost?.title}"</span>
+                                        {(a.targetComment?.postId || a.targetPostId) && <ExternalLink size={10} style={{ flexShrink: 0 }} />}
+                                      </Link>
+                                    )}
+                                    <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                      <span
+                                        className="admin-date-subtext"
+                                        style={{
+                                          maxWidth: "220px",
+                                          whiteSpace: "nowrap",
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          color: "inherit",
+                                        }}
+                                        title={stripHtml(a.targetComment?.bodySnippet || a.targetComment?.body || a.contentSnippet || "[Removed comment]")}
+                                      >
+                                        "{stripHtml(a.targetComment?.bodySnippet || a.targetComment?.body || a.contentSnippet || "[Removed comment]")}"
+                                      </span>
+                                      {(a.targetComment?.isDeleted || a.isCommentDeleted) && (
+                                        <span style={{ fontSize: "0.68rem", color: "#f87171", fontWeight: 600 }}>
+                                          (Deleted)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : a.targetPost?.title ? (
                                   <Link
                                     to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
                                     target="_blank"
@@ -2158,29 +2203,7 @@ export default function AdminDashboard() {
                                     <span>"{a.targetPost.title}"</span>
                                     <ExternalLink size={10} style={{ flexShrink: 0 }} />
                                   </Link>
-                                )}
-                                {a.targetComment && (
-                                  <Link
-                                    to={(a.targetComment.postId || a.targetPostId) ? `/forum/posts/${a.targetComment.postId || a.targetPostId}` : "#"}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="admin-date-subtext"
-                                    style={{
-                                      maxWidth: "240px",
-                                      whiteSpace: "nowrap",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit",
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                    }}
-                                    title={stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}
-                                  >
-                                    <span>"{stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}"</span>
-                                    {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} style={{ flexShrink: 0 }} />}
-                                  </Link>
-                                )}
+                                ) : null}
                               </div>
                             </td>
                             <td style={{ maxWidth: "260px", minWidth: "180px" }}>
@@ -2481,7 +2504,37 @@ export default function AdminDashboard() {
                               )}
                             </div>
 
-                            {a.targetPost?.title && (
+                            {a.targetComment || a.itemType === "comment" ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                                {(a.targetComment?.postTitle || a.targetPost?.title) && (
+                                  <Link
+                                    to={(a.targetComment?.postId || a.targetPostId) ? `/forum/posts/${a.targetComment?.postId || a.targetPostId}` : "#"}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="admin-date-subtext"
+                                    style={{
+                                      color: "#60a5fa",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                  >
+                                    <span>On: "{a.targetComment?.postTitle || a.targetPost?.title}"</span>
+                                    {(a.targetComment?.postId || a.targetPostId) && <ExternalLink size={10} style={{ flexShrink: 0 }} />}
+                                  </Link>
+                                )}
+                                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                                  <span className="admin-date-subtext" style={{ color: "inherit" }}>
+                                    "{stripHtml(a.targetComment?.bodySnippet || a.targetComment?.body || a.contentSnippet || "[Removed comment]")}"
+                                  </span>
+                                  {(a.targetComment?.isDeleted || a.isCommentDeleted) && (
+                                    <span style={{ fontSize: "0.68rem", color: "#f87171", fontWeight: 600 }}>
+                                      (Deleted)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : a.targetPost?.title ? (
                               <Link
                                 to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
                                 target="_blank"
@@ -2497,25 +2550,7 @@ export default function AdminDashboard() {
                                 <span>"{a.targetPost.title}"</span>
                                 <ExternalLink size={10} style={{ flexShrink: 0 }} />
                               </Link>
-                            )}
-
-                            {a.targetComment && (
-                              <Link
-                                to={(a.targetComment.postId || a.targetPostId) ? `/forum/posts/${a.targetComment.postId || a.targetPostId}` : "#"}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="admin-date-subtext"
-                                style={{
-                                  color: (a.targetComment.postId || a.targetPostId) ? "#60a5fa" : "inherit",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                }}
-                              >
-                                <span>"{stripHtml(a.targetComment.bodySnippet || a.targetComment.body || a.targetComment.postTitle || "Comment")}"</span>
-                                {(a.targetComment.postId || a.targetPostId) && <ExternalLink size={10} style={{ flexShrink: 0 }} />}
-                              </Link>
-                            )}
+                            ) : null}
 
                             <div className="admin-appeal-reason-box">
                               <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "#f87171", textTransform: "uppercase", letterSpacing: "0.03em" }}>
@@ -4507,6 +4542,28 @@ export default function AdminDashboard() {
                       "{appealToResolve.statement}"
                     </p>
                   )}
+                  <div style={{ marginTop: "8px", padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: "6px", fontSize: "0.82rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                      <span className="admin-badge neutral" style={{ textTransform: "uppercase", fontSize: "0.68rem" }}>
+                        {appealToResolve.itemType === "comment" || appealToResolve.isComment || appealToResolve.targetComment ? "COMMENT" : (appealToResolve.itemType === "account_ban" ? "ACCOUNT BAN" : "POST")}
+                      </span>
+                      {(appealToResolve.targetComment?.postTitle || appealToResolve.targetPost?.title) && (
+                        <span style={{ color: "#60a5fa", fontWeight: 600 }}>
+                          On: "{appealToResolve.targetComment?.postTitle || appealToResolve.targetPost?.title}"
+                        </span>
+                      )}
+                    </div>
+                    {(appealToResolve.targetComment?.bodySnippet || appealToResolve.targetComment?.body || appealToResolve.contentSnippet) && (
+                      <p style={{ margin: "2px 0 0", color: "#94a3b8", fontStyle: "italic" }}>
+                        "{stripHtml(appealToResolve.targetComment?.bodySnippet || appealToResolve.targetComment?.body || appealToResolve.contentSnippet || "")}"
+                      </p>
+                    )}
+                    {(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted) && (
+                      <span style={{ display: "inline-block", marginTop: "4px", fontSize: "0.72rem", color: "#f87171", fontWeight: 600 }}>
+                        (Comment was permanently deleted from discussion)
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="admin-form-group">
@@ -4552,18 +4609,23 @@ export default function AdminDashboard() {
                       </label>
                     </div>
                     {!isAccountBanAppeal && (
-                      <div className={`admin-checkbox-card success ${appealResolveForm.restoreContent ? "is-checked" : ""}`}>
+                      <div className={`admin-checkbox-card success ${appealResolveForm.restoreContent ? "is-checked" : ""} ${(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted) ? "is-disabled" : ""}`}>
                         <label className="admin-checkbox-label">
                           <input
                             type="checkbox"
                             className="admin-native-checkbox"
-                            checked={appealResolveForm.restoreContent}
+                            checked={appealResolveForm.restoreContent && !(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted)}
+                            disabled={appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted}
                             onChange={(e) => setAppealResolveForm({ ...appealResolveForm, restoreContent: e.target.checked })}
                           />
                           <span className="admin-custom-checkbox">
                             <Check size={13} strokeWidth={3} />
                           </span>
-                          <span className="admin-checkbox-text">Restore flagged content to public view (unhide)</span>
+                          <span className="admin-checkbox-text">
+                            {(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted)
+                              ? "Restore flagged content (Disabled - comment was permanently deleted)"
+                              : "Restore flagged content to public view (unhide)"}
+                          </span>
                         </label>
                       </div>
                     )}

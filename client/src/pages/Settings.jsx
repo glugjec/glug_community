@@ -218,19 +218,30 @@ function stripHtml(html) {
       let title = ''
       let snippet = ''
 
+      const isComment =
+        s.contentType === 'comment' ||
+        s.isComment ||
+        !!cId ||
+        !!matchedComment ||
+        s.action === 'delete_comment' ||
+        /comment/i.test(s.details || '')
+
       if (isAccountBan) {
         itemType = 'ban'
         title = s.details ? `Account Suspension (${s.details})` : 'Account Suspension'
-      } else if (cId || matchedComment) {
+      } else if (isComment) {
         itemType = 'comment'
         const postTitle = s.targetPostTitle || matchedComment?.postTitle
-        title = postTitle ? `"${postTitle}"` : 'Flagged Content'
-        snippet = stripHtml(matchedComment?.bodySnippet || s.targetCommentSnippet || '')
-      } else if (pId || matchedPost) {
+        title = postTitle ? `Comment on "${postTitle}"` : 'Comment on Discussion'
+        snippet = stripHtml(matchedComment?.bodySnippet || s.targetCommentSnippet || s.contentSnippet || '')
+        if (!snippet) {
+          snippet = s.isCommentDeleted ? '[Removed comment]' : 'Restricted comment'
+        }
+      } else if (pId || matchedPost || s.contentType === 'post') {
         itemType = 'post'
         const postTitle = s.targetPostTitle || matchedPost?.title
-        title = postTitle ? `"${postTitle}"` : 'Flagged Content'
-        snippet = stripHtml(matchedPost?.bodySnippet || '')
+        title = postTitle ? `"${postTitle}"` : 'Flagged Discussion Post'
+        snippet = stripHtml(matchedPost?.bodySnippet || s.contentSnippet || '')
       } else {
         itemType = 'strike'
         title = `Account Strike #${strikeNumber}`
@@ -272,7 +283,7 @@ function stripHtml(html) {
         targetCommentId: cId,
         targetPostId: pId,
         postId: pId,
-        title: c.postTitle ? `"${c.postTitle}"` : 'Flagged Content',
+        title: c.postTitle ? `Comment on "${c.postTitle}"` : 'Comment on Discussion',
         snippet: stripHtml(c.bodySnippet || ''),
         reason: c.moderationReason || 'Violates community guidelines',
         category: c.moderationCategory,
@@ -1242,11 +1253,18 @@ function stripHtml(html) {
                   <div className="summary-label">
                     {appealModalItem.itemType === 'strike'
                       ? `Account Strike #${appealModalItem.strikeIndex || 1}`
-                      : 'Flagged Content'}
+                      : (appealModalItem.itemType === 'comment'
+                          ? 'Flagged Comment'
+                          : (appealModalItem.itemType === 'post' ? 'Flagged Post' : 'Flagged Content'))}
                   </div>
                   <div className="summary-val">
                     {appealModalItem.title || 'Moderation Action'}
                   </div>
+                  {appealModalItem.snippet && (
+                    <p className="summary-reason" style={{ color: 'var(--text-dim)', fontStyle: 'italic', margin: '4px 0 6px' }}>
+                      "{appealModalItem.snippet}"
+                    </p>
+                  )}
                   <p className="summary-reason">
                     <strong>Reason:</strong> {appealModalItem.reason || 'Violates community guidelines'}
                   </p>
