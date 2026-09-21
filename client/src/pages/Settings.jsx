@@ -29,7 +29,8 @@ import {
   Loader2,
   Clock,
   XCircle,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react'
 import './Settings.css'
 
@@ -959,6 +960,15 @@ function stripHtml(html) {
                                 )}
                               </div>
                             )}
+                            {appeal?.adminNotes && (
+                              <div className={`settings-mod-admin-note status-${appeal.status}`}>
+                                <MessageSquare size={13} className="settings-mod-admin-note-icon" />
+                                <div className="settings-mod-admin-note-content">
+                                  <span className="settings-mod-admin-note-label">Admin Note:</span>{' '}
+                                  <span className="settings-mod-admin-note-text">{appeal.adminNotes}</span>
+                                </div>
+                              </div>
+                            )}
                             {(item.targetPostId || item.postId) && (
                               <Link
                                 to={`/forum/posts/${item.targetPostId || item.postId}`}
@@ -993,11 +1003,6 @@ function stripHtml(html) {
                                     </>
                                   )}
                                 </div>
-                                {appeal.adminNotes && (
-                                  <span className="settings-appeal-note" title={appeal.adminNotes}>
-                                    Note: {appeal.adminNotes}
-                                  </span>
-                                )}
                               </div>
                             ) : item.isAccountBan || item.itemType === 'ban' || item.itemType === 'account_ban' ? null : (
                               <button

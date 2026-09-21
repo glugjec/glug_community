@@ -848,13 +848,13 @@
 
 .settings-appeal-badge {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.2rem;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.82rem;
   font-weight: 700;
   padding: 0.45rem 0.85rem;
   border-radius: 8px;
+  white-space: nowrap;
 }
 
 .settings-appeal-badge-status {
@@ -881,14 +881,72 @@
   border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
-.settings-appeal-note {
-  font-size: 0.74rem;
-  font-weight: 400;
-  color: var(--text-dim);
-  max-width: 240px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.settings-mod-admin-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  margin: 0.35rem 0 0.5rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.settings-mod-admin-note.status-approved {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+}
+
+.settings-mod-admin-note.status-approved .settings-mod-admin-note-label {
+  color: #34d399;
+  font-weight: 700;
+}
+
+.settings-mod-admin-note.status-approved .settings-mod-admin-note-icon {
+  color: #34d399;
+}
+
+.settings-mod-admin-note.status-rejected {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+}
+
+.settings-mod-admin-note.status-rejected .settings-mod-admin-note-label {
+  color: #f87171;
+  font-weight: 700;
+}
+
+.settings-mod-admin-note.status-rejected .settings-mod-admin-note-icon {
+  color: #f87171;
+}
+
+.settings-mod-admin-note.status-pending {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.22);
+}
+
+.settings-mod-admin-note.status-pending .settings-mod-admin-note-label {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.settings-mod-admin-note.status-pending .settings-mod-admin-note-icon {
+  color: #fbbf24;
+}
+
+.settings-mod-admin-note-icon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.settings-mod-admin-note-content {
+  flex: 1;
+}
+
+.settings-mod-admin-note-text {
+  color: var(--text-secondary);
 }
 
 /* Modal styles for Settings */
