@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AlertTriangle, X, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import './ReportModal.css';
 
@@ -14,8 +14,7 @@ export default function ReportModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successResult, setSuccessResult] = useState(null);
-
-  if (!isOpen) return null;
+  const overlayRef = useRef(null);
 
   const handleClose = () => {
     setReason('');
@@ -23,6 +22,51 @@ export default function ReportModal({
     setSuccessResult(null);
     onClose();
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    document.documentElement.classList.add('glug-modal-open');
+    document.body.classList.add('glug-modal-open');
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    const overlay = overlayRef.current;
+    const preventBackdropScroll = (e) => {
+      if (e.target === overlay) {
+        e.preventDefault();
+      }
+    };
+
+    if (overlay) {
+      overlay.addEventListener('wheel', preventBackdropScroll, { passive: false });
+      overlay.addEventListener('touchmove', preventBackdropScroll, { passive: false });
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !loading) {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.documentElement.classList.remove('glug-modal-open');
+      document.body.classList.remove('glug-modal-open');
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+
+      if (overlay) {
+        overlay.removeEventListener('wheel', preventBackdropScroll);
+        overlay.removeEventListener('touchmove', preventBackdropScroll);
+      }
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, loading]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,7 +87,7 @@ export default function ReportModal({
   };
 
   return (
-    <div className="report-modal-overlay" onClick={handleClose}>
+    <div ref={overlayRef} className="report-modal-overlay" onClick={handleClose}>
       <div className="report-modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="report-modal-header">
           <div className="report-modal-icon-wrap">

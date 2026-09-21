@@ -88,7 +88,19 @@ body:has(.forum-modal-backdrop),
 html:has(.terminal-modal-backdrop),
 body:has(.terminal-modal-backdrop),
 html:has(.admin-modal-overlay),
-body:has(.admin-modal-overlay) {
+body:has(.admin-modal-overlay),
+html:has(.admin-confirm-overlay),
+body:has(.admin-confirm-overlay),
+html:has(.confirm-delete-overlay),
+body:has(.confirm-delete-overlay),
+html:has(.report-modal-overlay),
+body:has(.report-modal-overlay),
+html:has(.event-lightbox-overlay),
+body:has(.event-lightbox-overlay),
+html:has(.ban-modal-backdrop),
+body:has(.ban-modal-backdrop),
+html:has(.rte-link-modal-overlay),
+body:has(.rte-link-modal-overlay) {
   overflow: hidden !important;
   height: 100% !important;
   overscroll-behavior: contain;
@@ -3373,7 +3385,10 @@ body.glug-mobile-search-open .sidebar-hamburger {
   body:has(.terminal-modal-backdrop) .sidebar-hamburger,
   body:has(.confirm-delete-overlay) .sidebar-hamburger,
   body:has(.admin-modal-overlay) .sidebar-hamburger,
-  body:has(.admin-confirm-overlay) .sidebar-hamburger {
+  body:has(.admin-confirm-overlay) .sidebar-hamburger,
+  body:has(.report-modal-overlay) .sidebar-hamburger,
+  body:has(.event-lightbox-overlay) .sidebar-hamburger,
+  body:has(.ban-modal-backdrop) .sidebar-hamburger {
     display: none !important;
   }
 

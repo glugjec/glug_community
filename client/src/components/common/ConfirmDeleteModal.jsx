@@ -1,12 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { AlertTriangle, Trash2, X, Loader2 } from 'lucide-react'
 import './ConfirmDeleteModal.css'
 
 function formatItemPreview(text) {
   if (!text) return ''
   let cleaned = String(text)
-    .replace(/<img[^>]*>/gi, ' 📷 [Image] ')
-    .replace(/!\[.*?\]\(.*?\)/g, ' 📷 [Image] ')
+    .replace(/<img[^>]*>/gi, ' [Image] ')
+    .replace(/!\[.*?\]\(.*?\)/g, ' [Image] ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -20,7 +20,7 @@ function formatItemPreview(text) {
     .trim()
 
   if (!cleaned && (text.includes('<img') || text.includes('!['))) {
-    return '📷 [Image]'
+    return '[Image]'
   }
   if (!cleaned) return ''
   return cleaned.length > 120 ? cleaned.slice(0, 120) + '...' : cleaned
@@ -39,22 +39,55 @@ export default function ConfirmDeleteModal({
   isDeleting = false
 }) {
   const previewText = formatItemPreview(itemTitle)
+  const overlayRef = useRef(null)
 
   useEffect(() => {
     if (!isOpen) return
+
+    document.documentElement.classList.add('glug-modal-open')
+    document.body.classList.add('glug-modal-open')
+    const prevHtmlOverflow = document.documentElement.style.overflow
+    const prevBodyOverflow = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+
+    const overlay = overlayRef.current
+    const preventBackdropScroll = (e) => {
+      if (e.target === overlay) {
+        e.preventDefault()
+      }
+    }
+
+    if (overlay) {
+      overlay.addEventListener('wheel', preventBackdropScroll, { passive: false })
+      overlay.addEventListener('touchmove', preventBackdropScroll, { passive: false })
+    }
+
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && !isDeleting) {
         onClose()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.documentElement.classList.remove('glug-modal-open')
+      document.body.classList.remove('glug-modal-open')
+      document.documentElement.style.overflow = prevHtmlOverflow
+      document.body.style.overflow = prevBodyOverflow
+
+      if (overlay) {
+        overlay.removeEventListener('wheel', preventBackdropScroll)
+        overlay.removeEventListener('touchmove', preventBackdropScroll)
+      }
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [isOpen, isDeleting, onClose])
 
   if (!isOpen) return null
 
   return (
-    <div className="confirm-delete-overlay" onClick={isDeleting ? undefined : onClose}>
+    <div ref={overlayRef} className="confirm-delete-overlay" onClick={isDeleting ? undefined : onClose}>
       <div
         className="confirm-delete-card"
         onClick={(e) => e.stopPropagation()}

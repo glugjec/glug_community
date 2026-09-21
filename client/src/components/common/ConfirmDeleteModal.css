@@ -10,12 +10,18 @@
   justify-content: center;
   padding: 1.25rem;
   animation: confirmFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 .confirm-delete-card {
   position: relative;
   width: 100%;
   max-width: 480px;
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   background: var(--bg-card, #101522);
   border: 1px solid rgba(239, 68, 68, 0.28);
   border-radius: 16px;
