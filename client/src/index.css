@@ -77,6 +77,23 @@ body {
   line-height: 1.6;
 }
 
+html.glug-modal-open,
+body.glug-modal-open,
+html:has(.res-modal-backdrop),
+body:has(.res-modal-backdrop),
+html:has(.modal-backdrop),
+body:has(.modal-backdrop),
+html:has(.forum-modal-backdrop),
+body:has(.forum-modal-backdrop),
+html:has(.terminal-modal-backdrop),
+body:has(.terminal-modal-backdrop),
+html:has(.admin-modal-overlay),
+body:has(.admin-modal-overlay) {
+  overflow: hidden !important;
+  height: 100% !important;
+  overscroll-behavior: contain;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -3352,6 +3369,7 @@ body.glug-mobile-search-open .sidebar-hamburger {
   body.glug-modal-open .sidebar-hamburger,
   body:has(.modal-backdrop) .sidebar-hamburger,
   body:has(.forum-modal-backdrop) .sidebar-hamburger,
+  body:has(.res-modal-backdrop) .sidebar-hamburger,
   body:has(.terminal-modal-backdrop) .sidebar-hamburger,
   body:has(.confirm-delete-overlay) .sidebar-hamburger,
   body:has(.admin-modal-overlay) .sidebar-hamburger,

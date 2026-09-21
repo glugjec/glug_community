@@ -706,9 +706,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 50000;
   padding: 16px;
   box-sizing: border-box;
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 .res-modal-sheet {
@@ -723,6 +725,8 @@
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
   overflow: hidden;
   position: relative;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .res-modal-header {

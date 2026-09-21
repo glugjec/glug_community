@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   X,
   Download,
@@ -68,6 +68,41 @@ export default function ResourceDetailModal({
   const [copied, setCopied] = useState(false)
   const [downloadCount, setDownloadCount] = useState(resource?.downloadCount || 0)
 
+  const backdropRef = useRef(null)
+
+  useEffect(() => {
+    document.documentElement.classList.add('glug-modal-open')
+    document.body.classList.add('glug-modal-open')
+    const prevHtmlOverflow = document.documentElement.style.overflow
+    const prevBodyOverflow = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+
+    const backdrop = backdropRef.current
+    const preventBackdropScroll = (e) => {
+      if (e.target === backdrop) {
+        e.preventDefault()
+      }
+    }
+
+    if (backdrop) {
+      backdrop.addEventListener('wheel', preventBackdropScroll, { passive: false })
+      backdrop.addEventListener('touchmove', preventBackdropScroll, { passive: false })
+    }
+
+    return () => {
+      document.documentElement.classList.remove('glug-modal-open')
+      document.body.classList.remove('glug-modal-open')
+      document.documentElement.style.overflow = prevHtmlOverflow
+      document.body.style.overflow = prevBodyOverflow
+
+      if (backdrop) {
+        backdrop.removeEventListener('wheel', preventBackdropScroll)
+        backdrop.removeEventListener('touchmove', preventBackdropScroll)
+      }
+    }
+  }, [])
+
   if (!resource) return null
 
   const files = Array.isArray(resource.files) ? resource.files : []
@@ -92,7 +127,7 @@ export default function ResourceDetailModal({
   }
 
   return (
-    <div className="res-modal-backdrop" onClick={onClose}>
+    <div ref={backdropRef} className="res-modal-backdrop" onClick={onClose}>
       <div className="res-modal-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="res-modal-header">
           <div className="res-modal-tags">
