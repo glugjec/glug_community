@@ -71,11 +71,9 @@ export default function ResourceDetailModal({
   const backdropRef = useRef(null)
 
   useEffect(() => {
-    document.documentElement.classList.add('glug-modal-open')
+    const scrollY = window.scrollY || document.documentElement.scrollTop || 0
     document.body.classList.add('glug-modal-open')
-    const prevHtmlOverflow = document.documentElement.style.overflow
     const prevBodyOverflow = document.body.style.overflow
-    document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
 
     const backdrop = backdropRef.current
@@ -91,14 +89,16 @@ export default function ResourceDetailModal({
     }
 
     return () => {
-      document.documentElement.classList.remove('glug-modal-open')
       document.body.classList.remove('glug-modal-open')
-      document.documentElement.style.overflow = prevHtmlOverflow
       document.body.style.overflow = prevBodyOverflow
 
       if (backdrop) {
         backdrop.removeEventListener('wheel', preventBackdropScroll)
         backdrop.removeEventListener('touchmove', preventBackdropScroll)
+      }
+
+      if (typeof scrollY === 'number') {
+        window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' })
       }
     }
   }, [])

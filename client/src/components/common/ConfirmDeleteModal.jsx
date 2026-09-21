@@ -44,11 +44,9 @@ export default function ConfirmDeleteModal({
   useEffect(() => {
     if (!isOpen) return
 
-    document.documentElement.classList.add('glug-modal-open')
+    const scrollY = window.scrollY || document.documentElement.scrollTop || 0
     document.body.classList.add('glug-modal-open')
-    const prevHtmlOverflow = document.documentElement.style.overflow
     const prevBodyOverflow = document.body.style.overflow
-    document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
 
     const overlay = overlayRef.current
@@ -71,9 +69,7 @@ export default function ConfirmDeleteModal({
     window.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      document.documentElement.classList.remove('glug-modal-open')
       document.body.classList.remove('glug-modal-open')
-      document.documentElement.style.overflow = prevHtmlOverflow
       document.body.style.overflow = prevBodyOverflow
 
       if (overlay) {
@@ -81,6 +77,10 @@ export default function ConfirmDeleteModal({
         overlay.removeEventListener('touchmove', preventBackdropScroll)
       }
       window.removeEventListener('keydown', handleKeyDown)
+
+      if (typeof scrollY === 'number') {
+        window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' })
+      }
     }
   }, [isOpen, isDeleting, onClose])
 
