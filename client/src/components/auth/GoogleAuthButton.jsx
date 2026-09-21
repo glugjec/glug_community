@@ -41,7 +41,7 @@ export default function GoogleAuthButton({ onError, onRequiresUsername }) {
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={handleGoogleError}
-              theme="filled_black"
+              theme={typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light' ? 'outline' : 'filled_black'}
               shape="rectangular"
               size="large"
               text="continue_with"
