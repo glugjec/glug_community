@@ -272,12 +272,20 @@ router.post(
             status: 'pending',
           }).select('statement createdAt status').lean();
 
+          const is3rdStrikeBan = Boolean(
+            (user.moderationStrikes >= 3) ||
+            (user.banReason && /strike/i.test(user.banReason))
+          );
+
           return res.status(403).json({
             error: user.banExpiresAt
               ? `Your account has been temporarily suspended until ${new Date(user.banExpiresAt).toLocaleString()}.`
-              : 'Your account has been suspended by an administrator.',
+              : (is3rdStrikeBan
+                  ? 'Your account has been permanently suspended due to accumulating 3 community guideline strikes.'
+                  : 'Your account has been suspended by an administrator.'),
             isBanned: true,
-            banReason: user.banReason || 'Suspended by administrator',
+            isStrikeBan: is3rdStrikeBan,
+            banReason: user.banReason || (is3rdStrikeBan ? 'Accumulated 3 community guideline strikes' : 'Suspended by administrator'),
             moderationStrikes: user.moderationStrikes || 0,
             bannedAt: user.bannedAt,
             banExpiresAt: user.banExpiresAt || null,
@@ -548,12 +556,20 @@ router.post('/google', async (req, res) => {
             status: 'pending',
           }).select('statement createdAt status').lean();
 
+          const is3rdStrikeBan = Boolean(
+            (user.moderationStrikes >= 3) ||
+            (user.banReason && /strike/i.test(user.banReason))
+          );
+
           return res.status(403).json({
             error: user.banExpiresAt
               ? `Your account has been temporarily suspended until ${new Date(user.banExpiresAt).toLocaleString()}.`
-              : 'Your account has been suspended by an administrator.',
+              : (is3rdStrikeBan
+                  ? 'Your account has been permanently suspended due to accumulating 3 community guideline strikes.'
+                  : 'Your account has been suspended by an administrator.'),
             isBanned: true,
-            banReason: user.banReason || 'Suspended by administrator',
+            isStrikeBan: is3rdStrikeBan,
+            banReason: user.banReason || (is3rdStrikeBan ? 'Accumulated 3 community guideline strikes' : 'Suspended by administrator'),
             moderationStrikes: user.moderationStrikes || 0,
             bannedAt: user.bannedAt,
             banExpiresAt: user.banExpiresAt || null,
@@ -676,10 +692,18 @@ router.get('/me', requireAuth, async (req, res) => {
         user.banExpiresAt = null;
         await user.save();
       } else {
+        const is3rdStrikeBan = Boolean(
+          (user.moderationStrikes >= 3) ||
+          (user.banReason && /strike/i.test(user.banReason))
+        );
         return res.status(403).json({
-          error: 'Your account has been suspended by an administrator.',
+          error: is3rdStrikeBan
+            ? 'Your account has been permanently suspended due to accumulating 3 community guideline strikes.'
+            : 'Your account has been suspended by an administrator.',
           isBanned: true,
-          banReason: user.banReason || 'Suspended by administrator',
+          isStrikeBan: is3rdStrikeBan,
+          banReason: user.banReason || (is3rdStrikeBan ? 'Accumulated 3 community guideline strikes' : 'Suspended by administrator'),
+          moderationStrikes: user.moderationStrikes || 0,
           banExpiresAt: user.banExpiresAt || null,
         });
       }

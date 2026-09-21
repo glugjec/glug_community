@@ -75,12 +75,21 @@ export async function requireAuth(req, res, next) {
           status: "pending",
         }).select("statement createdAt status").lean();
 
+        const is3rdStrikeBan = Boolean(
+          (dbUser.moderationStrikes >= 3) ||
+          (dbUser.banReason && /strike/i.test(dbUser.banReason))
+        );
+
         return res.status(403).json({
           error: dbUser.banExpiresAt
             ? `Your account has been temporarily suspended until ${new Date(dbUser.banExpiresAt).toLocaleString()}.`
-            : "Your account has been suspended by an administrator.",
+            : (is3rdStrikeBan
+                ? "Your account has been permanently suspended due to accumulating 3 community guideline strikes."
+                : "Your account has been suspended by an administrator."),
           isBanned: true,
-          banReason: dbUser.banReason || "Violation of community guidelines",
+          isStrikeBan: is3rdStrikeBan,
+          banReason: dbUser.banReason || (is3rdStrikeBan ? "Accumulated 3 community guideline strikes" : "Violation of community guidelines"),
+          moderationStrikes: dbUser.moderationStrikes || 0,
           bannedAt: dbUser.bannedAt,
           banExpiresAt: dbUser.banExpiresAt || null,
           appealToken,
