@@ -1145,7 +1145,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="admin-stat-body">
-            <span className="admin-stat-value" style={{ color: (stats.flaggedCount || 0) > 0 ? "#ef4444" : "inherit" }}>
+            <span className="admin-stat-value" style={{ color: (stats.flaggedCount || 0) > 0 ? "#ef4444" : undefined }}>
               {stats.flaggedCount || 0}
             </span>
             <span className="admin-stat-subtext">Hidden from public</span>
@@ -1828,7 +1828,7 @@ export default function AdminDashboard() {
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="admin-post-title"
-                                      style={{ fontSize: "0.95rem", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                      style={{ fontSize: "0.95rem", color: "var(--admin-post-link, #60a5fa)", display: "inline-flex", alignItems: "center", gap: "4px" }}
                                       title="View post on forum"
                                     >
                                       {item.title || (item.body ? (stripHtml(item.body).length > 50 ? stripHtml(item.body).substring(0, 50) + "..." : stripHtml(item.body)) : "[No content]")}
@@ -2021,7 +2021,7 @@ export default function AdminDashboard() {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="admin-post-title"
-                                        style={{ fontSize: "0.88rem", color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: "4px", maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                                        style={{ fontSize: "0.88rem", color: "var(--admin-post-link, #60a5fa)", display: "inline-flex", alignItems: "center", gap: "4px", maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                                         title="View reported content on forum"
                                       >
                                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewText}</span>
@@ -2377,21 +2377,11 @@ export default function AdminDashboard() {
                                       transition: "max-height 0.2s ease",
                                     }}
                                   >
-                                    <span style={{ fontSize: "0.82rem", color: "#fca5a5", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
+                                    <span className="admin-flag-reason-text" style={{ fontSize: "0.82rem", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
                                       {a.originalReason || "Policy violation"}
                                     </span>
                                     {!expandedTextMap[`appeal-reason-${a.id || a._id}`] && a.originalReason && a.originalReason.length > 80 && (
-                                      <div
-                                        style={{
-                                          position: "absolute",
-                                          bottom: 0,
-                                          left: 0,
-                                          right: 0,
-                                          height: "22px",
-                                          background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
-                                          pointerEvents: "none",
-                                        }}
-                                      />
+                                      <div className="admin-fade-overlay" />
                                     )}
                                   </div>
                                   {a.originalReason && a.originalReason.length > 80 && (
@@ -2430,21 +2420,11 @@ export default function AdminDashboard() {
                                   transition: "max-height 0.2s ease",
                                 }}
                               >
-                                <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                <p style={{ fontSize: "0.84rem", color: "var(--text, #f8fafc)", margin: 0, lineHeight: "1.4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                   "{a.statement}"
                                 </p>
                                 {!expandedTextMap[`appeal-${a.id || a._id}`] && a.statement && a.statement.length > 100 && (
-                                  <div
-                                    style={{
-                                      position: "absolute",
-                                      bottom: 0,
-                                      left: 0,
-                                      right: 0,
-                                      height: "30px",
-                                      background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
-                                      pointerEvents: "none",
-                                    }}
-                                  />
+                                  <div className="admin-fade-overlay" style={{ height: "30px" }} />
                                 )}
                               </div>
                               {a.statement && a.statement.length > 100 && (
@@ -2737,21 +2717,11 @@ export default function AdminDashboard() {
                                   transition: "max-height 0.2s ease",
                                 }}
                               >
-                                <span style={{ fontSize: "0.82rem", color: "#fca5a5", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
+                                <span className="admin-flag-reason-text" style={{ fontSize: "0.82rem", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
                                   {a.originalReason || "Policy violation"}
                                 </span>
                                 {!expandedTextMap[`appeal-reason-m-${a.id || a._id}`] && a.originalReason && a.originalReason.length > 80 && (
-                                  <div
-                                    style={{
-                                      position: "absolute",
-                                      bottom: 0,
-                                      left: 0,
-                                      right: 0,
-                                      height: "22px",
-                                      background: "linear-gradient(to bottom, rgba(239, 68, 68, 0), rgba(11, 17, 32, 0.95))",
-                                      pointerEvents: "none",
-                                    }}
-                                  />
+                                  <div className="admin-fade-overlay" />
                                 )}
                               </div>
                               {a.originalReason && a.originalReason.length > 80 && (
@@ -2786,21 +2756,11 @@ export default function AdminDashboard() {
                                   transition: "max-height 0.2s ease",
                                 }}
                               >
-                                <p style={{ fontSize: "0.84rem", color: "#f8fafc", margin: 0, lineHeight: "1.4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                <p style={{ fontSize: "0.84rem", color: "var(--text, #f8fafc)", margin: 0, lineHeight: "1.4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                   "{a.statement}"
                                 </p>
                                 {!expandedTextMap[`appeal-m-${a.id || a._id}`] && a.statement && a.statement.length > 100 && (
-                                  <div
-                                    style={{
-                                      position: "absolute",
-                                      bottom: 0,
-                                      left: 0,
-                                      right: 0,
-                                      height: "30px",
-                                      background: "linear-gradient(to bottom, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.95))",
-                                      pointerEvents: "none",
-                                    }}
-                                  />
+                                  <div className="admin-fade-overlay" style={{ height: "30px" }} />
                                 )}
                               </div>
                               {a.statement && a.statement.length > 100 && (
@@ -2978,21 +2938,11 @@ export default function AdminDashboard() {
                                   transition: "max-height 0.2s ease",
                                 }}
                               >
-                                <span style={{ fontSize: "0.85rem", color: "#f87171", wordBreak: "break-word", lineHeight: "1.4", display: "block" }}>
+                                <span className="admin-ban-reason-text" style={{ fontSize: "0.85rem", wordBreak: "break-word", lineHeight: "1.4", display: "block" }}>
                                   {u.banReason || "No reason specified"}
                                 </span>
                                 {!expandedTextMap[`banned-reason-${u.id}`] && u.banReason && u.banReason.length > 80 && (
-                                  <div
-                                    style={{
-                                      position: "absolute",
-                                      bottom: 0,
-                                      left: 0,
-                                      right: 0,
-                                      height: "24px",
-                                      background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
-                                      pointerEvents: "none",
-                                    }}
-                                  />
+                                  <div className="admin-fade-overlay" style={{ height: "24px" }} />
                                 )}
                               </div>
                               {u.banReason && u.banReason.length > 80 && (
@@ -3175,21 +3125,11 @@ export default function AdminDashboard() {
                                       transition: "max-height 0.2s ease",
                                     }}
                                   >
-                                    <span style={{ fontSize: "0.83rem", color: "#f1f5f9", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
+                                    <span className="admin-log-reason-text" style={{ fontSize: "0.83rem", wordBreak: "break-word", lineHeight: "1.35", display: "block" }}>
                                       {log.reason}
                                     </span>
                                     {!expandedTextMap[`log-reason-${log.id}`] && log.reason.length > 80 && (
-                                      <div
-                                        style={{
-                                          position: "absolute",
-                                          bottom: 0,
-                                          left: 0,
-                                          right: 0,
-                                          height: "22px",
-                                          background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
-                                          pointerEvents: "none",
-                                        }}
-                                      />
+                                      <div className="admin-fade-overlay" />
                                     )}
                                   </div>
                                   {log.reason.length > 80 && (
@@ -3226,17 +3166,7 @@ export default function AdminDashboard() {
                                       {log.details}
                                     </span>
                                     {!expandedTextMap[`log-${log.id}`] && log.details.length > 90 && (
-                                      <div
-                                        style={{
-                                          position: "absolute",
-                                          bottom: 0,
-                                          left: 0,
-                                          right: 0,
-                                          height: "22px",
-                                          background: "linear-gradient(to bottom, rgba(11, 17, 32, 0), #0b1120)",
-                                          pointerEvents: "none",
-                                        }}
-                                      />
+                                      <div className="admin-fade-overlay" />
                                     )}
                                   </div>
                                   {log.details.length > 90 && (
@@ -4472,7 +4402,7 @@ export default function AdminDashboard() {
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <AdminUserAvatar src={banUserModalTarget.avatar} username={banUserModalTarget.username} />
                   <div>
-                    <div style={{ fontWeight: 700, color: "#f8fafc", fontSize: "0.95rem" }}>
+                    <div style={{ fontWeight: 700, color: "var(--text, #f8fafc)", fontSize: "0.95rem" }}>
                       @{banUserModalTarget.username}
                     </div>
                     <div style={{ fontSize: "0.78rem", color: "#94a3b8" }}>
@@ -4679,7 +4609,7 @@ export default function AdminDashboard() {
                   Reported by @{overrideReportTarget.reporter?.username || "unknown"}
                 </span>
               </div>
-              <p style={{ margin: "2px 0 0 0", fontSize: "0.85rem", color: "#f8fafc" }}>
+              <p style={{ margin: "2px 0 0 0", fontSize: "0.85rem", color: "var(--text, #f8fafc)" }}>
                 <strong>Report Reason:</strong> {overrideReportTarget.userReason || "No explanation provided"}
               </p>
               {overrideReportTarget.aiVerdict && (
@@ -4818,7 +4748,7 @@ export default function AdminDashboard() {
                       "{appealToResolve.statement}"
                     </p>
                   )}
-                  <div style={{ marginTop: "8px", padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: "6px", fontSize: "0.82rem" }}>
+                  <div className="admin-appeal-target-box">
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                       <span className="admin-badge neutral" style={{ textTransform: "uppercase", fontSize: "0.68rem" }}>
                         {appealToResolve.itemType === "comment" || appealToResolve.isComment || appealToResolve.targetComment ? "COMMENT" : (appealToResolve.itemType === "account_ban" ? "ACCOUNT BAN" : "POST")}
@@ -5057,7 +4987,7 @@ export default function AdminDashboard() {
                               transition: "max-height 0.2s ease",
                             }}
                           >
-                            <span style={{ fontSize: "0.86rem", color: "#fca5a5", lineHeight: "1.4", wordBreak: "break-word", display: "block" }}>
+                            <span className="admin-flag-reason-text" style={{ fontSize: "0.86rem", lineHeight: "1.4", wordBreak: "break-word", display: "block" }}>
                               {origReason}
                             </span>
                           </div>
@@ -5095,7 +5025,7 @@ export default function AdminDashboard() {
                               transition: "max-height 0.2s ease",
                             }}
                           >
-                            <p style={{ fontSize: "0.86rem", color: "#e2e8f0", lineHeight: "1.45", margin: 0, fontStyle: "italic", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                            <p style={{ fontSize: "0.86rem", color: "var(--text, #e2e8f0)", lineHeight: "1.45", margin: 0, fontStyle: "italic", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                               "{appealStmt}"
                             </p>
                           </div>
@@ -5108,7 +5038,7 @@ export default function AdminDashboard() {
                 if (viewItemModal.moderationReason) {
                   const cleanedReason = viewItemModal.moderationReason.replace(/\s*\|\s*\[AI\]:\s*$/, "");
                   return (
-                    <div style={{ marginTop: "10px", background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.25)", padding: "10px 14px", borderRadius: "10px", fontSize: "0.85rem", color: "#fca5a5" }}>
+                    <div className="admin-modal-reason-box" style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "10px", fontSize: "0.85rem" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                         <div>
                           <strong>Flag Reason:</strong>{" "}
@@ -5155,21 +5085,7 @@ export default function AdminDashboard() {
               })()}
             </div>
             {isAccountBan ? (
-              <div
-                style={{
-                  marginTop: "14px",
-                  background: "rgba(15, 23, 42, 0.65)",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  borderRadius: "12px",
-                  padding: "24px 20px",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  textAlign: "center",
-                  gap: "12px",
-                }}
-              >
+              <div className="admin-account-ban-preview-box">
                 <div
                   style={{
                     width: "48px",
@@ -5185,7 +5101,7 @@ export default function AdminDashboard() {
                   <User size={24} />
                 </div>
                 <div>
-                  <h4 style={{ margin: "0 0 5px", fontSize: "1.02rem", color: "#f8fafc", fontWeight: 600 }}>
+                  <h4 className="admin-preview-item-title" style={{ margin: "0 0 5px", fontSize: "1.02rem", fontWeight: 600 }}>
                     No Associated Content
                   </h4>
                   <p style={{ margin: 0, fontSize: "0.85rem", color: "#94a3b8", maxWidth: "420px", lineHeight: "1.45" }}>
@@ -5222,7 +5138,7 @@ export default function AdminDashboard() {
             ) : (
               <>
                 {viewItemModal.title && (
-                  <h3 style={{ margin: "4px 0 10px 0", fontSize: "1.05rem", color: "#f8fafc", flexShrink: 0 }}>
+                  <h3 className="admin-preview-item-title" style={{ margin: "4px 0 10px 0", fontSize: "1.05rem", flexShrink: 0 }}>
                     {viewItemModal.title}
                   </h3>
                 )}
@@ -5236,10 +5152,8 @@ export default function AdminDashboard() {
                     maxHeight: "360px",
                     flexShrink: 0,
                     overflowY: "auto",
-                    background: "rgba(0,0,0,0.3)",
                     padding: "16px",
                     borderRadius: "10px",
-                    border: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
                   {(() => {
@@ -5353,7 +5267,7 @@ export default function AdminDashboard() {
                 {decrementStrikeOnRestore && <Check size={13} strokeWidth={3} />}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#f8fafc" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text, #f8fafc)" }}>
                   Revoke / decrement 1 moderation strike
                 </span>
                 <span style={{ fontSize: "0.76rem", color: "#94a3b8" }}>
