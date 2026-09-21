@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { Appeal } from '../models/Appeal.js';
 import { EmailOtp } from '../models/EmailOtp.js';
-import { sendOtpMail } from '../config/mail.js';
+import { sendOtpMail, sendWelcomeMail } from '../config/mail.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
 import { notifyAllAdmins } from '../utils/notificationService.js';
 
@@ -217,6 +217,15 @@ router.post(
       });
 
       const token = signToken(user);
+
+      sendWelcomeMail({
+        to: user.email,
+        username: user.username,
+        name: user.name,
+      }).catch((err) => {
+        console.error('[Welcome Mail Error]', err?.message || err);
+      });
+
       return res.status(201).json({ user: user.toJSON(), token });
     } catch (err) {
       console.error('[Auth Register Error]', err);
@@ -668,6 +677,15 @@ router.post(
       });
 
       const token = signToken(user);
+
+      sendWelcomeMail({
+        to: user.email,
+        username: user.username,
+        name: user.name,
+      }).catch((err) => {
+        console.error('[Welcome Mail Error]', err?.message || err);
+      });
+
       return res.status(201).json({ user: user.toJSON(), token });
     } catch (err) {
       console.error('[Google Complete Error]', err);

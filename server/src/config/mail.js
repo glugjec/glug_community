@@ -819,3 +819,213 @@ export function sendAppealDecisionMail(options) {
   return mailQueue.add(() => rawSendAppealDecisionMail(options), { priority: 'normal' });
 }
 
+async function rawSendWelcomeMail({ to, username = '', name = '' }) {
+  const from = process.env.EMAIL_FROM || '"GLUG Community" <glug.jec@gmail.com>';
+  const subject = 'Welcome to the GLUG Community!';
+  const clientUrl = getClientBaseUrl();
+  const feedUrl = `${clientUrl}/`;
+  const resourcesUrl = `${clientUrl}/resources`;
+  const eventsUrl = `${clientUrl}/events`;
+
+  const displayName = String(name || '').trim() || String(username || '').trim() || 'Member';
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="supported-color-schemes" content="dark">
+    <title>Welcome to the GLUG Community</title>
+    <style>
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      table {
+        border-collapse: collapse;
+        mso-table-lspace: 0pt;
+        mso-table-rspace: 0pt;
+      }
+      @media only screen and (max-width: 600px) {
+        .outer-wrap {
+          padding: 8px 4px !important;
+        }
+        .main-card {
+          width: 100% !important;
+          max-width: 100% !important;
+          border-radius: 16px !important;
+        }
+        .card-content {
+          padding: 24px 16px 20px 16px !important;
+        }
+        .header-title {
+          font-size: 22px !important;
+          line-height: 1.25 !important;
+        }
+        .features-box {
+          padding: 16px 12px !important;
+          border-radius: 12px !important;
+        }
+        .cta-btn-cell {
+          width: 100% !important;
+          display: block !important;
+        }
+        .cta-btn {
+          display: block !important;
+          width: 100% !important;
+          padding: 13px 0 !important;
+          text-align: center !important;
+          box-sizing: border-box !important;
+        }
+        .badge-cell {
+          padding-top: 4px !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #07090e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #f8fafc;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #07090e;">
+      <tr>
+        <td align="center" class="outer-wrap" style="padding: 24px 12px;">
+          
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" class="main-card" style="max-width: 580px; background-color: #0f1422; border: 1px solid #1a2336; border-radius: 20px; overflow: hidden; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);">
+            
+            <tr>
+              <td height="4" style="background: linear-gradient(90deg, #2563eb 0%, #38bdf8 50%, #6366f1 100%);"></td>
+            </tr>
+
+            <tr>
+              <td class="card-content" style="padding: 36px 32px;">
+                
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 20px;">
+                  <tr>
+                    <td align="left" valign="middle">
+                      <div style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: 0.8px; line-height: 1.1;">GLUG</div>
+                      <div style="font-size: 10.5px; color: #60a5fa; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; margin-top: 2px;">GNU/Linux User Group</div>
+                    </td>
+                    <td align="right" valign="middle" class="badge-cell">
+                      <span style="display: inline-block; background: rgba(37, 99, 235, 0.15); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 20px; padding: 4px 12px; font-size: 10.5px; font-weight: 700; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;">
+                        Welcome
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+
+                <h1 class="header-title" style="font-size: 23px; font-weight: 800; color: #f8fafc; line-height: 1.3; margin: 0 0 12px 0;">
+                  Welcome to the GLUG Family, ${displayName}!
+                </h1>
+
+                <p style="font-size: 14.5px; color: #94a3b8; line-height: 1.6; margin: 0 0 20px 0;">
+                  We are thrilled to welcome you to the official GNU/Linux User Group community platform. Whether you are passionate about Linux, building software projects, or collaborating on open source, this is your creative space to learn and build together.
+                </p>
+
+                <div class="features-box" style="background: #131929; border: 1px solid #1e293b; border-radius: 14px; padding: 18px 16px; margin-bottom: 22px;">
+                  <div style="font-size: 11px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+                    What you can do in the community:
+                  </div>
+
+                  <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td width="26" valign="top" style="padding-top: 2px;">
+                        <span style="display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; background: rgba(37, 99, 235, 0.25); color: #60a5fa; font-size: 11px; font-weight: bold;">1</span>
+                      </td>
+                      <td style="padding-bottom: 12px; font-size: 13.5px; color: #cbd5e1; line-height: 1.45;">
+                        <strong style="color: #f1f5f9;">Engage in Discussions:</strong> Ask questions, post technical insights, debate ideas, and solve problems.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td width="26" valign="top" style="padding-top: 2px;">
+                        <span style="display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; background: rgba(56, 189, 248, 0.25); color: #38bdf8; font-size: 11px; font-weight: bold;">2</span>
+                      </td>
+                      <td style="padding-bottom: 12px; font-size: 13.5px; color: #cbd5e1; line-height: 1.45;">
+                        <strong style="color: #f1f5f9;">Curated Resources:</strong> Access roadmaps and tutorials on OS, Networks, Algorithms, and DevOps.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td width="26" valign="top" style="padding-top: 2px;">
+                        <span style="display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; background: rgba(16, 185, 129, 0.25); color: #34d399; font-size: 11px; font-weight: bold;">3</span>
+                      </td>
+                      <td style="font-size: 13.5px; color: #cbd5e1; line-height: 1.45;">
+                        <strong style="color: #f1f5f9;">Events &amp; Workshops:</strong> Join upcoming hackathons, technical webinars, and open-source sprints.
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 22px;">
+                  <tr>
+                    <td align="center" class="cta-btn-cell">
+                      <a href="${feedUrl}" target="_blank" class="cta-btn" style="display: inline-block; background: #2563eb; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4); letter-spacing: 0.2px;">
+                        Explore GLUG Community &rarr;
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 20px; background: rgba(15, 23, 42, 0.6); border: 1px solid #1a2336; border-radius: 10px; padding: 10px 14px;">
+                  <tr>
+                    <td align="center" style="font-size: 12px; color: #64748b; line-height: 1.5;">
+                      Quick links:&nbsp;
+                      <a href="${feedUrl}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: 600;">Feed</a> &bull;
+                      <a href="${resourcesUrl}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: 600;">Resources</a> &bull;
+                      <a href="${eventsUrl}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: 600;">Events</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <div style="height: 1px; background: #1a2336; margin: 22px 0 16px 0;"></div>
+
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td align="center">
+                      <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0; font-weight: 600;">
+                        GNU/Linux User Group
+                      </p>
+                      <p style="font-size: 11px; color: #475569; margin: 0; letter-spacing: 0.2px;">
+                        Open minds build brighter tomorrows.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+
+              </td>
+            </tr>
+          </table>
+
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `;
+
+  if (!transporter) {
+    console.log('\n' + '='.repeat(54));
+    console.log('  [GLUG DEV MODE] WELCOME EMAIL CONSOLE FALLBACK');
+    console.log(`  To: ${to}`);
+    console.log(`  Recipient: ${displayName}`);
+    console.log(`  Subject: ${subject}`);
+    console.log('='.repeat(54) + '\n');
+    return { success: true, mode: 'dev-console' };
+  }
+
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject,
+    html,
+    text: `Welcome to the GLUG Community, ${displayName}!\n\nWe are thrilled to welcome you to the official GNU/Linux User Group community platform.\n\nExplore GLUG Community: ${feedUrl}\n\nGNU/Linux User Group\nOpen minds build brighter tomorrows.`,
+  });
+
+  return { success: true, messageId: info.messageId };
+}
+
+export function sendWelcomeMail(options) {
+  return mailQueue.add(() => rawSendWelcomeMail(options), { priority: 'normal' });
+}
+
