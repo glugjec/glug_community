@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['student', 'admin', 'moderator'],
+      enum: ['student', 'admin', 'moderator', 'content_admin'],
       default: 'student',
     },
     isBanned: {

@@ -103,7 +103,7 @@ router.get("/users", async (req, res) => {
     const { q, role, page = 1, limit = 50 } = req.query;
     const filter = {};
 
-    if (role && ["student", "admin"].includes(role)) {
+    if (role && ["student", "admin", "content_admin"].includes(role)) {
       filter.role = role;
     }
 
@@ -178,8 +178,8 @@ router.get("/users", async (req, res) => {
 router.put("/users/:id/role", async (req, res) => {
   const { role } = req.body;
 
-  if (!["student", "admin"].includes(role)) {
-    return res.status(400).json({ error: "Role must be either student or admin" });
+  if (!["student", "admin", "content_admin"].includes(role)) {
+    return res.status(400).json({ error: "Role must be student, content_admin, or admin" });
   }
 
   try {

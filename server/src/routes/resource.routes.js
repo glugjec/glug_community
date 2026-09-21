@@ -2,7 +2,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import { Resource } from "../models/Resource.js";
 import { User } from "../models/User.js";
-import { requireAuth, requireAdmin, optionalAuth } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireContentAdmin, optionalAuth } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -305,7 +305,7 @@ router.post("/:id/bookmark", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/", requireAuth, requireAdmin, async (req, res) => {
+router.post("/", requireAuth, requireContentAdmin, async (req, res) => {
   const {
     title,
     slug,
@@ -378,7 +378,7 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
+router.put("/:id", requireAuth, requireContentAdmin, async (req, res) => {
   const {
     title,
     slug,
@@ -452,7 +452,7 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
+router.delete("/:id", requireAuth, requireContentAdmin, async (req, res) => {
   try {
     const resource = await Resource.findByIdAndDelete(req.params.id);
     if (!resource) {

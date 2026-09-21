@@ -150,3 +150,10 @@ export function requireAdmin(req, res, next) {
   }
   next();
 }
+
+export function requireContentAdmin(req, res, next) {
+  if (!req.user || !["admin", "content_admin"].includes(req.user.role)) {
+    return res.status(403).json({ error: "Content administrator access required" });
+  }
+  next();
+}

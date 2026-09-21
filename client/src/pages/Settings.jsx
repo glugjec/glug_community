@@ -689,7 +689,13 @@ function stripHtml(html) {
                     <input
                       type="text"
                       className="settings-input-control"
-                      value={user.role === 'admin' ? 'Administrator' : 'Student Member'}
+                      value={
+                        user.role === 'admin'
+                          ? 'Administrator'
+                          : user.role === 'content_admin'
+                          ? 'Content Administrator'
+                          : 'Student Member'
+                      }
                       disabled
                     />
                   </div>

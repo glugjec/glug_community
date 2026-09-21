@@ -130,18 +130,18 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onToggleMobil
             )
           })}
 
-          {user?.role === 'admin' && (
+          {['admin', 'content_admin'].includes(user?.role) && (
             <NavLink
-              to="/admin"
+              to={user?.role === 'content_admin' ? '/admin?tab=events' : '/admin'}
               className={linkClass}
               onClick={handleNavClick}
-              title={collapsed ? 'Admin Panel' : undefined}
+              title={collapsed ? (user?.role === 'content_admin' ? 'Content Panel' : 'Admin Panel') : undefined}
             >
-              <span className="sb-nav-icon" style={{ color: '#f59e0b' }}>
+              <span className="sb-nav-icon" style={{ color: user?.role === 'content_admin' ? '#06b6d4' : '#f59e0b' }}>
                 <Shield size={19} />
               </span>
-              <span className="sb-nav-text" style={{ color: '#f59e0b', fontWeight: 600 }}>
-                Admin Panel
+              <span className="sb-nav-text" style={{ color: user?.role === 'content_admin' ? '#06b6d4' : '#f59e0b', fontWeight: 600 }}>
+                {user?.role === 'content_admin' ? 'Content Panel' : 'Admin Panel'}
               </span>
             </NavLink>
           )}
