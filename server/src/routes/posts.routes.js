@@ -13,7 +13,12 @@ import { createNotification, createSystemNotification, notifyAllAdmins } from '.
 import { Report } from '../models/Report.js';
 import { ModerationLog } from '../models/ModerationLog.js';
 import { Appeal } from '../models/Appeal.js';
-import { moderateContent, applyStrikePipeline } from '../utils/contentModerator.js';
+import {
+  moderateContent,
+  applyStrikePipeline,
+  scheduleDeferredModeration,
+  registerPostCacheInvalidator,
+} from '../utils/contentModerator.js';
 
 const router = Router();
 const recentViews = new Map();
@@ -22,6 +27,8 @@ const serverPostsCache = new Map();
 function clearServerPostsCache() {
   serverPostsCache.clear();
 }
+
+registerPostCacheInvalidator(clearServerPostsCache);
 
 // @route   GET /api/posts
 // @desc    Get list of posts with filtering, sorting, pagination, and user vote status
@@ -615,6 +622,7 @@ router.post('/', requireAuth, async (req, res) => {
     let isHidden = false;
     let moderationReason = '';
     let moderationCategory = '';
+    let moderationSkipped = false;
     let hiddenAt = null;
     let pipelineResult = null;
 
@@ -625,6 +633,8 @@ router.post('/', requireAuth, async (req, res) => {
         moderationReason = modResult.reason || 'Violates community guidelines';
         moderationCategory = modResult.category || 'abuse';
         hiddenAt = new Date();
+      } else if (modResult.skipped || modResult.error) {
+        moderationSkipped = true;
       }
     }
 
@@ -637,8 +647,13 @@ router.post('/', requireAuth, async (req, res) => {
       isHidden,
       moderationReason,
       moderationCategory,
+      moderationSkipped,
       hiddenAt,
     });
+
+    if (moderationSkipped) {
+      scheduleDeferredModeration({ targetId: post._id, contentType: 'post' });
+    }
 
     if (isHidden) {
       pipelineResult = await applyStrikePipeline({
@@ -706,6 +721,7 @@ router.put('/:id', requireAuth, async (req, res) => {
         post.moderationReason = moderationReason;
         post.moderationCategory = moderationCategory;
         post.hiddenAt = hiddenAt;
+        post.moderationSkipped = false;
 
         pipelineResult = await applyStrikePipeline({
           userId: req.user.id,
@@ -714,6 +730,11 @@ router.put('/:id', requireAuth, async (req, res) => {
           actionSource: 'auto_flag',
           targetPost: post,
         });
+      } else if (modResult.skipped || modResult.error) {
+        post.moderationSkipped = true;
+        scheduleDeferredModeration({ targetId: post._id, contentType: 'post' });
+      } else {
+        post.moderationSkipped = false;
       }
     }
 
@@ -924,6 +945,7 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     let isHidden = false;
     let moderationReason = '';
     let moderationCategory = '';
+    let moderationSkipped = false;
     let hiddenAt = null;
     let pipelineResult = null;
 
@@ -934,6 +956,8 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
         moderationReason = modResult.reason || 'Violates community guidelines';
         moderationCategory = modResult.category || 'abuse';
         hiddenAt = new Date();
+      } else if (modResult.skipped || modResult.error) {
+        moderationSkipped = true;
       }
     }
 
@@ -945,8 +969,13 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
       isHidden,
       moderationReason,
       moderationCategory,
+      moderationSkipped,
       hiddenAt,
     });
+
+    if (moderationSkipped) {
+      scheduleDeferredModeration({ targetId: comment._id, contentType: 'comment' });
+    }
 
     if (isHidden) {
       pipelineResult = await applyStrikePipeline({

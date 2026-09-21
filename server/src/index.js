@@ -15,6 +15,7 @@ import uploadRoutes from './routes/upload.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import eventRoutes from './routes/events.routes.js';
+import { initBackgroundModerationWorker } from './utils/contentModerator.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -98,6 +99,7 @@ const PORT = process.env.PORT || 5000;
 async function startServer() {
   try {
     await connectDB();
+    initBackgroundModerationWorker();
     app.listen(PORT, () => {
       console.log(`GLUG API server running on http://localhost:${PORT}`);
     });

@@ -42,6 +42,13 @@ class AIModerationQueue {
         } else {
           this.queue.splice(insertIdx, 0, entry);
         }
+      } else if (priority === 'normal') {
+        const insertIdx = this.queue.findIndex((item) => item.priority === 'low');
+        if (insertIdx === -1) {
+          this.queue.push(entry);
+        } else {
+          this.queue.splice(insertIdx, 0, entry);
+        }
       } else {
         this.queue.push(entry);
       }
@@ -72,7 +79,8 @@ class AIModerationQueue {
     const item = this.queue.shift();
     if (!item) return;
 
-    if (Date.now() - item.enqueuedAt > this.queueTimeoutMs) {
+    const maxWait = item.priority === 'low' ? this.queueTimeoutMs * 5 : this.queueTimeoutMs;
+    if (Date.now() - item.enqueuedAt > maxWait) {
       console.warn('[Moderation Queue] Request timed out in queue. Failing open.');
       item.resolve({ verdict: 'SAFE', reason: 'Queue timeout fallback', category: 'none', skipped: true });
       this.process();
@@ -392,4 +400,154 @@ export async function applyStrikePipeline({
     banExpiresAt: user.banExpiresAt,
   };
 }
+
+let cacheInvalidator = null;
+export function registerPostCacheInvalidator(fn) {
+  cacheInvalidator = fn;
+}
+
+const scheduledTimers = new Map();
+
+export function scheduleDeferredModeration({ targetId, contentType = 'post', delayMs = 30000 }) {
+  if (!targetId) return;
+  const key = `${contentType}:${targetId}`;
+  if (scheduledTimers.has(key)) {
+    clearTimeout(scheduledTimers.get(key));
+  }
+
+  const timer = setTimeout(async () => {
+    scheduledTimers.delete(key);
+    try {
+      await processDeferredItem({ targetId, contentType });
+    } catch (err) {
+      console.error('[Deferred Moderation Error]', err?.message || err);
+    }
+  }, delayMs);
+
+  if (timer.unref) timer.unref();
+  scheduledTimers.set(key, timer);
+}
+
+export async function processDeferredItem({ targetId, contentType = 'post' }) {
+  if (contentType === 'post') {
+    const post = await Post.findById(targetId);
+    if (!post || post.isHidden) {
+      if (post && post.moderationSkipped) {
+        post.moderationSkipped = false;
+        await post.save();
+      }
+      return;
+    }
+
+    const modResult = await moderateContent(`${post.title}\n\n${post.body}`, { priority: 'low' });
+    if (modResult.skipped || modResult.error) {
+      return;
+    }
+
+    if (modResult.verdict === 'VIOLATION') {
+      post.isHidden = true;
+      post.moderationReason = modResult.reason || 'Violates community guidelines';
+      post.moderationCategory = modResult.category || 'abuse';
+      post.hiddenAt = new Date();
+      post.moderationSkipped = false;
+      await post.save();
+
+      if (cacheInvalidator) cacheInvalidator();
+
+      await applyStrikePipeline({
+        userId: post.author,
+        reason: post.moderationReason,
+        category: post.moderationCategory,
+        actionSource: 'auto_flag',
+        targetPost: post,
+      });
+    } else {
+      post.moderationSkipped = false;
+      await post.save();
+    }
+  } else if (contentType === 'comment') {
+    const comment = await Comment.findById(targetId);
+    if (!comment || comment.isHidden) {
+      if (comment && comment.moderationSkipped) {
+        comment.moderationSkipped = false;
+        await comment.save();
+      }
+      return;
+    }
+
+    const modResult = await moderateContent(comment.body, { priority: 'low' });
+    if (modResult.skipped || modResult.error) {
+      return;
+    }
+
+    if (modResult.verdict === 'VIOLATION') {
+      comment.isHidden = true;
+      comment.moderationReason = modResult.reason || 'Violates community guidelines';
+      comment.moderationCategory = modResult.category || 'abuse';
+      comment.hiddenAt = new Date();
+      comment.moderationSkipped = false;
+      await comment.save();
+
+      const parentPost = await Post.findById(comment.post);
+      if (parentPost && parentPost.commentCount > 0) {
+        parentPost.commentCount = Math.max(0, parentPost.commentCount - 1);
+        await parentPost.save();
+        if (cacheInvalidator) cacheInvalidator();
+      }
+
+      await applyStrikePipeline({
+        userId: comment.author,
+        reason: comment.moderationReason,
+        category: comment.moderationCategory,
+        actionSource: 'auto_flag',
+        targetComment: comment,
+        targetPost: comment.post,
+      });
+    } else {
+      comment.moderationSkipped = false;
+      await comment.save();
+    }
+  }
+}
+
+export async function sweepPendingModerations() {
+  try {
+    const pendingPosts = await Post.find({ moderationSkipped: true, isHidden: false })
+      .select('_id')
+      .limit(10)
+      .lean();
+
+    for (const p of pendingPosts) {
+      await processDeferredItem({ targetId: p._id, contentType: 'post' });
+    }
+
+    const pendingComments = await Comment.find({ moderationSkipped: true, isHidden: false })
+      .select('_id')
+      .limit(10)
+      .lean();
+
+    for (const c of pendingComments) {
+      await processDeferredItem({ targetId: c._id, contentType: 'comment' });
+    }
+  } catch (err) {
+    console.error('[Sweep Pending Moderations Error]', err?.message || err);
+  }
+}
+
+let workerStarted = false;
+export function initBackgroundModerationWorker() {
+  if (workerStarted) return;
+  workerStarted = true;
+
+  const initialTimer = setTimeout(() => {
+    sweepPendingModerations();
+  }, 10000);
+  if (initialTimer.unref) initialTimer.unref();
+
+  const intervalTimer = setInterval(() => {
+    sweepPendingModerations();
+  }, 2 * 60 * 1000);
+  if (intervalTimer.unref) intervalTimer.unref();
+}
+
 

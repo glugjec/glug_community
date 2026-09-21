@@ -81,6 +81,11 @@ const postSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    moderationSkipped: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
