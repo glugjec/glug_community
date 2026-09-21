@@ -228,7 +228,7 @@ export default function Resources() {
             </span>
           </div>
 
-          {user?.role === 'admin' && (
+          {['admin', 'content_admin'].includes(user?.role) && (
             <Link to="/admin?tab=resources" className="res-hero-admin-link">
               <Shield size={14} />
               <span>Admin Console</span>

@@ -47,7 +47,7 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { adminApi, resourcesApi } from "../api.js";
+import { adminApi, resourcesApi, eventsApi } from "../api.js";
 import ConfirmDeleteModal from "../components/common/ConfirmDeleteModal.jsx";
 import { avatarInitials, avatarColor } from "../components/common/avatar.js";
 import MarkdownRenderer from "../components/common/MarkdownRenderer.jsx";
@@ -112,6 +112,10 @@ export default function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
 
+  const isFullAdmin = user?.role === "admin";
+  const isContentAdmin = user?.role === "content_admin";
+  const hasAdminAccess = isFullAdmin || isContentAdmin;
+
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalPosts: 0,
@@ -120,6 +124,7 @@ export default function AdminDashboard() {
     adminCount: 0,
     todayPosts: 0,
   });
+  const [eventStats, setEventStats] = useState(null);
   const [refreshingStats, setRefreshingStats] = useState(false);
 
   const [users, setUsers] = useState([]);
@@ -129,8 +134,16 @@ export default function AdminDashboard() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState(null);
+  const [targetRole, setTargetRole] = useState("student");
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(null);
+
+  // Tab guard: if user is content_admin, only allow events and resources
+  useEffect(() => {
+    if (isContentAdmin && !["events", "resources"].includes(activeTab)) {
+      setSearchParams({ tab: "events" }, { replace: true });
+    }
+  }, [isContentAdmin, activeTab, setSearchParams]);
 
   const [resources, setResources] = useState([]);
   const [resourceModalOpen, setResourceModalOpen] = useState(false);
@@ -330,13 +343,23 @@ export default function AdminDashboard() {
   }
 
   async function loadStats() {
-    if (!user || user.role !== "admin") return;
+    if (!user || !hasAdminAccess) return;
     setRefreshingStats(true);
     try {
-      const data = await adminApi.getStats();
-      setStats(data);
+      if (isFullAdmin) {
+        const data = await adminApi.getStats();
+        setStats(data);
+      }
+      try {
+        const evStats = await eventsApi.getStats();
+        setEventStats(evStats);
+      } catch {
+        // non-blocking
+      }
     } catch (err) {
-      showToast(err.message || "Failed to load dashboard metrics", "error");
+      if (isFullAdmin) {
+        showToast(err.message || "Failed to load dashboard metrics", "error");
+      }
     } finally {
       setRefreshingStats(false);
     }
@@ -344,16 +367,16 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadStats();
-  }, [user]);
+  }, [user, hasAdminAccess]);
 
   useEffect(() => {
-    if (user && user.role === "admin" && (activeTab === "team" || activeTab === "overview")) {
+    if (user && isFullAdmin && (activeTab === "team" || activeTab === "overview")) {
       loadTeamMembers();
     }
-  }, [user, activeTab]);
+  }, [user, isFullAdmin, activeTab]);
 
   useEffect(() => {
-    if (user && user.role === "admin" && (activeTab === "users" || activeTab === "team")) {
+    if (user && isFullAdmin && (activeTab === "users" || activeTab === "team")) {
       if (users.length === 0) setLoadingUsers(true);
       const params = {};
       if (userSearch.trim()) params.q = userSearch.trim();
@@ -365,16 +388,16 @@ export default function AdminDashboard() {
         .catch((err) => showToast(err.message, "error"))
         .finally(() => setLoadingUsers(false));
     }
-  }, [user, activeTab, userSearch, userRoleFilter]);
+  }, [user, isFullAdmin, activeTab, userSearch, userRoleFilter]);
 
   useEffect(() => {
-    if (user && user.role === "admin") {
+    if (user && hasAdminAccess) {
       resourcesApi
         .list()
         .then((data) => setResources(data || []))
         .catch((err) => showToast(err.message, "error"));
     }
-  }, [user]);
+  }, [user, hasAdminAccess]);
 
   const loadFlaggedItems = async () => {
     setLoadingFlagged(true);
@@ -608,15 +631,14 @@ export default function AdminDashboard() {
   }
 
   async function confirmRoleChange() {
-    if (!roleChangeTarget) return;
-    const newRole = roleChangeTarget.role === "admin" ? "student" : "admin";
+    if (!roleChangeTarget || !targetRole) return;
     setIsUpdatingRole(true);
     try {
-      await adminApi.updateUserRole(roleChangeTarget.id, newRole);
+      await adminApi.updateUserRole(roleChangeTarget.id, targetRole);
       setUsers((prev) =>
-        prev.map((u) => (u.id === roleChangeTarget.id ? { ...u, role: newRole } : u))
+        prev.map((u) => (u.id === roleChangeTarget.id ? { ...u, role: targetRole } : u))
       );
-      showToast(`Updated @${roleChangeTarget.username} to ${newRole}`);
+      showToast(`Updated @${roleChangeTarget.username} role to ${targetRole}`);
       setRoleChangeTarget(null);
       loadStats();
     } catch (err) {
@@ -883,7 +905,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!user || user.role !== "admin") {
+  if (!user || !hasAdminAccess) {
     return (
       <div className="admin-page">
         <div className="admin-denied-card">
@@ -892,7 +914,7 @@ export default function AdminDashboard() {
           </div>
           <h2>Administrator Access Required</h2>
           <p>
-            You must be signed in with an administrator account to view the GLUG
+            You must be signed in with an administrator or content administrator account to view the GLUG
             administration console.
           </p>
           <Link to="/" className="admin-primary-btn">
@@ -922,12 +944,25 @@ export default function AdminDashboard() {
       <header className="admin-header">
         <div className="admin-header-main">
           <div className="admin-title-badge">
-            <Shield className="admin-badge-icon" size={20} />
-            <span>Admin Control Panel</span>
+            {isContentAdmin ? (
+              <>
+                <BookOpen className="admin-badge-icon" size={20} style={{ color: "#22d3ee" }} />
+                <span>Content Admin Console</span>
+              </>
+            ) : (
+              <>
+                <Shield className="admin-badge-icon" size={20} />
+                <span>Admin Control Panel</span>
+              </>
+            )}
           </div>
-          <h1 className="admin-title">GLUG Administration Console</h1>
+          <h1 className="admin-title">
+            {isContentAdmin ? "GLUG Content Management" : "GLUG Administration Console"}
+          </h1>
           <p className="admin-subtitle">
-            Manage student community members, curate learning curriculum, moderate discussions, and monitor platform activity.
+            {isContentAdmin
+              ? "Curate curriculum learning resources, upload code packages, publish upcoming events, and manage workshop galleries."
+              : "Manage student community members, curate learning curriculum, moderate discussions, and monitor platform activity."}
           </p>
         </div>
 
@@ -949,153 +984,263 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <div className="admin-stats-grid">
-        <div className="admin-stat-card">
-          <div className="admin-stat-header">
-            <span className="admin-stat-label">Total Members</span>
-            <div className="admin-stat-icon-wrap user-theme">
-              <Users size={18} />
+      {isContentAdmin ? (
+        <div className="admin-stats-grid">
+          <div
+            className="admin-stat-card"
+            onClick={() => setSearchParams({ tab: "events" })}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Total Events</span>
+              <div className="admin-stat-icon-wrap" style={{ background: "rgba(6, 182, 212, 0.15)", color: "#06b6d4" }}>
+                <Calendar size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{eventStats?.total ?? 0}</span>
+              <span className="admin-stat-subtext">Published community events</span>
             </div>
           </div>
-          <div className="admin-stat-body">
-            <span className="admin-stat-value">{stats.totalUsers}</span>
-            <span className="admin-stat-subtext">Registered accounts</span>
-          </div>
-        </div>
 
-        <div className="admin-stat-card">
-          <div className="admin-stat-header">
-            <span className="admin-stat-label">Forum Discussions</span>
-            <div className="admin-stat-icon-wrap post-theme">
-              <MessageSquare size={18} />
+          <div
+            className="admin-stat-card"
+            onClick={() => setSearchParams({ tab: "events" })}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Upcoming Events</span>
+              <div className="admin-stat-icon-wrap user-theme">
+                <Clock size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{eventStats?.upcoming ?? 0}</span>
+              <span className="admin-stat-subtext">Scheduled sessions</span>
             </div>
           </div>
-          <div className="admin-stat-body">
-            <span className="admin-stat-value">{stats.totalPosts}</span>
-            <span className="admin-stat-subtext">
-              {stats.todayPosts || 0} created today
-            </span>
-          </div>
-        </div>
 
-        <div className="admin-stat-card">
-          <div className="admin-stat-header">
-            <span className="admin-stat-label">Total Comments</span>
-            <div className="admin-stat-icon-wrap comment-theme">
-              <Layers size={18} />
+          <div
+            className="admin-stat-card"
+            onClick={() => setSearchParams({ tab: "events" })}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Photo Recaps</span>
+              <div className="admin-stat-icon-wrap comment-theme">
+                <Layers size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{eventStats?.totalPhotos ?? 0}</span>
+              <span className="admin-stat-subtext">Event gallery photos</span>
             </div>
           </div>
-          <div className="admin-stat-body">
-            <span className="admin-stat-value">{stats.totalComments}</span>
-            <span className="admin-stat-subtext">Community replies</span>
-          </div>
-        </div>
 
-        <div className="admin-stat-card">
-          <div className="admin-stat-header">
-            <span className="admin-stat-label">Curated Resources</span>
-            <div className="admin-stat-icon-wrap resource-theme">
-              <BookOpen size={18} />
+          <div
+            className="admin-stat-card"
+            onClick={() => setSearchParams({ tab: "resources" })}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Curated Resources</span>
+              <div className="admin-stat-icon-wrap resource-theme">
+                <BookOpen size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{resources.length}</span>
+              <span className="admin-stat-subtext">Curriculum topics</span>
             </div>
           </div>
-          <div className="admin-stat-body">
-            <span className="admin-stat-value">{stats.totalResources}</span>
-            <span className="admin-stat-subtext">Published learning topics</span>
-          </div>
-        </div>
 
-        <div
-          className="admin-stat-card"
-          onClick={() => {
-            setSearchParams({ tab: "moderation" });
-            setModSubTab("flagged");
-          }}
-          style={{ cursor: "pointer" }}
-        >
-          <div className="admin-stat-header">
-            <span className="admin-stat-label">Flagged Content</span>
-            <div className="admin-stat-icon-wrap" style={{ background: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>
-              <ShieldAlert size={18} />
+          <div
+            className="admin-stat-card"
+            onClick={() => setSearchParams({ tab: "resources" })}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Hosted Files</span>
+              <div className="admin-stat-icon-wrap" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#10b981" }}>
+                <FileDown size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{totalFilesHosted}</span>
+              <span className="admin-stat-subtext">Downloadable packages</span>
             </div>
           </div>
-          <div className="admin-stat-body">
-            <span className="admin-stat-value" style={{ color: (stats.flaggedCount || 0) > 0 ? "#ef4444" : "inherit" }}>
-              {stats.flaggedCount || 0}
-            </span>
-            <span className="admin-stat-subtext">Hidden from public</span>
-          </div>
-        </div>
 
-        <div
-          className="admin-stat-card"
-          onClick={() => {
-            setSearchParams({ tab: "moderation" });
-            setModSubTab("banned");
-          }}
-          style={{ cursor: "pointer" }}
-        >
-          <div className="admin-stat-header">
-            <span className="admin-stat-label">Banned Users</span>
-            <div className="admin-stat-icon-wrap" style={{ background: "rgba(234, 179, 8, 0.15)", color: "#eab308" }}>
-              <UserX size={18} />
+          <div
+            className="admin-stat-card"
+            onClick={() => setSearchParams({ tab: "resources" })}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Featured Topics</span>
+              <div className="admin-stat-icon-wrap post-theme">
+                <Star size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{resources.filter((r) => r.isFeatured).length}</span>
+              <span className="admin-stat-subtext">Highlighted for learners</span>
             </div>
           </div>
-          <div className="admin-stat-body">
-            <span className="admin-stat-value">{stats.bannedUsersCount || 0}</span>
-            <span className="admin-stat-subtext">Suspended accounts</span>
+        </div>
+      ) : (
+        <div className="admin-stats-grid">
+          <div className="admin-stat-card">
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Total Members</span>
+              <div className="admin-stat-icon-wrap user-theme">
+                <Users size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{stats.totalUsers}</span>
+              <span className="admin-stat-subtext">Registered accounts</span>
+            </div>
+          </div>
+
+          <div className="admin-stat-card">
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Forum Discussions</span>
+              <div className="admin-stat-icon-wrap post-theme">
+                <MessageSquare size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{stats.totalPosts}</span>
+              <span className="admin-stat-subtext">
+                {stats.todayPosts || 0} created today
+              </span>
+            </div>
+          </div>
+
+          <div className="admin-stat-card">
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Total Comments</span>
+              <div className="admin-stat-icon-wrap comment-theme">
+                <Layers size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{stats.totalComments}</span>
+              <span className="admin-stat-subtext">Community replies</span>
+            </div>
+          </div>
+
+          <div className="admin-stat-card">
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Curated Resources</span>
+              <div className="admin-stat-icon-wrap resource-theme">
+                <BookOpen size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{stats.totalResources}</span>
+              <span className="admin-stat-subtext">Published learning topics</span>
+            </div>
+          </div>
+
+          <div
+            className="admin-stat-card"
+            onClick={() => {
+              setSearchParams({ tab: "moderation" });
+              setModSubTab("flagged");
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Flagged Content</span>
+              <div className="admin-stat-icon-wrap" style={{ background: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>
+                <ShieldAlert size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value" style={{ color: (stats.flaggedCount || 0) > 0 ? "#ef4444" : "inherit" }}>
+                {stats.flaggedCount || 0}
+              </span>
+              <span className="admin-stat-subtext">Hidden from public</span>
+            </div>
+          </div>
+
+          <div
+            className="admin-stat-card"
+            onClick={() => {
+              setSearchParams({ tab: "moderation" });
+              setModSubTab("banned");
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="admin-stat-header">
+              <span className="admin-stat-label">Banned Users</span>
+              <div className="admin-stat-icon-wrap" style={{ background: "rgba(234, 179, 8, 0.15)", color: "#eab308" }}>
+                <UserX size={18} />
+              </div>
+            </div>
+            <div className="admin-stat-body">
+              <span className="admin-stat-value">{stats.bannedUsersCount || 0}</span>
+              <span className="admin-stat-subtext">Suspended accounts</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="admin-tabs-nav">
         <nav className="admin-tabs" aria-label="Admin Sections">
-          <button
-            type="button"
-            className={`admin-tab-btn ${activeTab === "overview" ? "active" : ""}`}
-            onClick={() => setSearchParams({ tab: "overview" })}
-          >
-            <TrendingUp size={16} />
-            <span>Overview</span>
-          </button>
-          <button
-            type="button"
-            className={`admin-tab-btn ${activeTab === "team" ? "active" : ""}`}
-            onClick={() => setSearchParams({ tab: "team" })}
-          >
-            <Crown size={16} />
-            <span>Community Team</span>
-          </button>
-          <button
-            type="button"
-            className={`admin-tab-btn ${activeTab === "users" ? "active" : ""}`}
-            onClick={() => setSearchParams({ tab: "users" })}
-          >
-            <Users size={16} />
-            <span>Users</span>
-          </button>
-          <button
-            type="button"
-            className={`admin-tab-btn ${activeTab === "moderation" ? "active" : ""}`}
-            onClick={() => setSearchParams({ tab: "moderation" })}
-          >
-            <ShieldAlert size={16} />
-            <span>Moderation</span>
-            {(stats.flaggedCount || 0) > 0 && (
-              <span
-                style={{
-                  backgroundColor: "#ef4444",
-                  color: "#fff",
-                  padding: "1px 6px",
-                  borderRadius: "10px",
-                  fontSize: "0.72rem",
-                  marginLeft: "6px",
-                  fontWeight: 600,
-                }}
+          {isFullAdmin && (
+            <>
+              <button
+                type="button"
+                className={`admin-tab-btn ${activeTab === "overview" ? "active" : ""}`}
+                onClick={() => setSearchParams({ tab: "overview" })}
               >
-                {stats.flaggedCount}
-              </span>
-            )}
-          </button>
+                <TrendingUp size={16} />
+                <span>Overview</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab-btn ${activeTab === "team" ? "active" : ""}`}
+                onClick={() => setSearchParams({ tab: "team" })}
+              >
+                <Crown size={16} />
+                <span>Community Team</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab-btn ${activeTab === "users" ? "active" : ""}`}
+                onClick={() => setSearchParams({ tab: "users" })}
+              >
+                <Users size={16} />
+                <span>Users</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab-btn ${activeTab === "moderation" ? "active" : ""}`}
+                onClick={() => setSearchParams({ tab: "moderation" })}
+              >
+                <ShieldAlert size={16} />
+                <span>Moderation</span>
+                {(stats.flaggedCount || 0) > 0 && (
+                  <span
+                    style={{
+                      backgroundColor: "#ef4444",
+                      color: "#fff",
+                      padding: "1px 6px",
+                      borderRadius: "10px",
+                      fontSize: "0.72rem",
+                      marginLeft: "6px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {stats.flaggedCount}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
           <button
             type="button"
             className={`admin-tab-btn ${activeTab === "events" ? "active" : ""}`}
@@ -1112,18 +1257,20 @@ export default function AdminDashboard() {
             <BookOpen size={16} />
             <span>Resources</span>
           </button>
-          <button
-            type="button"
-            className={`admin-tab-btn ${activeTab === "system" ? "active" : ""}`}
-            onClick={() => setSearchParams({ tab: "system" })}
-          >
-            <Server size={16} />
-            <span>System & Security</span>
-          </button>
+          {isFullAdmin && (
+            <button
+              type="button"
+              className={`admin-tab-btn ${activeTab === "system" ? "active" : ""}`}
+              onClick={() => setSearchParams({ tab: "system" })}
+            >
+              <Server size={16} />
+              <span>System & Security</span>
+            </button>
+          )}
         </nav>
       </div>
 
-      {activeTab === "overview" && (
+      {isFullAdmin && activeTab === "overview" && (
         <div className="admin-tab-content">
           <div className="admin-overview-grid">
             <div className="admin-card">
@@ -1249,7 +1396,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeTab === "team" && (
+      {isFullAdmin && activeTab === "team" && (
         <div className="admin-tab-content">
           <div className="admin-toolbar">
             <div className="admin-toolbar-title-wrap">
@@ -1363,7 +1510,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeTab === "users" && (
+      {isFullAdmin && activeTab === "users" && (
         <div className="admin-tab-content">
           <div className="admin-toolbar">
             <div className="admin-search-wrap">
@@ -1395,6 +1542,7 @@ export default function AdminDashboard() {
               >
                 <option value="all">All Roles</option>
                 <option value="student">Students</option>
+                <option value="content_admin">Content Admins</option>
                 <option value="admin">Administrators</option>
               </select>
             </div>
@@ -1466,8 +1614,14 @@ export default function AdminDashboard() {
                       </td>
                       <td>
                         <span className={`admin-badge ${u.role}`}>
-                          {u.role === "admin" ? <ShieldCheck size={12} /> : <UserCheck size={12} />}
-                          <span>{u.role}</span>
+                          {u.role === "admin" ? (
+                            <ShieldCheck size={12} />
+                          ) : u.role === "content_admin" ? (
+                            <BookOpen size={12} />
+                          ) : (
+                            <UserCheck size={12} />
+                          )}
+                          <span>{u.role === "content_admin" ? "content admin" : u.role}</span>
                         </span>
                       </td>
                       <td>
@@ -1520,11 +1674,14 @@ export default function AdminDashboard() {
                               <button
                                 type="button"
                                 className="admin-action-btn"
-                                onClick={() => setRoleChangeTarget(u)}
-                                title={u.role === "admin" ? "Demote to student" : "Promote to administrator"}
+                                onClick={() => {
+                                  setRoleChangeTarget(u);
+                                  setTargetRole(u.role || "student");
+                                }}
+                                title="Change user community role"
                               >
-                                {u.role === "admin" ? <User size={12} /> : <Shield size={12} />}
-                                <span>{u.role === "admin" ? "Demote" : "Make Admin"}</span>
+                                <Shield size={12} />
+                                <span>Role</span>
                               </button>
                               <button
                                 type="button"
@@ -1548,7 +1705,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeTab === "moderation" && (
+      {isFullAdmin && activeTab === "moderation" && (
         <div className="admin-tab-content">
           {/* Subtabs Bar */}
           <div className="admin-subtabs-nav">
@@ -3525,7 +3682,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeTab === "system" && (
+      {isFullAdmin && activeTab === "system" && (
         <div className="admin-tab-content">
           <div className="admin-system-grid">
             <div className="admin-card">
@@ -3985,15 +4142,95 @@ export default function AdminDashboard() {
 
       {roleChangeTarget && (
         <div className="admin-modal-overlay" onClick={() => !isUpdatingRole && setRoleChangeTarget(null)}>
-          <div className="admin-modal-box alert" onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-box alert" style={{ maxWidth: "440px" }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-icon-alert">
-              <AlertCircle size={32} />
+              <Shield size={32} />
             </div>
-            <h2 className="admin-modal-title">Confirm Role Change</h2>
+            <h2 className="admin-modal-title">Change Community Role</h2>
             <p className="admin-modal-desc">
-              Are you sure you want to change the role of <strong>@{roleChangeTarget.username}</strong> to{" "}
-              <strong>{roleChangeTarget.role === "admin" ? "Student" : "Administrator"}</strong>?
+              Assign a platform role for <strong>@{roleChangeTarget.username}</strong> ({roleChangeTarget.email}):
             </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", margin: "16px 0", textAlign: "left" }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  border: targetRole === "student" ? "1px solid #3b82f6" : "1px solid rgba(255, 255, 255, 0.1)",
+                  background: targetRole === "student" ? "rgba(59, 130, 246, 0.1)" : "rgba(255, 255, 255, 0.03)",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="userRoleChoice"
+                  value="student"
+                  checked={targetRole === "student"}
+                  onChange={() => setTargetRole("student")}
+                  style={{ marginTop: "3px" }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "14px", color: "#f8fafc" }}>Student Member</div>
+                  <div style={{ fontSize: "12px", color: "#94a3b8" }}>Regular community member with forum and learning access</div>
+                </div>
+              </label>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  border: targetRole === "content_admin" ? "1px solid #06b6d4" : "1px solid rgba(255, 255, 255, 0.1)",
+                  background: targetRole === "content_admin" ? "rgba(6, 182, 212, 0.1)" : "rgba(255, 255, 255, 0.03)",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="userRoleChoice"
+                  value="content_admin"
+                  checked={targetRole === "content_admin"}
+                  onChange={() => setTargetRole("content_admin")}
+                  style={{ marginTop: "3px" }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "14px", color: "#38bdf8" }}>Content Administrator</div>
+                  <div style={{ fontSize: "12px", color: "#94a3b8" }}>Can create and manage Events and Resources only</div>
+                </div>
+              </label>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  border: targetRole === "admin" ? "1px solid #f59e0b" : "1px solid rgba(255, 255, 255, 0.1)",
+                  background: targetRole === "admin" ? "rgba(245, 158, 11, 0.1)" : "rgba(255, 255, 255, 0.03)",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="userRoleChoice"
+                  value="admin"
+                  checked={targetRole === "admin"}
+                  onChange={() => setTargetRole("admin")}
+                  style={{ marginTop: "3px" }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "14px", color: "#fbbf24" }}>Full Administrator</div>
+                  <div style={{ fontSize: "12px", color: "#94a3b8" }}>Full access to users, moderation, team, and system settings</div>
+                </div>
+              </label>
+            </div>
+
             <div className="admin-modal-actions">
               <button
                 type="button"
@@ -4006,10 +4243,10 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 className="admin-primary-btn"
-                disabled={isUpdatingRole}
+                disabled={isUpdatingRole || targetRole === roleChangeTarget.role}
                 onClick={confirmRoleChange}
               >
-                {isUpdatingRole ? "Updating..." : "Confirm Role Update"}
+                {isUpdatingRole ? "Updating..." : "Save Role"}
               </button>
             </div>
           </div>

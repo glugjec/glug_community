@@ -13,6 +13,14 @@ export function getAuthorBadge(author) {
     }
   }
 
+  if (role === 'content_admin') {
+    return {
+      text: 'Content Admin',
+      className: 'role-content-admin',
+      type: 'content_admin',
+    }
+  }
+
   if (role === 'moderator') {
     return {
       text: 'Moderator',

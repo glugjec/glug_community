@@ -13,6 +13,7 @@ import {
   Calendar,
   Mail,
   Shield,
+  BookOpen,
   MessageSquare,
   ThumbsUp,
   Award,
@@ -682,6 +683,12 @@ export default function Profile() {
                 <span className="profile-role-badge role-admin">
                   <Shield size={12} />
                   Administrator
+                </span>
+              )}
+              {profile.role === 'content_admin' && (
+                <span className="profile-role-badge role-content-admin">
+                  <BookOpen size={12} />
+                  Content Admin
                 </span>
               )}
               {profile.role === 'moderator' && (
