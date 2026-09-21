@@ -1,3 +1,18 @@
+.chat-loading-screen {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  background: var(--bg);
+}
+
 .chat-page {
   flex: 1;
   width: 100%;
@@ -576,6 +591,205 @@
 @keyframes chatSpin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+[data-theme="light"] .chat-loading-screen {
+  background: var(--bg);
+  color: #475569;
+}
+
+[data-theme="light"] .chat-container {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .chat-sidebar {
+  background: #f8fafc;
+  border-right-color: #e2e8f0;
+}
+
+[data-theme="light"] .chat-sidebar-header {
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .chat-sidebar-title h2 {
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-search-wrap {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .chat-search-icon {
+  color: #64748b;
+}
+
+[data-theme="light"] .chat-search-input {
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-search-input::placeholder {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .chat-conv-item {
+  border-bottom-color: #f1f5f9;
+}
+
+[data-theme="light"] .chat-conv-item:hover {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .chat-conv-item.active {
+  background: #eff6ff;
+  border-left-color: #2563eb;
+}
+
+[data-theme="light"] .chat-conv-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-conv-time {
+  color: #64748b;
+}
+
+[data-theme="light"] .chat-conv-preview {
+  color: #64748b;
+}
+
+[data-theme="light"] .chat-conv-item.unread .chat-conv-preview {
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-conv-team-dot {
+  border-color: #ffffff;
+}
+
+[data-theme="light"] .chat-conv-role-chip {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+[data-theme="light"] .chat-main-pane {
+  background: #ffffff;
+}
+
+[data-theme="light"] .chat-header {
+  background: #ffffff;
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .chat-header-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-header-status {
+  color: #64748b;
+}
+
+[data-theme="light"] .chat-header-icon-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .chat-header-icon-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-header-team-badge {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #b45309;
+}
+
+[data-theme="light"] .chat-messages-area {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .chat-messages-empty h3 {
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-messages-empty p {
+  color: #475569;
+}
+
+[data-theme="light"] .chat-messages-loading {
+  color: #475569;
+}
+
+[data-theme="light"] .chat-bubble.theirs {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .chat-bubble.theirs .chat-bubble-meta {
+  color: #64748b;
+}
+
+[data-theme="light"] .chat-bubble.mine {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+[data-theme="light"] .chat-input-bar {
+  background: #ffffff;
+  border-top-color: #e2e8f0;
+}
+
+[data-theme="light"] .chat-textarea {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-textarea::placeholder {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .chat-textarea:focus {
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="light"] .chat-send-btn {
+  background: #2563eb;
+}
+
+[data-theme="light"] .chat-send-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+[data-theme="light"] .chat-no-selection {
+  background: #ffffff;
+}
+
+[data-theme="light"] .chat-no-selection-icon {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+  color: #2563eb;
+}
+
+[data-theme="light"] .chat-no-selection-inner h2 {
+  color: #0f172a;
+}
+
+[data-theme="light"] .chat-no-selection-inner p {
+  color: #475569;
+}
+
+[data-theme="light"] .chat-browse-btn {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+[data-theme="light"] .chat-browse-btn:hover {
+  background: #1d4ed8;
 }
 
 @media (max-width: 1200px) {
