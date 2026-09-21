@@ -1391,15 +1391,15 @@ export default function AdminDashboard() {
           </div>
 
           <div className="admin-table-container">
-            <table className="admin-table">
+            <table className="admin-table admin-users-table">
               <thead>
                 <tr>
-                  <th>Member</th>
-                  <th>Contact</th>
-                  <th>Role</th>
-                  <th>Joined</th>
-                  <th>Activity</th>
-                  <th className="admin-th-actions">Actions</th>
+                  <th className="th-member">Member</th>
+                  <th className="th-contact">Contact</th>
+                  <th className="th-role">Role</th>
+                  <th className="th-joined">Joined</th>
+                  <th className="th-activity">Activity</th>
+                  <th className="admin-th-actions th-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1425,21 +1425,25 @@ export default function AdminDashboard() {
                           <AdminUserAvatar src={u.avatar} username={u.username} />
                           <div className="admin-user-meta">
                             <span className="admin-user-name">@{u.username}</span>
-                            {u.isProtected && (
-                              <span className="admin-shield-badge">Primary Admin</span>
-                            )}
-                            {u.isBanned && (
-                              <span className="admin-badge locked" style={{ marginLeft: "4px" }}>Banned</span>
-                            )}
-                            {u.moderationStrikes > 0 && (
-                              <span className="admin-badge neutral" style={{ marginLeft: "4px" }}>{u.moderationStrikes} strikes</span>
+                            {(u.isProtected || u.isBanned || u.moderationStrikes > 0) && (
+                              <div className="admin-user-badges-row">
+                                {u.isProtected && (
+                                  <span className="admin-shield-badge">Primary Admin</span>
+                                )}
+                                {u.isBanned && (
+                                  <span className="admin-badge locked">Banned</span>
+                                )}
+                                {u.moderationStrikes > 0 && (
+                                  <span className="admin-badge neutral">{u.moderationStrikes} strikes</span>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
                       </td>
                       <td>
                         <div className="admin-email-cell">
-                          <span className="admin-email-text">{u.email}</span>
+                          <span className="admin-email-text" title={u.email}>{u.email}</span>
                           <button
                             type="button"
                             className="admin-icon-btn"
@@ -1486,7 +1490,7 @@ export default function AdminDashboard() {
                                   onClick={() => setUnbanTarget(u)}
                                   title="Unban this user"
                                 >
-                                  <UserCheck size={13} />
+                                  <UserCheck size={12} />
                                   <span>Unban</span>
                                 </button>
                               ) : (
@@ -1499,7 +1503,7 @@ export default function AdminDashboard() {
                                   }}
                                   title="Ban user"
                                 >
-                                  <UserX size={13} />
+                                  <UserX size={12} />
                                   <span>Ban</span>
                                 </button>
                               )}
@@ -1509,7 +1513,7 @@ export default function AdminDashboard() {
                                 onClick={() => setRoleChangeTarget(u)}
                                 title={u.role === "admin" ? "Demote to student" : "Promote to administrator"}
                               >
-                                {u.role === "admin" ? <User size={13} /> : <Shield size={13} />}
+                                {u.role === "admin" ? <User size={12} /> : <Shield size={12} />}
                                 <span>{u.role === "admin" ? "Demote" : "Make Admin"}</span>
                               </button>
                               <button
@@ -1518,7 +1522,7 @@ export default function AdminDashboard() {
                                 onClick={() => setUserToDelete(u)}
                                 title="Permanently delete user account"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                                 <span>Delete</span>
                               </button>
                             </>

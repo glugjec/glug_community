@@ -581,29 +581,39 @@
 
 .admin-table {
   width: 100%;
-  min-width: 780px;
+  min-width: 720px;
   border-collapse: collapse;
   text-align: left;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .admin-table th {
   background: #070d19;
   color: #94a3b8;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11.5px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 14px 18px;
+  letter-spacing: 0.05em;
+  padding: 12px 14px;
   border-bottom: 1px solid #1e293b;
   white-space: nowrap;
 }
 
 .admin-table td {
-  padding: 14px 18px;
+  padding: 12px 14px;
   border-bottom: 1px solid #131d31;
   color: #cbd5e1;
-  vertical-align: top;
+  vertical-align: middle;
+}
+
+.admin-table th:first-child,
+.admin-table td:first-child {
+  padding-left: 20px;
+}
+
+.admin-table th:last-child,
+.admin-table td:last-child {
+  padding-right: 20px;
 }
 
 .admin-table tr:last-child td {
@@ -626,15 +636,46 @@
   font-size: 14px;
 }
 
+.admin-users-table .th-member {
+  width: 20%;
+  min-width: 160px;
+}
+
+.admin-users-table .th-contact {
+  width: 21%;
+  min-width: 180px;
+}
+
+.admin-users-table .th-role {
+  width: 11%;
+  min-width: 95px;
+}
+
+.admin-users-table .th-joined {
+  width: 13%;
+  min-width: 105px;
+}
+
+.admin-users-table .th-activity {
+  width: 16%;
+  min-width: 155px;
+}
+
+.admin-users-table .th-actions {
+  width: 19%;
+  min-width: 220px;
+  text-align: right;
+}
+
 .admin-user-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .admin-user-avatar {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid #334155;
@@ -655,7 +696,8 @@
 .admin-user-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  min-width: 0;
 }
 
 .admin-user-info {
@@ -674,7 +716,17 @@
 
 .admin-user-name {
   font-weight: 600;
-  color: #ffffff;
+  color: #f8fafc;
+  font-size: 13.5px;
+  line-height: 1.25;
+}
+
+.admin-user-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 1px;
 }
 
 .admin-shield-badge {
@@ -687,18 +739,19 @@
   padding: 1px 6px;
   border-radius: 4px;
   width: fit-content;
+  line-height: 1.3;
 }
 
 .admin-email-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .admin-email-text {
   color: #94a3b8;
-  font-size: 13px;
-  max-width: 220px;
+  font-size: 12.5px;
+  max-width: 175px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -706,27 +759,28 @@
 
 .admin-date-text {
   color: #64748b;
-  font-size: 13px;
+  font-size: 12.5px;
   white-space: nowrap;
 }
 
 .admin-activity-chips {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .admin-count-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: #0f172a;
   border: 1px solid #1e293b;
   color: #94a3b8;
-  padding: 3px 8px;
+  padding: 3px 7px;
   border-radius: 6px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -776,7 +830,8 @@
 .admin-actions-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .admin-th-actions,
@@ -791,13 +846,13 @@
 .admin-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: #0f172a;
   border: 1px solid #334155;
   color: #cbd5e1;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12.5px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -847,9 +902,9 @@
 }
 
 .admin-icon-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   background: #0f172a;
   border: 1px solid #1e293b;
   color: #94a3b8;
