@@ -4405,7 +4405,7 @@ export default function AdminDashboard() {
                     <div style={{ fontWeight: 700, color: "var(--text, #f8fafc)", fontSize: "0.95rem" }}>
                       @{banUserModalTarget.username}
                     </div>
-                    <div style={{ fontSize: "0.78rem", color: "#94a3b8" }}>
+                    <div style={{ fontSize: "0.78rem", color: "var(--text-dim, #64748b)" }}>
                       {banUserModalTarget.email}
                     </div>
                   </div>
@@ -4458,7 +4458,7 @@ export default function AdminDashboard() {
               <div className="admin-form-group" style={{ marginTop: "12px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <label className="admin-form-label" style={{ margin: 0 }}>Suspension Duration</label>
-                  <span style={{ fontSize: "0.76rem", color: "#94a3b8" }}>
+                  <span style={{ fontSize: "0.76rem", color: "var(--text-dim, #64748b)" }}>
                     {banForm.hours ? `${banForm.hours} hours` : "Permanent"}
                   </span>
                 </div>
@@ -4760,7 +4760,7 @@ export default function AdminDashboard() {
                       )}
                     </div>
                     {(appealToResolve.targetComment?.bodySnippet || appealToResolve.targetComment?.body || appealToResolve.contentSnippet) && (
-                      <p style={{ margin: "2px 0 0", color: "#94a3b8", fontStyle: "italic" }}>
+                      <p style={{ margin: "2px 0 0", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
                         "{stripHtml(appealToResolve.targetComment?.bodySnippet || appealToResolve.targetComment?.body || appealToResolve.contentSnippet || "")}"
                       </p>
                     )}
@@ -5224,11 +5224,11 @@ export default function AdminDashboard() {
             </p>
             {itemToRestore.author?.username && (
               <div className="admin-user-summary-box" style={{ margin: "14px 0" }}>
-                <span style={{ fontSize: "0.86rem", color: "#e2e8f0" }}>
+                <span style={{ fontSize: "0.86rem", color: "var(--text, #0f172a)" }}>
                   Author: <strong>@{itemToRestore.author.username}</strong>
                 </span>
                 {itemToRestore.title && (
-                  <span style={{ fontSize: "0.84rem", color: "#94a3b8" }}>
+                  <span style={{ fontSize: "0.84rem", color: "var(--text-dim, #475569)" }}>
                     Title: <em>{itemToRestore.title}</em>
                   </span>
                 )}
@@ -5270,7 +5270,7 @@ export default function AdminDashboard() {
                 <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text, #f8fafc)" }}>
                   Revoke / decrement 1 moderation strike
                 </span>
-                <span style={{ fontSize: "0.76rem", color: "#94a3b8" }}>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-dim, #475569)" }}>
                   Reduces author's strike count and lifts any associated 24h posting suspension.
                 </span>
               </div>

@@ -2709,6 +2709,10 @@ label.role-option-card:hover {
   background: var(--bg, #f8fafc);
 }
 
+[data-theme="light"] .admin-page {
+  color: #0f172a;
+}
+
 [data-theme="light"] .admin-title {
   color: #0f172a;
 }
@@ -2960,7 +2964,7 @@ label.role-option-card:hover {
   background: #f1f5f9;
 }
 
-[data-theme="light"] .admin-modal-header {
+[data-theme="light"] .admin-modal-box .admin-modal-header {
   background: transparent;
   border-bottom: none;
   padding: 0;
@@ -3015,6 +3019,15 @@ label.role-option-card:hover {
 [data-theme="light"] .admin-user-summary-box {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme="light"] .admin-user-summary-box span {
+  color: #334155;
+}
+
+[data-theme="light"] .admin-user-summary-box strong {
+  color: #0f172a;
 }
 
 [data-theme="light"] .admin-reason-chip {
