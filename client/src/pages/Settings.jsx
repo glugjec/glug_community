@@ -385,10 +385,22 @@ function stripHtml(html) {
   })
 
   useEffect(() => {
+    const handleExternalTheme = (e) => {
+      const t = e.detail || localStorage.getItem('glug_theme') || 'dark'
+      setTheme(t)
+    }
+    window.addEventListener('glug-theme-change', handleExternalTheme)
+    return () => window.removeEventListener('glug-theme-change', handleExternalTheme)
+  }, [])
+
+  useEffect(() => {
     if (user) {
       setUsername(user.username || '')
-      if (user.preferences?.theme) {
-        setTheme(user.preferences.theme)
+      const activeTheme = localStorage.getItem('glug_theme') || user.preferences?.theme || 'dark'
+      setTheme(activeTheme)
+      if (user.preferences?.theme && user.preferences.theme !== activeTheme) {
+        authApi.updateProfile({ preferences: { ...user.preferences, theme: activeTheme } }).catch(() => {})
+        updateUser({ ...user, preferences: { ...user.preferences, theme: activeTheme } })
       }
       if (user.preferences) {
         setNotifs((prev) => ({

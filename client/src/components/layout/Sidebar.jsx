@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { authApi } from '../../api.js'
 import {
   Home,
   MessageSquare,
@@ -35,7 +36,7 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onToggleMobile }) {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const [theme, setTheme] = useState(() => localStorage.getItem('glug_theme') || 'dark')
 
   const toggleTheme = () => {
@@ -44,6 +45,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onToggleMobil
     localStorage.setItem('glug_theme', nextTheme)
     document.documentElement.setAttribute('data-theme', nextTheme)
     window.dispatchEvent(new CustomEvent('glug-theme-change', { detail: nextTheme }))
+
+    if (user) {
+      authApi.updateProfile({ preferences: { ...user.preferences, theme: nextTheme } }).catch(() => {})
+      if (updateUser) {
+        updateUser({ ...user, preferences: { ...user.preferences, theme: nextTheme } })
+      }
+    }
   }
 
   useEffect(() => {
