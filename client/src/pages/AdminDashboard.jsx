@@ -407,7 +407,12 @@ export default function AdminDashboard() {
 
     setIsResolvingAppeal(true);
     try {
-      const isContentDeleted = Boolean(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted);
+      const isContentDeleted = Boolean(
+        appealToResolve.targetComment?.isDeleted ||
+        appealToResolve.isCommentDeleted ||
+        appealToResolve.targetPost?.isDeleted ||
+        appealToResolve.isPostDeleted
+      );
       const payload = {
         ...appealResolveForm,
         restoreContent: isContentDeleted ? false : appealResolveForm.restoreContent,
@@ -2188,26 +2193,33 @@ export default function AdminDashboard() {
                                     </div>
                                   </div>
                                 ) : a.targetPost?.title ? (
-                                  <Link
-                                    to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="admin-date-subtext"
-                                    style={{
-                                      maxWidth: "240px",
-                                      whiteSpace: "nowrap",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      color: "#60a5fa",
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                    }}
-                                    title={a.targetPost.title}
-                                  >
-                                    <span>"{a.targetPost.title}"</span>
-                                    <ExternalLink size={10} style={{ flexShrink: 0 }} />
-                                  </Link>
+                                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                                    <Link
+                                      to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="admin-date-subtext"
+                                      style={{
+                                        maxWidth: "240px",
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        color: "#60a5fa",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                      }}
+                                      title={a.targetPost.title}
+                                    >
+                                      <span>"{a.targetPost.title}"</span>
+                                      <ExternalLink size={10} style={{ flexShrink: 0 }} />
+                                    </Link>
+                                    {(a.targetPost?.isDeleted || a.isPostDeleted) && (
+                                      <span style={{ fontSize: "0.68rem", color: "#f87171", fontWeight: 600 }}>
+                                        (Deleted)
+                                      </span>
+                                    )}
+                                  </span>
                                 ) : null}
                               </div>
                             </td>
@@ -2382,7 +2394,12 @@ export default function AdminDashboard() {
                                     type="button"
                                     className="admin-action-btn primary"
                                     onClick={() => {
-                                      const isDeleted = Boolean(a.targetComment?.isDeleted || a.isCommentDeleted);
+                                      const isDeleted = Boolean(
+                                        a.targetComment?.isDeleted ||
+                                        a.isCommentDeleted ||
+                                        a.targetPost?.isDeleted ||
+                                        a.isPostDeleted
+                                      );
                                       setAppealToResolve(a);
                                       setAppealResolveForm({
                                         status: "approved",
@@ -2541,21 +2558,28 @@ export default function AdminDashboard() {
                                 </div>
                               </div>
                             ) : a.targetPost?.title ? (
-                              <Link
-                                to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="admin-date-subtext"
-                                style={{
-                                  color: "#60a5fa",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                }}
-                              >
-                                <span>"{a.targetPost.title}"</span>
-                                <ExternalLink size={10} style={{ flexShrink: 0 }} />
-                              </Link>
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                                <Link
+                                  to={`/forum/posts/${a.targetPost.id || a.targetPostId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="admin-date-subtext"
+                                  style={{
+                                    color: "#60a5fa",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                >
+                                  <span>"{a.targetPost.title}"</span>
+                                  <ExternalLink size={10} style={{ flexShrink: 0 }} />
+                                </Link>
+                                {(a.targetPost?.isDeleted || a.isPostDeleted) && (
+                                  <span style={{ fontSize: "0.68rem", color: "#f87171", fontWeight: 600 }}>
+                                    (Deleted)
+                                  </span>
+                                )}
+                              </div>
                             ) : null}
 
                             <div className="admin-appeal-reason-box">
@@ -2706,7 +2730,12 @@ export default function AdminDashboard() {
                                 type="button"
                                 className="admin-action-btn primary"
                                 onClick={() => {
-                                  const isDeleted = Boolean(a.targetComment?.isDeleted || a.isCommentDeleted);
+                                  const isDeleted = Boolean(
+                                    a.targetComment?.isDeleted ||
+                                    a.isCommentDeleted ||
+                                    a.targetPost?.isDeleted ||
+                                    a.isPostDeleted
+                                  );
                                   setAppealToResolve(a);
                                   setAppealResolveForm({
                                     status: "approved",
@@ -4570,6 +4599,11 @@ export default function AdminDashboard() {
                         (Comment was permanently deleted from discussion)
                       </span>
                     )}
+                    {(appealToResolve.targetPost?.isDeleted || appealToResolve.isPostDeleted) && (
+                      <span style={{ display: "inline-block", marginTop: "4px", fontSize: "0.72rem", color: "#f87171", fontWeight: 600 }}>
+                        (Post was permanently deleted from discussion)
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -4616,8 +4650,14 @@ export default function AdminDashboard() {
                       </label>
                     </div>
                     {!isAccountBanAppeal && (() => {
-                      const isContentDeleted = Boolean(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted);
+                      const isCommentDeleted = Boolean(appealToResolve.targetComment?.isDeleted || appealToResolve.isCommentDeleted);
+                      const isPostDeleted = Boolean(appealToResolve.targetPost?.isDeleted || appealToResolve.isPostDeleted);
+                      const isContentDeleted = isCommentDeleted || isPostDeleted;
                       const isRestoreChecked = appealResolveForm.restoreContent && !isContentDeleted;
+                      const disabledReasonText = isPostDeleted
+                        ? "Restore flagged content (Disabled - post was permanently deleted)"
+                        : "Restore flagged content (Disabled - comment was permanently deleted)";
+
                       return (
                         <div
                           className={`admin-checkbox-card ${isRestoreChecked ? "success is-checked" : ""} ${isContentDeleted ? "is-disabled" : ""}`}
@@ -4636,7 +4676,7 @@ export default function AdminDashboard() {
                             </span>
                             <span className="admin-checkbox-text">
                               {isContentDeleted
-                                ? "Restore flagged content (Disabled - comment was permanently deleted)"
+                                ? disabledReasonText
                                 : "Restore flagged content to public view (unhide)"}
                             </span>
                           </label>

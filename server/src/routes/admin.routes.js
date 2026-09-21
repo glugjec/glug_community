@@ -1270,9 +1270,12 @@ router.get("/moderation/appeals", async (req, res) => {
           : (matchedComment?.post?._id ? postMap.get(matchedComment.post._id.toString()) : null);
 
         const isCommentAppeal = a.itemType === "comment" || !!targetCommentId || /comment/i.test(a.originalReason || "");
-        const itemType = isCommentAppeal ? "comment" : a.itemType;
+        const isAccountBanAppeal = a.itemType === "account_ban" || a.originalCategory === "account_ban";
+        const isPostAppeal = !isCommentAppeal && !isAccountBanAppeal && (a.itemType === "post" || Boolean(targetPostId));
+        const itemType = isCommentAppeal ? "comment" : (isAccountBanAppeal ? "account_ban" : (a.itemType || "post"));
         const postTitle = a.postTitle || matchedPost?.title || matchedComment?.post?.title || "Discussion Post";
         const commentBody = matchedComment?.body || a.contentSnippet || "[Removed comment]";
+        const isPostDeleted = isPostAppeal && (!matchedPost || !targetPostId);
 
         return {
           id: a._id.toString(),
@@ -1292,6 +1295,7 @@ router.get("/moderation/appeals", async (req, res) => {
           itemType,
           isComment: isCommentAppeal,
           isCommentDeleted: isCommentAppeal && !matchedComment,
+          isPostDeleted,
           strikeIndex: a.strikeIndex,
           originalReason: a.originalReason,
           originalCategory: a.originalCategory,
@@ -1305,8 +1309,9 @@ router.get("/moderation/appeals", async (req, res) => {
                 title: matchedPost.title,
                 body: matchedPost.body || "",
                 bodySnippet: stripHtmlText(matchedPost.body || "").slice(0, 150),
+                isDeleted: false,
               }
-            : (postTitle ? { id: targetPostId, title: postTitle, bodySnippet: "" } : null),
+            : (postTitle ? { id: targetPostId, title: postTitle, bodySnippet: "", isDeleted: true } : null),
           targetComment: isCommentAppeal
             ? {
                 id: targetCommentId,

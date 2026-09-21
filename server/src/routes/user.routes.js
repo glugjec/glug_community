@@ -353,10 +353,12 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
           : (matchedComment?.post?._id ? postMap.get(matchedComment.post._id.toString()) : null);
 
         const isCommentAppeal = a.itemType === "comment" || !!targetCommentId || /comment/i.test(a.originalReason || "");
+        const isPostAppeal = !isCommentAppeal && a.itemType !== "account_ban" && (a.itemType === "post" || Boolean(targetPostId));
         const postTitle = a.postTitle || matchedPost?.title || matchedComment?.post?.title || null;
         const commentSnippet = matchedComment?.body
           ? stripHtml(matchedComment.body).slice(0, 150)
           : (a.contentSnippet || "[Removed comment]");
+        const isPostDeleted = isPostAppeal && (!matchedPost || !targetPostId);
 
         return {
           id: a._id.toString(),
@@ -364,6 +366,7 @@ router.get("/me/moderation-history", requireAuth, async (req, res) => {
           itemType: isCommentAppeal ? "comment" : a.itemType,
           isComment: isCommentAppeal,
           isCommentDeleted: isCommentAppeal && !matchedComment,
+          isPostDeleted,
           targetPostId: targetPostId || matchedComment?.post?._id?.toString() || null,
           postId: targetPostId || matchedComment?.post?._id?.toString() || null,
           targetCommentId,
