@@ -3672,7 +3672,7 @@ export default function AdminDashboard() {
                 <h2 className="admin-modal-title" style={{ margin: 0, fontSize: "18px" }}>
                   {editingResource ? "Edit Resource Topic" : "Publish Resource Topic"}
                 </h2>
-                <p style={{ margin: "2px 0 0 0", fontSize: "12.5px", color: "#94a3b8" }}>
+                <p className="admin-modal-desc" style={{ margin: "2px 0 0 0", fontSize: "12.5px" }}>
                   Curate curriculum content and downloadable file mirrors
                 </p>
               </div>

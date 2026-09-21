@@ -2972,6 +2972,7 @@ label.role-option-card:hover {
 
 [data-theme="light"] .admin-modal-sheet-header {
   border-color: #f1f5f9;
+  background: #ffffff;
 }
 
 [data-theme="light"] .admin-modal-sheet-footer {
@@ -3581,5 +3582,76 @@ label.role-option-card:hover {
 [data-theme="light"] .admin-preview-meta strong {
   color: #0f172a;
 }
+
+[data-theme="light"] .admin-checkbox-field {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .admin-checkbox-field label {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .admin-resource-builder-section {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .admin-builder-title {
+  color: #0f172a;
+}
+
+[data-theme="light"] .admin-builder-desc {
+  color: #64748b;
+}
+
+[data-theme="light"] .admin-builder-empty {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+[data-theme="light"] .admin-builder-item-card,
+[data-theme="light"] .admin-builder-link-row {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .admin-file-summary-chip {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .admin-file-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .admin-file-size-tag {
+  color: #64748b;
+}
+
+[data-theme="light"] .admin-file-link-icon {
+  color: #64748b;
+}
+
+[data-theme="light"] .admin-file-link-icon:hover {
+  color: #0284c7;
+}
+
+[data-theme="light"] .admin-link-summary-item {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.25);
+}
+
+[data-theme="light"] .admin-link-summary-item:hover {
+  background: rgba(2, 132, 199, 0.16);
+}
+
+[data-theme="light"] .admin-resource-meta-bar {
+  color: #64748b;
+  border-top-color: #e2e8f0;
+}
+
 
 
