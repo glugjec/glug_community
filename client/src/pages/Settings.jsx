@@ -725,7 +725,7 @@ function stripHtml(html) {
                       />
                     </div>
                     <span className="settings-field-hint">
-                      Registered student email linked to your account.
+                      Registered email linked to your account.
                     </span>
                   </div>
 
@@ -739,7 +739,7 @@ function stripHtml(html) {
                           ? 'Administrator'
                           : user.role === 'content_admin'
                           ? 'Content Administrator'
-                          : 'Student Member'
+                          : 'Member'
                       }
                       disabled
                     />

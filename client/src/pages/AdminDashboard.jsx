@@ -965,7 +965,7 @@ export default function AdminDashboard() {
           <p className="admin-subtitle">
             {isContentAdmin
               ? "Publish community workshops, organize events, and curate curriculum learning resources."
-              : "Manage student community members, curate learning curriculum, moderate discussions, and monitor platform activity."}
+              : "Manage users, community members, curate learning curriculum, moderate discussions, and monitor platform activity."}
           </p>
         </div>
 
@@ -1270,7 +1270,7 @@ export default function AdminDashboard() {
                 <div className="admin-distribution-row">
                   <div className="admin-distribution-info">
                     <UserCheck size={16} className="text-blue" />
-                    <span>Students</span>
+                    <span>Members</span>
                   </div>
                   <div className="admin-distribution-bar-wrap">
                     <div
@@ -1607,7 +1607,7 @@ export default function AdminDashboard() {
                           ) : (
                             <UserCheck size={12} />
                           )}
-                          <span>{u.role === "content_admin" ? "content admin" : u.role}</span>
+                          <span>{u.role === "content_admin" ? "content admin" : u.role==="admin"? "admin" : "member"}</span>
                         </span>
                       </td>
                       <td>
@@ -4096,7 +4096,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="role-option-content">
                   <div className="role-option-header">
-                    <span className="role-option-title">Student Member</span>
+                    <span className="role-option-title">Member</span>
                   </div>
                   <p className="role-option-desc">Regular community member with forum and learning access</p>
                 </div>
