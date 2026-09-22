@@ -685,7 +685,7 @@ function stripHtml(html) {
                   <User size={20} color="#3b82f6" /> Account &amp; Identity
                 </h2>
                 <p className="settings-section-desc">
-                  Update your display handle and view your registered student details.
+                  Update your display handle and view your registered details.
                 </p>
               </div>
 
@@ -776,7 +776,7 @@ function stripHtml(html) {
                   <Shield size={20} color="#10b981" /> Security &amp; Password
                 </h2>
                 <p className="settings-section-desc">
-                  Protect your GLUG student account with a strong password.
+                  Protect your GLUG account with a strong password.
                 </p>
               </div>
 
