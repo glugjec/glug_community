@@ -21,12 +21,16 @@ const DIALOG_SELECTORS = [
   '.forum-modal',
   '.terminal-modal',
   '.admin-modal-box',
+  '.admin-modal-sheet',
+  '.admin-modal-sheet-body',
+  '.admin-modal-window',
   '.modal-container',
   '.profile-edit-modal',
   '.settings-appeal-modal',
   '.event-lightbox-content',
   '.ban-modal-card',
-  '.rte-link-modal'
+  '.rte-link-modal',
+  '[role="dialog"]'
 ].join(', ')
 
 export default function ModalScrollLock() {
@@ -66,6 +70,12 @@ export default function ModalScrollLock() {
 
     const handleWheelOrTouch = (e) => {
       if (!isLockedRef.current) return
+      if (e.target && typeof e.target.matches === 'function') {
+        if (e.target.matches(MODAL_SELECTORS)) {
+          e.preventDefault()
+          return
+        }
+      }
       if (e.target && typeof e.target.closest === 'function') {
         const isInsideOverlay = Boolean(e.target.closest(MODAL_SELECTORS))
         const isInsideDialog = Boolean(e.target.closest(DIALOG_SELECTORS))
