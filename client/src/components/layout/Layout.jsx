@@ -21,6 +21,20 @@ export default function Layout() {
   }, [collapsed])
 
   useEffect(() => {
+    if (mobileOpen) {
+      document.body.classList.add('glug-sidebar-mobile-open')
+      document.documentElement.classList.add('glug-sidebar-mobile-open')
+    } else {
+      document.body.classList.remove('glug-sidebar-mobile-open')
+      document.documentElement.classList.remove('glug-sidebar-mobile-open')
+    }
+    return () => {
+      document.body.classList.remove('glug-sidebar-mobile-open')
+      document.documentElement.classList.remove('glug-sidebar-mobile-open')
+    }
+  }, [mobileOpen])
+
+  useEffect(() => {
     const onResize = () => {
       if (window.innerWidth >= 900) {
         setMobileOpen(false)
@@ -56,6 +70,9 @@ export default function Layout() {
       <div
         className={`sidebar-backdrop${mobileOpen ? ' show' : ''}`}
         onClick={() => setMobileOpen(false)}
+        onTouchMove={(e) => {
+          if (e.cancelable) e.preventDefault()
+        }}
       />
     </div>
   )
